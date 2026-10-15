@@ -33,6 +33,7 @@ function load() {
   store.sessions ??= []; // finished/partial watch sessions recorded by Vanta
   store.minutes ??= 0; // total real watch time
   store.seasonSizes ??= {}; // season ratingKey -> episode count (from Plex)
+  store.patron ??= null; // { status: 'active' | 'lapsed', at } once Patron is earned
 }
 
 function save() {
@@ -78,6 +79,14 @@ const RULES = {
   },
 };
 const done = (c) => c.store.sessions.filter((s) => s.done);
+
+// A badge as the viewer sees it right now: Patron shows its 'lapsed' variant (Previous Patron, Epic, purple)
+// when the pledge isn't current. Rules and variant tables never leave the main process.
+function resolve(b) {
+  const { rule, variants, ...out } = b;
+  if (b.id === 'patron' && store.patron?.status === 'lapsed' && variants?.lapsed) return { ...out, ...variants.lapsed, variant: 'lapsed' };
+  return out;
+}
 
 function evaluate(event, session) {
   const fresh = [];
@@ -125,7 +134,7 @@ module.exports = {
     return {
       dev,
       // unreleased badges stay invisible in normal builds unless the viewer already has them
-      catalog: CATALOG.filter((b) => dev || !b.unreleased || store.earned[b.id]).map(({ rule, ...b }) => b),
+      catalog: CATALOG.filter((b) => dev || !b.unreleased || store.earned[b.id]).map(resolve),
       earned: store.earned,
       favorites: store.favorites,
       minutes: Math.round(store.minutes),
@@ -137,11 +146,27 @@ module.exports = {
     return this.state();
   },
   // Explicitly granted badges (rule 'grant', e.g. Patron). Callers decide who may grant; see main.cjs.
+  // Patron re-granted while lapsed becomes active (golden) again and returns the id so the toast shows.
   grant(id) {
     const b = CATALOG.find((x) => x.id === id);
-    if (!b || b.rule.type !== 'grant' || store.earned[id]) return [];
+    if (!b || b.rule.type !== 'grant') return [];
+    if (store.earned[id]) {
+      if (id !== 'patron' || store.patron?.status !== 'lapsed') return [];
+      store.patron = { status: 'active', at: Date.now() };
+      save();
+      return [id];
+    }
     store.earned[id] = { at: Date.now() };
+    if (id === 'patron') store.patron = { status: 'active', at: Date.now() };
     save();
     return [id];
+  },
+  // A pledge that isn't renewed: Patron stays earned (and favoritable) but shows as Epic 'Previous Patron'.
+  // Silent on purpose: no toast for lapsing.
+  setPatronStatus(status) {
+    if (!store.earned.patron || !['active', 'lapsed'].includes(status)) return false;
+    store.patron = { status, at: Date.now() };
+    save();
+    return true;
   },
 };

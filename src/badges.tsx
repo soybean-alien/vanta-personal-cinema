@@ -14,7 +14,9 @@ export interface BadgeDef {
   secret?: boolean;
   hint?: string;
   unreleased?: boolean;
-  special?: 'golden'; // fully orange 'golden ticket' toast (Patron)
+  special?: 'golden' | 'purple'; // full-color ticket: golden = current Patron, purple = Previous Patron
+  variant?: string; // set by the engine when a badge shows an alternate state (Patron 'lapsed')
+  variants?: Record<string, Partial<BadgeDef>>;
 }
 export interface BadgeState {
   dev?: boolean; // development build (enables dev-only grants)
@@ -25,6 +27,12 @@ export interface BadgeState {
 }
 
 export const CATALOG_BY_ID: Record<string, BadgeDef> = Object.fromEntries((CATALOG as BadgeDef[]).map((b) => [b.id, b]));
+// 'patron:lapsed' style ids pick a variant (used by previews); plain ids are the catalog entry.
+export function defFor(key: string): BadgeDef | undefined {
+  const [id, variant] = key.split(':');
+  const b = CATALOG_BY_ID[id];
+  return b && variant && b.variants?.[variant] ? { ...b, ...b.variants[variant], variant } : b;
+}
 const CATALOG_INDEX: Record<string, number> = Object.fromEntries((CATALOG as BadgeDef[]).map((b, i) => [b.id, i]));
 
 // ── Art ────────────────────────────────────────────────────────────────
@@ -140,22 +148,29 @@ export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge
   const font = "'Segoe UI', system-ui, sans-serif";
   const display = "Bahnschrift, 'Segoe UI', sans-serif";
   // Palettes: the normal light ticket, or a fully orange "golden ticket" for special badges (Patron).
-  const golden = badge.special === 'golden';
-  const p = golden
+  // Foiled, full-color tickets are reserved for Patron ONLY (golden = current, purple = Previous Patron).
+  // Every other badge, Legendary included, uses the standard paper ticket with a rarity stub.
+  const foil = badge.id === 'patron';
+  const golden = foil && badge.special === 'golden';
+  const purple = foil && badge.special === 'purple';
+  const p = purple
+    ? { paper: `url(#${uid}v)`, stub: '#4c1784', panel: 'rgba(255,255,255,0.12)', ink: '#ffffff', muted: '#e6d4ff', sub: '#f1e6ff', label: '#efe3ff', accent: '#ffffff', ribbon: '#24073f', ribbonText: '#d8b6ff', perf: '#e3ccff', disc: 'rgba(255,255,255,0.18)', stars: '#f1e3ff' }
+    : golden
     ? { paper: `url(#${uid}g)`, stub: '#c46400', panel: 'rgba(255,255,255,0.16)', ink: '#3a1d00', muted: '#6e3a00', sub: '#5a2e00', label: '#4a2600', accent: '#3a1d00', ribbon: '#3a1d00', ribbonText: '#ffd27a', perf: '#fff0d0', disc: 'rgba(255,255,255,0.28)', stars: '#fff6dc' }
     : { paper: '#f6f4ef', stub: r.color, panel: '#ebe7de', ink: '#3b3b3b', muted: '#7a7a7a', sub: '#6b6b6b', label: '#4a4a4a', accent: r.color, ribbon: r.color, ribbonText: '#fff', perf: '#b8b2a6', disc: '#ddd7cb', stars: r.color };
   const inner = `<defs>
 <clipPath id="${uid}c"><path d="${shape}"/></clipPath>
 <linearGradient id="${uid}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffc85a"/><stop offset=".55" stop-color="#ff9a12"/><stop offset="1" stop-color="#f07c00"/></linearGradient>
+<linearGradient id="${uid}v" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b779ff"/><stop offset=".55" stop-color="#8a3ae6"/><stop offset="1" stop-color="#6a22c4"/></linearGradient>
 <filter id="${uid}s" x="-5%" y="-5%" width="110%" height="120%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity=".45"/></filter></defs>
 <g transform="translate(10 8)">
 <path d="${shape}" fill="${p.paper}" filter="url(#${uid}s)"/>
 <g clip-path="url(#${uid}c)">
   <rect x="0" y="0" width="42" height="216" fill="${p.stub}"/>
   <rect x="440" y="0" width="160" height="216" fill="${p.panel}"/>
-  ${golden ? '<polygon points="250,0 330,0 230,216 150,216" fill="#fff" fill-opacity=".14"/><polygon points="345,0 365,0 265,216 245,216" fill="#fff" fill-opacity=".1"/>' : ''}
+  ${golden || purple ? '<polygon points="250,0 330,0 230,216 150,216" fill="#fff" fill-opacity=".14"/><polygon points="345,0 365,0 265,216 245,216" fill="#fff" fill-opacity=".1"/>' : ''}
 </g>
-<text transform="translate(27 108) rotate(-90)" text-anchor="middle" font-family="${display}" font-weight="700" font-size="15" letter-spacing="3" fill="#fff">${golden ? 'GOLDEN TICKET' : `VANTA ◆ ${r.label.toUpperCase()}`}</text>
+<text transform="translate(27 108) rotate(-90)" text-anchor="middle" font-family="${display}" font-weight="700" font-size="15" letter-spacing="3" fill="#fff">${golden ? 'GOLDEN TICKET' : purple ? 'PREVIOUS PATRON' : `VANTA ◆ ${r.label.toUpperCase()}`}</text>
 <svg x="66" y="12" width="58" height="58" viewBox="0 0 100 100">${badgeSvg(badge, uid + 'm')}</svg>
 ${stubName.map((l, i) => `<text x="53" y="${90 + i * 15}" font-family="${display}" font-weight="700" font-size="12.5" fill="${p.ink}">${esc(l)}</text>`).join('')}
 <text x="53" y="136" font-family="${font}" font-size="11" fill="${p.muted}">${serial}</text>
@@ -164,7 +179,7 @@ ${stubName.map((l, i) => `<text x="53" y="${90 + i * 15}" font-family="${display
 ${barcode(badge.id + 'stub', 53, 140, 180, 18, p.ink)}
 <line x1="150" y1="14" x2="150" y2="202" stroke="${p.perf}" stroke-width="1.5" stroke-dasharray="4 4"/>
 <polygon points="166,18 424,18 442,33 424,48 166,48" fill="${p.ribbon}"/>
-<text x="180" y="39" font-family="${display}" font-weight="700" font-size="17" letter-spacing="1.5" fill="${p.ribbonText}">${golden ? 'THANK YOU!' : 'CONGRATULATIONS!'}</text>
+<text x="180" y="39" font-family="${display}" font-weight="700" font-size="17" letter-spacing="1.5" fill="${p.ribbonText}">${golden || purple ? 'THANK YOU!' : 'CONGRATULATIONS!'}</text>
 ${star(492, 34, 9, p.stars)}${star(520, 24, 12, p.stars)}${star(548, 34, 9, p.stars)}
 <text x="180" y="88" font-family="${display}" font-weight="700" font-size="${titleSize}" fill="${p.ink}">${esc(title.toUpperCase())}</text>
 <text x="180" y="112" font-family="${font}" font-size="13" fill="${p.sub}"${subFit}>${esc(sub)}</text>
@@ -353,7 +368,7 @@ export function BadgeToasts({ sound, onEarned }: { sound: string; onEarned: () =
   const current = queue[0];
 
   const enqueue = useCallback((ids: string[], preview = false) => {
-    const known = ids.filter((id) => CATALOG_BY_ID[id]);
+    const known = ids.filter((id) => defFor(id));
     if (!known.length) return;
     // More than three at once: show the first in full, then one summary card.
     const items: ToastItem[] = known.length > 3 ? [{ id: known[0], preview }, { id: known[1], more: known.length - 1, preview }] : known.map((id) => ({ id, preview }));
@@ -408,7 +423,7 @@ export function BadgeToasts({ sound, onEarned }: { sound: string; onEarned: () =
   }, [current, sound]);
 
   if (!current) return null;
-  const b = CATALOG_BY_ID[current.id];
+  const b = defFor(current.id)!;
   const dismiss = () => {
     elapsed.current = SHOW_MS;
   };
@@ -430,19 +445,21 @@ export function BadgeShowcase({ state }: { state?: BadgeState }) {
   const [tip, setTip] = useState<{ id: string; x: number; y: number } | null>(null);
   if (!state) return null;
   const earned = Object.entries(state.earned).sort((a, b) => b[1].at - a[1].at).map(([id]) => id);
-  const ids = (state.favorites.length ? state.favorites : earned.slice(0, 3)).filter((id) => CATALOG_BY_ID[id]).slice(0, 6);
+  const ids = (state.favorites.length ? state.favorites : earned.slice(0, 3)).filter((id) => state.catalog.some((b) => b.id === id) || CATALOG_BY_ID[id]).slice(0, 6);
   if (!ids.length) return null;
   const show = (id: string, el: HTMLElement) => {
     const r = el.getBoundingClientRect();
     setTip({ id, x: r.right + 10, y: r.top + r.height / 2 });
   };
-  const t = tip && CATALOG_BY_ID[tip.id];
+  // Lookups go through the engine's resolved catalog, so a lapsed Patron shows as Previous Patron (Epic).
+  const def = (id: string) => state.catalog.find((b) => b.id === id) ?? CATALOG_BY_ID[id];
+  const t = tip && def(tip.id);
   return (
     <section className="showcase" aria-label="Badge showcase">
       <div className="nav-head">Badges</div>
       <div className="showcase-grid">
         {ids.map((id) => {
-          const b = CATALOG_BY_ID[id];
+          const b = def(id);
           return (
             <button
               key={id}
