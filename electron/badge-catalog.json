@@ -1,5 +1,6 @@
 [
   { "id": "first-light", "name": "First Light", "rarity": "legendary", "emblem": "spark", "earned": "Opened Vanta for the first time. Every viewer's welcome gift.", "rule": { "type": "launch" } },
+  { "id": "patron", "name": "Patron", "rarity": "legendary", "emblem": "heart", "special": "golden", "unreleased": true, "earned": "Supported Vanta's development with a donation.", "rule": { "type": "grant" } },
   { "id": "opening-night", "name": "Opening Night", "rarity": "common", "emblem": "ticket", "earned": "Finished your first movie in Vanta.", "rule": { "type": "finished", "count": 1, "kind": "movie" } },
   { "id": "popcorn-ready", "name": "Popcorn Ready", "rarity": "common", "emblem": "popcorn", "earned": "Watched your first full hour in Vanta.", "rule": { "type": "minutes", "total": 60 } },
   { "id": "double-feature", "name": "Double Feature", "rarity": "uncommon", "emblem": "reels", "earned": "Finished two movies on the same day.", "rule": { "type": "finishedSameDay", "count": 2, "kind": "movie" } },

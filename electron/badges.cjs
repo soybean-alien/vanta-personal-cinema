@@ -14,6 +14,8 @@ const { app } = require('electron');
 //   epic      much harder, real commitment; roughly 3 in 100
 //   legendary the elite few; roughly 1 in 100 (exception: First Light, everyone's onboarding gift)
 // Each badge exists once and can't be earned twice.
+// rule.type 'grant' is never evaluated automatically; such badges are granted explicitly (Patron: donations,
+// dev builds only until a donation backend exists). unreleased: hidden from normal builds unless already earned.
 // emblem: art key drawn by the UI; secret: only `hint` shows until earned; rule: evaluated by RULES below.
 const CATALOG = require('./badge-catalog.json');
 
@@ -119,8 +121,11 @@ module.exports = {
     return evaluate('session', session);
   },
   state() {
+    const dev = !app.isPackaged;
     return {
-      catalog: CATALOG.map(({ rule, ...b }) => b),
+      dev,
+      // unreleased badges stay invisible in normal builds unless the viewer already has them
+      catalog: CATALOG.filter((b) => dev || !b.unreleased || store.earned[b.id]).map(({ rule, ...b }) => b),
       earned: store.earned,
       favorites: store.favorites,
       minutes: Math.round(store.minutes),
@@ -131,9 +136,10 @@ module.exports = {
     save();
     return this.state();
   },
-  // Dev builds only: mark a badge earned to preview the toast.
-  debugAward(id) {
-    if (!CATALOG.some((b) => b.id === id)) return [];
+  // Explicitly granted badges (rule 'grant', e.g. Patron). Callers decide who may grant; see main.cjs.
+  grant(id) {
+    const b = CATALOG.find((x) => x.id === id);
+    if (!b || b.rule.type !== 'grant' || store.earned[id]) return [];
     store.earned[id] = { at: Date.now() };
     save();
     return [id];

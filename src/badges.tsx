@@ -13,8 +13,11 @@ export interface BadgeDef {
   earned: string;
   secret?: boolean;
   hint?: string;
+  unreleased?: boolean;
+  special?: 'golden'; // fully orange 'golden ticket' toast (Patron)
 }
 export interface BadgeState {
+  dev?: boolean; // development build (enables dev-only grants)
   catalog: BadgeDef[];
   earned: Record<string, { at: number }>;
   favorites: string[];
@@ -49,6 +52,7 @@ const EMBLEMS: Record<string, (c: string) => string> = {
     `<rect x="30" y="56" width="40" height="12" rx="3" fill="${c}"/><rect x="33" y="42" width="34" height="11" rx="3" fill="none" stroke="${c}" stroke-width="3.5"/><rect x="36" y="29" width="28" height="10" rx="3" fill="none" stroke="${c}" stroke-width="3.5"/>`,
   compass: (c) => `<circle cx="50" cy="50" r="23" fill="none" stroke="${c}" stroke-width="4"/><path d="M50 30 L56 50 L50 70 L44 50Z" fill="${c}"/><circle cx="50" cy="50" r="3" fill="#120f0a"/>`,
   crown: (c) => `<path d="M30 66 L28 38 L41 50 L50 32 L59 50 L72 38 L70 66Z" fill="${c}"/><rect x="30" y="68" width="40" height="5" rx="2" fill="${c}"/>`,
+  heart: (c) => `<path d="M50 72 C28 58 24 44 30 36 C36 28 46 30 50 38 C54 30 64 28 70 36 C76 44 72 58 50 72Z" fill="${c}"/><path d="M38 38 C35 41 35 45 37 48" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2.5" stroke-linecap="round"/>`,
   infinity: (c) =>
     `<path d="M50 50 C44 40 30 38 28 50 C30 62 44 60 50 50 C56 40 70 38 72 50 C70 62 56 60 50 50Z" fill="none" stroke="${c}" stroke-width="5" stroke-linejoin="round"/>`,
 };
@@ -135,37 +139,43 @@ export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge
     'M12 0 H140 A10 10 0 0 0 160 0 H588 Q600 0 600 12 V204 Q600 216 588 216 H160 A10 10 0 0 0 140 216 H12 Q0 216 0 204 V12 Q0 0 12 0 Z';
   const font = "'Segoe UI', system-ui, sans-serif";
   const display = "Bahnschrift, 'Segoe UI', sans-serif";
+  // Palettes: the normal light ticket, or a fully orange "golden ticket" for special badges (Patron).
+  const golden = badge.special === 'golden';
+  const p = golden
+    ? { paper: `url(#${uid}g)`, stub: '#c46400', panel: 'rgba(255,255,255,0.16)', ink: '#3a1d00', muted: '#6e3a00', sub: '#5a2e00', label: '#4a2600', accent: '#3a1d00', ribbon: '#3a1d00', ribbonText: '#ffd27a', perf: '#fff0d0', disc: 'rgba(255,255,255,0.28)', stars: '#fff6dc' }
+    : { paper: '#f6f4ef', stub: r.color, panel: '#ebe7de', ink: '#3b3b3b', muted: '#7a7a7a', sub: '#6b6b6b', label: '#4a4a4a', accent: r.color, ribbon: r.color, ribbonText: '#fff', perf: '#b8b2a6', disc: '#ddd7cb', stars: r.color };
   const inner = `<defs>
 <clipPath id="${uid}c"><path d="${shape}"/></clipPath>
+<linearGradient id="${uid}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffc85a"/><stop offset=".55" stop-color="#ff9a12"/><stop offset="1" stop-color="#f07c00"/></linearGradient>
 <filter id="${uid}s" x="-5%" y="-5%" width="110%" height="120%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity=".45"/></filter></defs>
 <g transform="translate(10 8)">
-<path d="${shape}" fill="#f6f4ef" filter="url(#${uid}s)"/>
+<path d="${shape}" fill="${p.paper}" filter="url(#${uid}s)"/>
 <g clip-path="url(#${uid}c)">
-  <rect x="0" y="0" width="42" height="216" fill="${r.color}"/>
-  <rect x="440" y="0" width="160" height="216" fill="#ebe7de"/>
+  <rect x="0" y="0" width="42" height="216" fill="${p.stub}"/>
+  <rect x="440" y="0" width="160" height="216" fill="${p.panel}"/>
+  ${golden ? '<polygon points="250,0 330,0 230,216 150,216" fill="#fff" fill-opacity=".14"/><polygon points="345,0 365,0 265,216 245,216" fill="#fff" fill-opacity=".1"/>' : ''}
 </g>
-<text transform="translate(27 108) rotate(-90)" text-anchor="middle" font-family="${display}" font-weight="700" font-size="15" letter-spacing="3" fill="#fff">VANTA ◆ ${r.label.toUpperCase()}</text>
+<text transform="translate(27 108) rotate(-90)" text-anchor="middle" font-family="${display}" font-weight="700" font-size="15" letter-spacing="3" fill="#fff">${golden ? 'GOLDEN TICKET' : `VANTA ◆ ${r.label.toUpperCase()}`}</text>
 <svg x="66" y="12" width="58" height="58" viewBox="0 0 100 100">${badgeSvg(badge, uid + 'm')}</svg>
-${stubName.map((l, i) => `<text x="53" y="${90 + i * 15}" font-family="${display}" font-weight="700" font-size="12.5" fill="#3b3b3b">${esc(l)}</text>`).join('')}
-<text x="53" y="136" font-family="${font}" font-size="11" fill="#7a7a7a">${serial}</text>
-<text x="53" y="151" font-family="${font}" font-size="11" fill="#7a7a7a">${date}</text>
-<text x="53" y="166" font-family="${font}" font-size="11" fill="${preview ? '#c0392b' : '#7a7a7a'}">${preview ? 'PREVIEW' : r.label}</text>
-${barcode(badge.id + 'stub', 53, 140, 180, 18, '#3b3b3b')}
-<line x1="150" y1="14" x2="150" y2="202" stroke="#b8b2a6" stroke-width="1.5" stroke-dasharray="4 4"/>
-<polygon points="166,18 424,18 442,33 424,48 166,48" fill="${r.color}"/>
-<text x="180" y="39" font-family="${display}" font-weight="700" font-size="17" letter-spacing="1.5" fill="#fff">CONGRATULATIONS!</text>
-${star(492, 34, 9, r.color)}${star(520, 24, 12, r.color)}${star(548, 34, 9, r.color)}
-<text x="180" y="88" font-family="${display}" font-weight="700" font-size="${titleSize}" fill="#3b3b3b">${esc(title.toUpperCase())}</text>
-<text x="180" y="112" font-family="${font}" font-size="13" fill="#6b6b6b"${subFit}>${esc(sub)}</text>
-<text x="180" y="144" font-family="Georgia, serif" font-size="15" fill="#4a4a4a">Rarity:</text>
-<text x="426" y="144" text-anchor="end" font-family="Georgia, serif" font-size="15" font-weight="700" fill="${r.color}">${r.label}</text>
-<text x="180" y="167" font-family="Georgia, serif" font-size="15" fill="#4a4a4a">Unlocked:</text>
-<text x="426" y="167" text-anchor="end" font-family="Georgia, serif" font-size="15" fill="#4a4a4a">${date}</text>
-${barcode(badge.id, 180, 426, 180, 20, '#3b3b3b')}
-<circle cx="520" cy="124" r="62" fill="#ddd7cb"/>
+${stubName.map((l, i) => `<text x="53" y="${90 + i * 15}" font-family="${display}" font-weight="700" font-size="12.5" fill="${p.ink}">${esc(l)}</text>`).join('')}
+<text x="53" y="136" font-family="${font}" font-size="11" fill="${p.muted}">${serial}</text>
+<text x="53" y="151" font-family="${font}" font-size="11" fill="${p.muted}">${date}</text>
+<text x="53" y="166" font-family="${font}" font-size="11" fill="${preview ? '#c0392b' : p.muted}">${preview ? 'PREVIEW' : r.label}</text>
+${barcode(badge.id + 'stub', 53, 140, 180, 18, p.ink)}
+<line x1="150" y1="14" x2="150" y2="202" stroke="${p.perf}" stroke-width="1.5" stroke-dasharray="4 4"/>
+<polygon points="166,18 424,18 442,33 424,48 166,48" fill="${p.ribbon}"/>
+<text x="180" y="39" font-family="${display}" font-weight="700" font-size="17" letter-spacing="1.5" fill="${p.ribbonText}">${golden ? 'THANK YOU!' : 'CONGRATULATIONS!'}</text>
+${star(492, 34, 9, p.stars)}${star(520, 24, 12, p.stars)}${star(548, 34, 9, p.stars)}
+<text x="180" y="88" font-family="${display}" font-weight="700" font-size="${titleSize}" fill="${p.ink}">${esc(title.toUpperCase())}</text>
+<text x="180" y="112" font-family="${font}" font-size="13" fill="${p.sub}"${subFit}>${esc(sub)}</text>
+<text x="180" y="144" font-family="Georgia, serif" font-size="15" fill="${p.label}">Rarity:</text>
+<text x="426" y="144" text-anchor="end" font-family="Georgia, serif" font-size="15" font-weight="700" fill="${p.accent}">${r.label}</text>
+<text x="180" y="167" font-family="Georgia, serif" font-size="15" fill="${p.label}">Unlocked:</text>
+<text x="426" y="167" text-anchor="end" font-family="Georgia, serif" font-size="15" fill="${p.label}">${date}</text>
+${barcode(badge.id, 180, 426, 180, 20, p.ink)}
+<circle cx="520" cy="124" r="62" fill="${p.disc}"/>
 <svg x="462" y="66" width="116" height="116" viewBox="0 0 100 100">${badgeSvg(badge, uid + 'b')}</svg>
-</g>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TICKET.w} ${TICKET.h}" width="${TICKET.w}" height="${TICKET.h}">${inner}</svg>`;
+</g>`;  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TICKET.w} ${TICKET.h}" width="${TICKET.w}" height="${TICKET.h}">${inner}</svg>`;
 }
 
 // SVG -> raw premultiplied BGRA (base64) for mpv's overlay-add.

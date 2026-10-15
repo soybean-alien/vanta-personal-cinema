@@ -155,6 +155,8 @@ app.whenReady().then(() => {
   handle('badges:get', () => badges.state());
   handle('badges:take', () => (player.isPlaying() ? [] : pendingBadges.splice(0)));
   handle('badges:setFavorites', (ids) => badges.setFavorites(ids));
+  // Patron is earned by donating; until a donation backend exists, only development builds can grant it.
+  if (!app.isPackaged) handle('badges:devGrant', (id) => queueBadges(badges.grant(id)));
   handle('update:get', () => updater.get());
   handle('update:check', () => updater.check().then(updater.get));
   handle('update:download', () => updater.download().then(updater.get));
