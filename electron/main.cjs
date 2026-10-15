@@ -146,6 +146,7 @@ app.whenReady().then(() => {
   if (!app.isPackaged) handle('health:simulate', (level) => health.simulate(level));
   handle('auth:signOut', () => plex.signOut());
   handle('pms:get', (p) => plex.pms(p));
+  handle('user:avatar', () => plex.avatar());
   handle('prefs:get', () => plex.getPrefs());
   handle('prefs:set', (patch) => {
     const prefs = plex.setPrefs(patch);

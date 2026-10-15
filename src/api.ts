@@ -148,6 +148,7 @@ declare global {
       badges(): Promise<import('./badges').BadgeState>;
       takeBadges(): Promise<string[]>;
       setFavoriteBadges(ids: string[]): Promise<import('./badges').BadgeState>;
+      avatar(): Promise<string | null | { error: string }>;
       devGrantBadge?(id: string): Promise<void>;
       devPatronLapse?(): Promise<boolean>;
       onBadgesEarned(cb: () => void): () => void;

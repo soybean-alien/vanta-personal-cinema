@@ -4,7 +4,7 @@ import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, Use
 import { AppCtx, Ctx, Menu, MenuEntry, Modal, View, useUpdate } from './components';
 import { focusEl, focusFirst, installGamepad, installKeys } from './nav';
 import mark from './assets/vanta-mark.svg';
-import { BadgeShowcase, BadgeState, BadgeToasts, setTicketHolder } from './badges';
+import { BadgeShowcase, BadgeState, BadgeToasts, setTicketAvatar, setTicketHolder } from './badges';
 import { BadgeCategoryPage, BadgesPage } from './badges-page';
 import { Collections, Detail, Library, Playlist, Search, Settings } from './views';
 
@@ -263,6 +263,10 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
     window.addEventListener('vanta:badges-changed', refreshBadges);
     return () => window.removeEventListener('vanta:badges-changed', refreshBadges);
   }, [refreshBadges]);
+  // Badge tickets carry the user's Plex profile picture (fetched once by the main process).
+  useEffect(() => {
+    window.plex.avatar().then((a) => typeof a === 'string' && setTicketAvatar(a)).catch(() => {});
+  }, [user.thumb]);
   const searchRef = useRef<HTMLInputElement>(null);
   const playingRef = useRef(false);
   const restoreRef = useRef<HTMLElement | null>(null);
