@@ -67,27 +67,68 @@ const EMBLEMS: Record<string, (c: string) => string> = {
     `<path d="M50 50 C44 40 30 38 28 50 C30 62 44 60 50 50 C56 40 70 38 72 50 C70 62 56 60 50 50Z" fill="none" stroke="${c}" stroke-width="5" stroke-linejoin="round"/>`,
 };
 
-// A 12-point rosette medal: rarity-colored rim, black face, rarity emblem. Returns the inner SVG markup.
-// locked = an unearned silhouette (grey, emblem shape still readable); secret = a locked badge showing only '?'.
+// Deep enamel shade per rarity (the disc behind the neon emblem).
+const INK: Record<Rarity, string> = { common: '#24272c', uncommon: '#0b2b15', rare: '#0c1a44', epic: '#2a0a4a', legendary: '#3a1d00' };
+
+// Organic wax outline around (50,50): a ring of slightly uneven radii, smoothed into a closed Catmull-Rom curve.
+// Seeded by the badge id so each badge keeps its own shape everywhere it's drawn.
+function waxPath(id: string, r: number) {
+  let s = [...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 233280, 7);
+  const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  const n = 22;
+  const p = Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2;
+    const rr = r * (0.94 + rnd() * 0.1) + (i % 4 === 0 ? r * 0.05 * rnd() : 0);
+    return [50 + rr * Math.cos(a), 50 + rr * Math.sin(a)];
+  });
+  const f = (v: number) => v.toFixed(1);
+  let d = `M${f(p[0][0])} ${f(p[0][1])}`;
+  for (let i = 0; i < n; i++) {
+    const [p0, p1, p2, p3] = [p[(i - 1 + n) % n], p[i], p[(i + 1) % n], p[(i + 2) % n]];
+    d += ` C${f(p1[0] + (p2[0] - p0[0]) / 6)} ${f(p1[1] + (p2[1] - p0[1]) / 6)} ${f(p2[0] - (p3[0] - p1[0]) / 6)} ${f(p2[1] - (p3[1] - p1[1]) / 6)} ${f(p2[0])} ${f(p2[1])}`;
+  }
+  return d + 'Z';
+}
+
+// The badge style (the user's pick, "variant C"): a wax-seal body with a neon glow around its edge, an enamel-pin
+// disc (gold rim, deep rarity enamel, one shine) pressed into it, and the emblem as neon tubing. The tubing comes
+// from a filter (shape minus its eroded self = outline), so every emblem in EMBLEMS works unchanged.
+// locked = an unearned silhouette (grey, no glow, emblem shape still readable); secret = a locked badge showing only '?'.
 const SILHOUETTE = { color: '#3a3d44', lo: '#2a2d33', hi: '#4b4f57', glint: '#5b6069', label: '' };
 function badgeSvg(badge: BadgeDef, uid: string, locked = false, secret = false) {
   const t = locked ? SILHOUETTE : RARITY[badge.rarity];
-  const points = Array.from({ length: 24 }, (_, i) => {
-    const r = i % 2 ? 44 : 49;
-    const a = (i / 24) * Math.PI * 2 - Math.PI / 2;
-    return `${(50 + r * Math.cos(a)).toFixed(1)},${(50 + r * Math.sin(a)).toFixed(1)}`;
-  }).join(' ');
+  const ink = locked ? '#1d1f23' : INK[badge.rarity];
+  const wax = waxPath(badge.id, 37);
+  const glyph = (EMBLEMS[badge.emblem] || EMBLEMS.spark)('#fff');
+  const s = 0.6;
   const emblem = secret
-    ? `<text x="50" y="61" text-anchor="middle" font-family="Segoe UI" font-size="32" font-weight="700" fill="#5b6069">?</text>`
-    : (EMBLEMS[badge.emblem] || EMBLEMS.spark)(locked ? '#41454d' : `url(#${uid}m)`);
+    ? `<text x="50" y="59" text-anchor="middle" font-family="Segoe UI" font-size="26" font-weight="700" fill="#5b6069">?</text>`
+    : locked
+      ? `<g transform="translate(${50 - 50 * s} ${50 - 50 * s}) scale(${s})">${(EMBLEMS[badge.emblem] || EMBLEMS.spark)('#3d4148')}</g>`
+      : `<g filter="url(#${uid}n)"><g transform="translate(${50 - 50 * s} ${50 - 50 * s}) scale(${s})">${glyph}</g></g>`;
   return `<defs>
-<linearGradient id="${uid}r" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${t.hi}"/><stop offset=".45" stop-color="${t.lo}"/><stop offset=".7" stop-color="${t.hi}"/><stop offset="1" stop-color="${t.lo}"/></linearGradient>
-<linearGradient id="${uid}m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.glint}"/><stop offset="1" stop-color="${t.hi}"/></linearGradient>
-<radialGradient id="${uid}f" cx=".5" cy=".35" r=".7"><stop offset="0" stop-color="#2a241a"/><stop offset="1" stop-color="#0b0906"/></radialGradient></defs>
-<polygon points="${points}" fill="url(#${uid}r)"/>
-<circle cx="50" cy="50" r="36" fill="url(#${uid}f)" stroke="${t.lo}" stroke-width="1.5"/>
-<circle cx="50" cy="50" r="33" fill="none" stroke="${t.hi}" stroke-opacity=".35" stroke-width="1"/>
-${emblem}`;
+<radialGradient id="${uid}w" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="${t.hi}"/><stop offset=".45" stop-color="${t.color}"/><stop offset="1" stop-color="${t.lo}"/></radialGradient>
+<linearGradient id="${uid}m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${locked ? '#5b6069' : '#fff6d6'}"/><stop offset=".45" stop-color="${locked ? '#41454d' : '#d2ab55'}"/><stop offset="1" stop-color="${locked ? '#2a2d33' : '#7a5a1a'}"/></linearGradient>
+<radialGradient id="${uid}e" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="${t.lo}"/><stop offset="1" stop-color="${ink}"/></radialGradient>
+<filter id="${uid}g" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3"/></filter>
+<filter id="${uid}n" x="-40%" y="-40%" width="180%" height="180%">
+<feMorphology in="SourceAlpha" operator="erode" radius="1" result="in"/><feComposite in="SourceAlpha" in2="in" operator="out" result="tube"/>
+<feGaussianBlur in="tube" stdDeviation="1.6" result="blur"/><feFlood flood-color="${t.hi}"/><feComposite in2="blur" operator="in" result="glow"/>
+<feFlood flood-color="${t.glint}"/><feComposite in2="tube" operator="in" result="core"/>
+<feMerge><feMergeNode in="glow"/><feMergeNode in="glow"/><feMergeNode in="core"/></feMerge></filter>
+<clipPath id="${uid}c"><circle cx="50" cy="50" r="22"/></clipPath></defs>
+<g transform="translate(50 50) scale(1.1) translate(-50 -50)">
+${locked ? '' : `<path d="${wax}" fill="none" stroke="${t.color}" stroke-width="4.5" filter="url(#${uid}g)" opacity=".95"/>`}
+<path d="${wax}" fill="url(#${uid}w)"/>
+<path d="${wax}" fill="none" stroke="${t.hi}" stroke-width=".8" stroke-opacity="${locked ? '.4' : '.9'}"/>
+<circle cx="50" cy="50" r="30" fill="${t.lo}" opacity=".45"/>
+<circle cx="50" cy="50" r="29" fill="none" stroke="${t.hi}" stroke-opacity=".35" stroke-width="1"/>
+<circle cx="50" cy="51.2" r="26" fill="#000" opacity=".35"/>
+<circle cx="50" cy="50" r="26" fill="url(#${uid}m)"/>
+<circle cx="50" cy="50" r="22.5" fill="url(#${uid}e)"/>
+${emblem}
+${locked ? '' : `<g clip-path="url(#${uid}c)"><path d="M30 46 A22 22 0 0 1 53 29" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="3.5" stroke-linecap="round"/></g>`}
+</g>`;
 }
 
 export function BadgeArt({ badge, size = 48, locked = false, secret = false }: { badge: BadgeDef; size?: number; locked?: boolean; secret?: boolean }) {
@@ -96,6 +137,7 @@ export function BadgeArt({ badge, size = 48, locked = false, secret = false }: {
     <svg
       className={`badge-art ${locked ? 'locked' : ''}`}
       viewBox="0 0 100 100"
+      overflow="visible"
       width={size}
       height={size}
       aria-label={badge.name}
@@ -177,7 +219,7 @@ export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge
   ${golden || purple ? '<polygon points="250,0 330,0 230,216 150,216" fill="#fff" fill-opacity=".14"/><polygon points="345,0 365,0 265,216 245,216" fill="#fff" fill-opacity=".1"/>' : ''}
 </g>
 <text transform="translate(27 108) rotate(-90)" text-anchor="middle" font-family="${display}" font-weight="700" font-size="15" letter-spacing="3" fill="#fff">${golden ? 'GOLDEN TICKET' : purple ? 'PREVIOUS PATRON' : `VANTA ◆ ${r.label.toUpperCase()}`}</text>
-<svg x="66" y="12" width="58" height="58" viewBox="0 0 100 100">${badgeSvg(badge, uid + 'm')}</svg>
+<svg x="66" y="12" width="58" height="58" viewBox="0 0 100 100" overflow="visible">${badgeSvg(badge, uid + 'm')}</svg>
 ${stubName.map((l, i) => `<text x="53" y="${90 + i * 15}" font-family="${display}" font-weight="700" font-size="12.5" fill="${p.ink}">${esc(l)}</text>`).join('')}
 <text x="53" y="136" font-family="${font}" font-size="11" fill="${p.muted}">${serial}</text>
 <text x="53" y="151" font-family="${font}" font-size="11" fill="${p.muted}">${date}</text>
@@ -195,7 +237,7 @@ ${star(492, 34, 9, p.stars)}${star(520, 24, 12, p.stars)}${star(548, 34, 9, p.st
 <text x="426" y="167" text-anchor="end" font-family="Georgia, serif" font-size="15" fill="${p.label}">${date}</text>
 ${barcode(badge.id, 180, 426, 180, 20, p.ink)}
 <circle cx="520" cy="124" r="62" fill="${p.disc}"/>
-<svg x="462" y="66" width="116" height="116" viewBox="0 0 100 100">${badgeSvg(badge, uid + 'b')}</svg>
+<svg x="462" y="66" width="116" height="116" viewBox="0 0 100 100" overflow="visible">${badgeSvg(badge, uid + 'b')}</svg>
 </g>`;  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TICKET.w} ${TICKET.h}" width="${TICKET.w}" height="${TICKET.h}">${inner}</svg>`;
 }
 
