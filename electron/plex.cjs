@@ -281,8 +281,24 @@ async function image(thumbPath, w, h) {
   return fetch(`${session.server.uri}/photo/:/transcode?${q}`, { headers: headers(session.server.token) });
 }
 
+// The signed-in user's Plex profile picture as a data: URL (badge tickets embed it; SVG-as-image can't load URLs).
+let avatarCache = null;
+async function avatar() {
+  const thumb = session?.user?.thumb;
+  if (!thumb || !/^https:\/\/([a-z0-9-]+\.)*plex\.tv\//i.test(thumb)) return null;
+  if (avatarCache?.thumb === thumb) return avatarCache.data;
+  const res = await fetch(thumb, { signal: AbortSignal.timeout(10000) });
+  if (!res.ok) return null;
+  const type = res.headers.get('content-type') || 'image/png';
+  if (!type.startsWith('image/')) return null;
+  const data = `data:${type};base64,${Buffer.from(await res.arrayBuffer()).toString('base64')}`;
+  avatarCache = { thumb, data };
+  return data;
+}
+
 module.exports = {
   loadSettings,
+  avatar,
   signIn,
   signOut,
   connect,

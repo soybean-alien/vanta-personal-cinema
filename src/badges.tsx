@@ -151,15 +151,6 @@ export function BadgeArt({ badge, size = 48, locked = false, secret = false }: {
 // the badge name, rarity/date rows, a barcode and the medallion. One SVG serves both the in-app toast and the
 // overlay drawn inside mpv during playback, so they always match.
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-function wrapChars(text: string, max: number, lines = 2) {
-  const out: string[] = [];
-  for (const w of text.split(' ')) {
-    const last = out[out.length - 1];
-    if (last !== undefined && (last + ' ' + w).length <= max) out[out.length - 1] = last + ' ' + w;
-    else out.push(w);
-  }
-  return out.slice(0, lines);
-}
 // One line if it fits, otherwise two lines split at the space nearest the middle (no lonely last word).
 function balanced(text: string, max: number) {
   if (text.length <= max) return [text];
@@ -189,11 +180,17 @@ const star = (cx: number, cy: number, r: number, fill: string) => {
   return `<polygon points="${p}" fill="${fill}"/>`;
 };
 
-// The ticket is issued to the signed-in Plex account's username (set by the app shell once signed in).
+// The ticket is issued to the signed-in Plex account: its username and profile picture (a data: URL, since an
+// SVG drawn as an image can't load URLs). Both are set by the app shell once signed in.
 let ticketHolder = '';
+let ticketAvatar = '';
 export const setTicketHolder = (name: string) => {
   ticketHolder = name;
 };
+export const setTicketAvatar = (dataUrl: string) => {
+  ticketAvatar = dataUrl;
+};
+const ONLINE = '#45e06f';
 
 export const TICKET = { w: 620, h: 240 };
 export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge: BadgeDef; at: number; more?: number; preview?: boolean; uid: string }) {
@@ -206,7 +203,6 @@ export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge
   const subFit = sub.length * 6.6 > 250 ? ' textLength="250" lengthAdjust="spacingAndGlyphs"' : '';
   // Why it was earned (the catalog's `earned` text), up to two lines under the headline.
   const reason = more ? [] : balanced(badge.earned || '', 38);
-  const stubName = wrapChars((more ? 'Badges unlocked' : badge.name).toUpperCase(), 11);
   const shape =
     'M12 0 H140 A10 10 0 0 0 160 0 H588 Q600 0 600 12 V204 Q600 216 588 216 H160 A10 10 0 0 0 140 216 H12 Q0 216 0 204 V12 Q0 0 12 0 Z';
   const font = "'Segoe UI', system-ui, sans-serif";
@@ -229,6 +225,21 @@ export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge
     const w = Math.round(shown.length * 7.6 + 18);
     return `<rect x="${426 - w}" y="${y - 14}" width="${w}" height="19" rx="9.5" fill="${p.ribbon}"/><text x="${426 - w / 2}" y="${y}" text-anchor="middle" font-family="${display}" font-weight="700" font-size="13" fill="${p.ribbonText}">${esc(shown)}</text>`;
   };
+  // Stub: the holder's Plex profile picture with an "online" dot, and their username in green on black under it.
+  const holderStub = () => {
+    const cx = 96, cy = 42, rad = 28;
+    const name = ticketHolder.length > 16 ? ticketHolder.slice(0, 15) + '…' : ticketHolder;
+    const initials = (ticketHolder || '?').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || '?';
+    const pic = ticketAvatar
+      ? `<image href="${ticketAvatar}" x="${cx - rad}" y="${cy - rad}" width="${rad * 2}" height="${rad * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${uid}a)"/>`
+      : `<circle cx="${cx}" cy="${cy}" r="${rad}" fill="#2a2d33"/><text x="${cx}" y="${cy + 7}" text-anchor="middle" font-family="${display}" font-weight="700" font-size="20" fill="#cfd3da">${esc(initials)}</text>`;
+    const fs = Math.min(13, 92 / Math.max(1, name.length * 0.6));
+    const w = Math.min(104, Math.round(name.length * fs * 0.6 + 16));
+    return `<clipPath id="${uid}a"><circle cx="${cx}" cy="${cy}" r="${rad}"/></clipPath>
+<circle cx="${cx}" cy="${cy}" r="${rad + 2.5}" fill="#111"/>${pic}
+<circle cx="${cx + rad * 0.72}" cy="${cy + rad * 0.72}" r="6.5" fill="#111"/><circle cx="${cx + rad * 0.72}" cy="${cy + rad * 0.72}" r="4.5" fill="${ONLINE}"/>
+${name ? `<rect x="${cx - w / 2}" y="${cy + rad + 8}" width="${w}" height="19" rx="9.5" fill="#0b0b0d"/><text x="${cx}" y="${cy + rad + 22}" text-anchor="middle" font-family="${display}" font-weight="700" font-size="${fs.toFixed(1)}" fill="${ONLINE}">${esc(name)}</text>` : ''}`;
+  };
   const inner = `<defs>
 <clipPath id="${uid}c"><path d="${shape}"/></clipPath>
 <linearGradient id="${uid}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffc85a"/><stop offset=".55" stop-color="#ff9a12"/><stop offset="1" stop-color="#f07c00"/></linearGradient>
@@ -242,8 +253,7 @@ export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge
   ${golden || purple ? '<polygon points="250,0 330,0 230,216 150,216" fill="#fff" fill-opacity=".14"/><polygon points="345,0 365,0 265,216 245,216" fill="#fff" fill-opacity=".1"/>' : ''}
 </g>
 <text transform="translate(27 108) rotate(-90)" text-anchor="middle" font-family="${display}" font-weight="700" font-size="15" letter-spacing="3" fill="#fff">${golden ? 'GOLDEN TICKET' : purple ? 'PREVIOUS PATRON' : `VANTA ◆ ${r.label.toUpperCase()}`}</text>
-<svg x="66" y="12" width="58" height="58" viewBox="0 0 100 100" overflow="visible">${badgeSvg(badge, uid + 'm')}</svg>
-${stubName.map((l, i) => `<text x="53" y="${90 + i * 15}" font-family="${display}" font-weight="700" font-size="12.5" fill="${p.ink}">${esc(l)}</text>`).join('')}
+${holderStub()}
 <text x="53" y="136" font-family="${font}" font-size="11" fill="${p.muted}">${serial}</text>
 <text x="53" y="151" font-family="${font}" font-size="11" fill="${p.muted}">${date}</text>
 <text x="53" y="166" font-family="${font}" font-size="11" fill="${preview ? '#c0392b' : p.muted}">${preview ? 'PREVIEW' : r.label}</text>
