@@ -186,7 +186,7 @@ const DEMO_BADGES = {
 export function install() {
   let prefs: Prefs = {
     player: { fullscreen: true, autoplay: true, countdown: 5, skipIntro: 'button', audioLang: 'default', subLang: 'english', subMode: 'smart', hwdec: true, quality: 'default', smoothMotion: false, shaders: '', extraArgs: '' },
-    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'halo', hiddenLibs: [], showPlaylists: true, pins: [] },
+    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'temple', hiddenLibs: [], showPlaylists: true, pins: [] },
   };
   const stateListeners = new Set<(s: any) => void>();
   const later = <T>(v: T, ms = 40) => new Promise<T>((r) => setTimeout(() => r(v), ms));

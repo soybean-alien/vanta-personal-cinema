@@ -53,7 +53,7 @@ const DEFAULT_PREFS = {
   ui: {
     displayName: 'username', // username | title
     updates: 'ask', // auto | ask | manual
-    badgeSound: 'halo', // halo | glint | velvet | starlight | off
+    badgeSound: 'temple', // temple | dusk | hearth | lantern | harbor | ember | off
     brandLayout: 'tagline', // inline | stacked | corner | bold | tagline | gilded | seal | monogram | row
     hiddenLibs: [],
     showPlaylists: true,

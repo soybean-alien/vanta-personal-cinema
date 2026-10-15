@@ -83,61 +83,90 @@ ${emblem}`;
 
 // ── Chimes (original, synthesized; nothing licensed) ───────────────────
 export const CHIMES: [string, string][] = [
-  ['halo', 'Halo'],
-  ['glint', 'Glint'],
-  ['velvet', 'Velvet'],
-  ['starlight', 'Starlight'],
+  ['temple', 'Temple (singing bowl)'],
+  ['dusk', 'Dusk (deep dong)'],
+  ['hearth', 'Hearth (low two-note)'],
+  ['lantern', 'Lantern (wooden mallet)'],
+  ['harbor', 'Harbor (distant gong)'],
+  ['ember', 'Ember (warm keys)'],
   ['off', 'Off'],
 ];
 
 // Builds a chime into any audio context (live or offline), starting at `now`.
+// Everything here is deliberately low, soft-edged and dark: low notes, slow attacks, highs filtered off,
+// and a gentle generated reverb tail. Nothing bright or alarm-like.
 function scoreChime(ctx: BaseAudioContext, name: string, now: number) {
+  // master: soft volume -> low-pass (removes brightness) -> dry + reverb
   const out = ctx.createGain();
-  out.gain.value = 0.16; // soft by design
-  // gentle room: a short feedback echo
-  const delay = ctx.createDelay();
-  delay.delayTime.value = 0.19;
-  const fb = ctx.createGain();
-  fb.gain.value = 0.28;
-  delay.connect(fb).connect(delay);
-  out.connect(ctx.destination);
-  out.connect(delay).connect(ctx.destination);
+  out.gain.value = 0.24; // subtle on purpose
+  const tone = ctx.createBiquadFilter();
+  tone.type = 'lowpass';
+  tone.frequency.value = name === 'lantern' ? 2200 : 1500;
+  tone.Q.value = 0.4;
+  out.connect(tone);
+  const dry = ctx.createGain();
+  dry.gain.value = 0.8;
+  tone.connect(dry).connect(ctx.destination);
+  // reverb: a decaying noise impulse, so the sound blooms and fades instead of stopping
+  const verb = ctx.createConvolver();
+  const len = Math.floor(ctx.sampleRate * 3.2);
+  const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    let seed = 1234 + ch * 77;
+    for (let i = 0; i < len; i++) {
+      seed = (seed * 16807) % 2147483647;
+      d[i] = ((seed / 2147483647) * 2 - 1) * Math.pow(1 - i / len, 3.2);
+    }
+  }
+  verb.buffer = ir;
+  const wet = ctx.createGain();
+  wet.gain.value = 0.32;
+  tone.connect(verb).connect(wet).connect(ctx.destination);
 
-  const tone = (freq: number, at: number, dur: number, type: OscillatorType = 'sine', gain = 1, attack = 0.015) => {
+  // one partial: sine with a soft attack and a long exponential decay; `detune` adds slow warm beating
+  const partial = (freq: number, at: number, dur: number, gain: number, attack = 0.04, detune = 0) => {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
-    o.type = type;
     o.frequency.value = freq;
+    o.detune.value = detune;
     g.gain.setValueAtTime(0, now + at);
     g.gain.linearRampToValueAtTime(gain, now + at + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, now + at + dur);
     o.connect(g).connect(out);
     o.start(now + at);
-    o.stop(now + at + dur + 0.05);
+    o.stop(now + at + dur + 0.1);
   };
-  // bell = fundamental + inharmonic partials
-  const bell = (f: number, at: number, dur: number, gain = 1) => {
-    tone(f, at, dur, 'sine', gain);
-    tone(f * 2.76, at, dur * 0.5, 'sine', gain * 0.18);
-    tone(f * 5.4, at, dur * 0.25, 'sine', gain * 0.06);
+  // a struck metal body: fundamental plus a few quiet inharmonic partials that fade faster
+  const strike = (f: number, at: number, dur: number, gain: number, ratios: number[], attack = 0.04) => {
+    partial(f, at, dur, gain, attack, -3);
+    partial(f, at, dur, gain * 0.5, attack, 4); // the pair beats gently, like a real bowl
+    ratios.forEach((r, i) => partial(f * r, at, dur * (0.55 - i * 0.12), gain * (0.22 / (i + 1)), attack));
   };
 
-  if (name === 'halo') {
-    bell(659.25, 0, 1.6, 0.9); // E5
-    bell(987.77, 0.13, 2.0, 0.8); // B5
-    tone(1975.5, 0.13, 1.2, 'sine', 0.08);
-  } else if (name === 'glint') {
-    [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, i * 0.075, 0.7, 'triangle', 0.5 - i * 0.07));
-  } else if (name === 'velvet') {
-    [440, 554.37, 659.25].forEach((f) => tone(f, 0, 1.8, 'sine', 0.42, 0.18));
-    bell(1760, 0.32, 1.2, 0.35);
+  if (name === 'temple') {
+    strike(196, 0, 5.5, 0.9, [2.71, 5.15], 0.06); // G3 singing bowl
+  } else if (name === 'dusk') {
+    strike(130.81, 0, 4.2, 1, [2, 3.01], 0.05); // C3, round and plain
+  } else if (name === 'hearth') {
+    strike(220, 0, 2.6, 0.8, [2, 2.99], 0.04); // A3
+    strike(174.61, 0.42, 4.0, 0.85, [2, 2.99], 0.05); // F3, lands lower and settles
+  } else if (name === 'lantern') {
+    // wooden mallet: quick soft knock that dies fast, under a warm sustained body
+    [293.66, 220].forEach((f, i) => {
+      partial(f, i * 0.28, 1.6, 0.75, 0.012);
+      partial(f * 3.9, i * 0.28, 0.18, 0.12, 0.006);
+    });
+  } else if (name === 'harbor') {
+    strike(98, 0, 6.5, 0.95, [1.48, 2.3, 3.6], 0.12); // G2 gong, slow swell
   } else {
-    bell(783.99, 0, 1.0, 0.7); // G5
-    bell(1174.66, 0.11, 1.2, 0.7); // D6
-    bell(1567.98, 0.24, 1.8, 0.75); // G6
+    // ember: soft electric-piano chord, C3 E3 G3, gently staggered
+    [130.81, 164.81, 196].forEach((f, i) => {
+      partial(f, i * 0.05, 3.6, 0.5, 0.03, -2);
+      partial(f * 2, i * 0.05, 1.4, 0.1, 0.03);
+    });
   }
 }
-
 let audio: AudioContext | null = null;
 export function playChime(name: string) {
   if (name === 'off') return;
@@ -148,7 +177,7 @@ export function playChime(name: string) {
 // Renders a chime to a 16-bit stereo WAV (base64), so the sounds can be auditioned outside the app.
 export async function renderChimeWav(name: string): Promise<string> {
   const rate = 44100;
-  const ctx = new OfflineAudioContext(2, rate * 3.2, rate);
+  const ctx = new OfflineAudioContext(2, rate * 7, rate);
   scoreChime(ctx, name, 0.02);
   const buf = await ctx.startRendering();
   const frames = buf.length;
