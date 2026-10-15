@@ -504,8 +504,10 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
   const setP = (patch: Partial<typeof p>) => ctx.setPrefs({ player: patch });
   const setUi = (patch: Partial<typeof ui>) => ctx.setPrefs({ ui: patch });
   const [playlists, setPlaylists] = useState<Item[]>([]);
+  const [devBuild, setDevBuild] = useState(false);
   useEffect(() => {
     items('/playlists?playlistType=video').then(setPlaylists, () => {});
+    window.plex.badges().then((b) => setDevBuild(!!b.dev), () => {});
   }, []);
 
   return (
@@ -646,7 +648,12 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
         <button className="tool" data-nav onClick={() => playChime(ui.badgeSound)}>
           ▶ Play sound
         </button>
-        <button className="tool" data-nav onClick={() => previewBadgeToast(['first-light', 'night-owl', 'season-pass', 'marathoner'][Math.floor(Math.random() * 4)])}>
+        {devBuild && (
+          <button className="tool" data-nav title="Development builds only, until donations are set up" onClick={() => window.plex.devGrantBadge?.('patron')}>
+            ♥ Grant Patron (dev)
+          </button>
+        )}
+        <button className="tool" data-nav onClick={() => previewBadgeToast(['first-light', 'night-owl', 'season-pass', 'marathoner', 'patron'][Math.floor(Math.random() * 5)])}>
           🏅 Show a test badge
         </button>
       </div>
