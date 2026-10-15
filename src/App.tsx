@@ -5,6 +5,7 @@ import { AppCtx, Ctx, Menu, MenuEntry, Modal, View, useUpdate } from './componen
 import { focusEl, focusFirst, installGamepad, installKeys } from './nav';
 import mark from './assets/vanta-mark.svg';
 import { BadgeShowcase, BadgeState, BadgeToasts } from './badges';
+import { BadgeCategoryPage, BadgesPage } from './badges-page';
 import { Collections, Detail, Library, Playlist, Search, Settings } from './views';
 
 export default function App() {
@@ -259,6 +260,8 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
   const refreshBadges = useCallback(() => window.plex.badges().then(setBadgeState), []);
   useEffect(() => {
     refreshBadges();
+    window.addEventListener('vanta:badges-changed', refreshBadges);
+    return () => window.removeEventListener('vanta:badges-changed', refreshBadges);
   }, [refreshBadges]);
   const searchRef = useRef<HTMLInputElement>(null);
   const playingRef = useRef(false);
@@ -281,6 +284,11 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
   }, [visibleLibs]);
 
   const go = useCallback((view: View) => setHistory([{ id: nextId++, view }]), []);
+  useEffect(() => {
+    const openBadges = () => go({ kind: 'badges' });
+    window.addEventListener('vanta:open-badges', openBadges);
+    return () => window.removeEventListener('vanta:open-badges', openBadges);
+  }, [go]);
   const open = useCallback((view: View) => {
     const focus = document.activeElement as HTMLElement | null;
     setHistory((h) => {
@@ -514,6 +522,13 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
           )}
           <BadgeShowcase state={badgeState} />
           <button
+            className={`settings-btn ${top?.view.kind === 'badges' || top?.view.kind === 'badgeCategory' ? 'active' : ''}`}
+            data-nav
+            onClick={() => go({ kind: 'badges' })}
+          >
+            🏅 Badges
+          </button>
+          <button
             className={`settings-btn ${top?.view.kind === 'settings' ? 'active' : ''}`}
             data-nav
             onClick={() => open({ kind: 'settings' })}
@@ -543,6 +558,8 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
                 {v.kind === 'playlist' && <Playlist ratingKey={v.ratingKey} title={v.title} />}
                 {v.kind === 'search' && <Search query={query} setQuery={setQuery} />}
                 {v.kind === 'settings' && <Settings onSignOut={onSignOut} />}
+                {v.kind === 'badges' && <BadgesPage />}
+                {v.kind === 'badgeCategory' && <BadgeCategoryPage category={v.category} />}
               </div>
             );
           })}

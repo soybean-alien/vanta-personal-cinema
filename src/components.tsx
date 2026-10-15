@@ -17,6 +17,8 @@ export type View =
   | { kind: 'item'; ratingKey: string }
   | { kind: 'playlist'; ratingKey: string; title: string }
   | { kind: 'search' }
+  | { kind: 'badges' }
+  | { kind: 'badgeCategory'; category: string }
   | { kind: 'settings' };
 
 export interface MenuEntry {
