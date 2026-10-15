@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i69tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i69tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<polygon points="128,48 198,88 128,128 58,88" fill="#e5a00d"/>
+<polygon points="58,88 128,128 128,208 58,168" fill="#000"/>
+<polygon points="198,88 198,168 128,208 128,128" fill="#16171b"/>
+<g fill="none" stroke="#f7c65a" stroke-width="2" stroke-linejoin="round"><polygon points="128,48 198,88 198,168 128,208 58,168 58,88"/><path d="M58,88 L128,128 L198,88 M128,128 L128,208"/></g></svg>

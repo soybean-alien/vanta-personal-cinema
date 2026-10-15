@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i02tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i02tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><radialGradient id="i02glow"><stop offset="0.7" stop-color="#e5a00d" stop-opacity="0"/><stop offset="0.8" stop-color="#e5a00d" stop-opacity="0.45"/><stop offset="1" stop-color="#e5a00d" stop-opacity="0"/></radialGradient><radialGradient id="i02spark"><stop offset="0" stop-color="#fff"/><stop offset=".25" stop-color="#f7c65a"/><stop offset="1" stop-color="#e5a00d" stop-opacity="0"/></radialGradient></defs>
+<circle cx="128" cy="128" r="100" fill="url(#i02glow)"/>
+<circle cx="128" cy="128" r="64" fill="#000" stroke="#e5a00d" stroke-opacity=".7" stroke-width="1.5"/>
+<circle cx="173" cy="83" r="26" fill="url(#i02spark)"/></svg>

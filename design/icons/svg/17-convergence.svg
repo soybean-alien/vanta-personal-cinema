@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i17tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i17tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><linearGradient id="i17beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5a00d" stop-opacity="0"/><stop offset="1" stop-color="#f7c65a"/></linearGradient>
+<radialGradient id="i17hot"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#f7c65a" stop-opacity=".8"/><stop offset="1" stop-color="#e5a00d" stop-opacity="0"/></radialGradient></defs>
+<polygon points="56,52 92,52 130,190 126,190" fill="url(#i17beam)"/>
+<polygon points="200,52 164,52 126,190 130,190" fill="url(#i17beam)"/>
+<circle cx="128" cy="188" r="22" fill="url(#i17hot)"/></svg>

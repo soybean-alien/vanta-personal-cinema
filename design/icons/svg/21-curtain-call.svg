@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i21tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i21tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><linearGradient id="i21drape" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9a6a05"/><stop offset=".5" stop-color="#e5a00d"/><stop offset="1" stop-color="#9a6a05"/></linearGradient></defs>
+<path d="M36,46 L124,46 C112,96 96,150 36,212 Z" fill="url(#i21drape)"/>
+<path d="M220,46 L132,46 C144,96 160,150 220,212 Z" fill="url(#i21drape)"/>
+<rect x="36" y="40" width="184" height="12" rx="3" fill="#f7c65a"/></svg>

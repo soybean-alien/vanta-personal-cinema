@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i59tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i59tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><clipPath id="i59clip"><rect x="8" y="8" width="240" height="240" rx="54"/></clipPath><linearGradient id="i59shade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a6a05" stop-opacity=".55"/><stop offset="1" stop-color="#9a6a05" stop-opacity="0"/></linearGradient></defs>
+<polygon points="184.0,77.6 304.0,197.6 262.4,298.4 233.6,298.4 113.6,178.4 142.4,178.4" fill="url(#i59shade)" clip-path="url(#i59clip)"/>
+<polygon points="72.0,77.6 108.8,77.6 128.0,133.6 147.2,77.6 184.0,77.6 142.4,178.4 113.6,178.4" fill="#e5a00d"/></svg>

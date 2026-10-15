@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i66tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i66tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><clipPath id="i66clip"><rect x="8" y="8" width="240" height="240" rx="54"/></clipPath><linearGradient id="i66sl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#f7c65a"/><stop offset="1" stop-color="#e5a00d" stop-opacity="0"/></linearGradient>
+<radialGradient id="i66base"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#f7c65a"/><stop offset="1" stop-color="#e5a00d" stop-opacity="0"/></radialGradient></defs>
+<g clip-path="url(#i66clip)"><polygon points="122,214 134,214 70,20 30,34" fill="url(#i66sl)"/><polygon points="122,214 134,214 226,34 186,20" fill="url(#i66sl)"/></g>
+<circle cx="128" cy="212" r="26" fill="url(#i66base)"/></svg>

@@ -1,0 +1,203 @@
+// Vanta by soybean_alien
+export type User = { name: string; username: string; thumb?: string };
+
+export type ConnectResult =
+  | { state: 'signedOut' }
+  | { state: 'ready'; user: User; server: { name: string } }
+  | { error: string };
+
+export interface Section {
+  key: string;
+  title: string;
+  type: string;
+}
+
+export interface Item {
+  ratingKey: string;
+  key: string;
+  type: 'movie' | 'show' | 'season' | 'episode' | 'collection' | 'playlist' | string;
+  subtype?: string;
+  title: string;
+  year?: number;
+  summary?: string;
+  thumb?: string;
+  art?: string;
+  composite?: string;
+  grandparentThumb?: string;
+  grandparentArt?: string;
+  index?: number;
+  parentIndex?: number;
+  parentTitle?: string;
+  parentRatingKey?: string;
+  grandparentTitle?: string;
+  grandparentRatingKey?: string;
+  duration?: number;
+  viewOffset?: number;
+  viewCount?: number;
+  leafCount?: number;
+  viewedLeafCount?: number;
+  childCount?: number;
+  contentRating?: string;
+  audienceRating?: number;
+  rating?: number;
+  librarySectionID?: number | string;
+  Genre?: { tag: string }[];
+  OnDeck?: { Metadata?: Item | Item[] };
+}
+
+export interface PlayerPrefs {
+  fullscreen: boolean;
+  autoplay: boolean;
+  countdown: number;
+  skipIntro: 'off' | 'button' | 'auto';
+  audioLang: string;
+  subLang: string;
+  subMode: 'off' | 'smart' | 'always';
+  hwdec: boolean;
+  quality: 'default' | 'hq' | 'sharp';
+  smoothMotion: boolean;
+  shaders: string;
+  extraArgs: string;
+}
+
+// A saved library view pinned to the sidebar.
+export interface Pin {
+  id: string;
+  name: string;
+  sectionKey: string;
+  filters: Filters;
+}
+
+export interface UiPrefs {
+  displayName: 'username' | 'title';
+  brandLayout: 'inline' | 'stacked' | 'corner' | 'bold' | 'tagline' | 'gilded' | 'seal' | 'monogram' | 'row';
+  hiddenLibs: string[];
+  showPlaylists: boolean;
+  pins: Pin[];
+}
+
+export interface Prefs {
+  player: PlayerPrefs;
+  ui: UiPrefs;
+}
+
+export interface Filters {
+  sort: string;
+  genre: string;
+  decade: string;
+  unwatched: boolean;
+}
+
+export interface PlayOpts {
+  queue?: string[];
+  queueIndex?: number;
+  shuffle?: boolean;
+  fromStart?: boolean;
+}
+
+export interface Health {
+  level: 'good' | 'warn' | 'bad';
+  title: string;
+  reason?: string;
+  detail: string;
+  checks: { label: string; value: string; level: 'good' | 'warn' | 'bad' }[];
+  at?: number;
+}
+
+export interface PlayerState {
+  playing: boolean;
+  ratingKey?: string;
+  title?: string;
+  refresh?: boolean;
+  error?: string;
+}
+
+declare global {
+  interface Window {
+    plex: {
+      connect(): Promise<ConnectResult>;
+      signIn(): Promise<ConnectResult>;
+      signOut(): Promise<ConnectResult>;
+      get(path: string): Promise<any>;
+      getPrefs(): Promise<Prefs>;
+      setPrefs(patch: { player?: Partial<PlayerPrefs>; ui?: Partial<UiPrefs> }): Promise<Prefs>;
+      play(ratingKey: string, opts?: PlayOpts): Promise<{ ok?: boolean; title?: string; error?: string }>;
+      stop(): Promise<void>;
+      toggleFullscreen(): Promise<void>;
+      onPlayerState(cb: (s: PlayerState) => void): () => void;
+      health(): Promise<Health>;
+      checkHealth(): Promise<Health>;
+      simulateHealth(level: 'warn' | 'bad' | null): Promise<Health>;
+      onHealth(cb: (h: Health) => void): () => void;
+    };
+  }
+}
+
+export async function get<T = any>(path: string): Promise<T> {
+  const r = await window.plex.get(path);
+  if (r && r.error) throw new Error(r.error);
+  return r;
+}
+
+// Only video libraries are shown: music and photo sections are stripped out on purpose.
+export async function sections(): Promise<Section[]> {
+  const r = await get('/library/sections');
+  return (r.MediaContainer.Directory || []).filter((d: Section) => d.type === 'movie' || d.type === 'show');
+}
+
+export async function items(path: string): Promise<Item[]> {
+  const r = await get(path);
+  return r.MediaContainer.Metadata || [];
+}
+
+export async function directory(path: string): Promise<{ key: string; title: string }[]> {
+  const r = await get(path);
+  return r.MediaContainer.Directory || [];
+}
+
+export const SORTS: [string, string][] = [
+  ['titleSort', 'Title'],
+  ['addedAt:desc', 'Recently added'],
+  ['originallyAvailableAt:desc', 'Release date'],
+  ['audienceRating:desc', 'Rating'],
+  ['lastViewedAt:desc', 'Recently watched'],
+];
+
+export const DEFAULT_FILTERS: Filters = { sort: 'titleSort', genre: '', decade: '', unwatched: false };
+
+export function libraryQuery(section: Section, f: Filters) {
+  const q = new URLSearchParams({ sort: f.sort });
+  if (f.genre) q.set('genre', f.genre);
+  if (f.decade) q.set('decade', f.decade);
+  if (f.unwatched) q.set(section.type === 'show' ? 'unwatchedLeaves' : 'unwatched', '1');
+  return `/library/sections/${section.key}/all?${q}`;
+}
+
+export const markWatched = (rk: string, watched: boolean) =>
+  get(`/:/${watched ? 'scrobble' : 'unscrobble'}?key=${rk}&identifier=com.plexapp.plugins.library`);
+
+export const isWatched = (i: Item) =>
+  i.type === 'show' || i.type === 'season' ? !!i.leafCount && i.leafCount === i.viewedLeafCount : !!i.viewCount;
+
+export const playable = (i: Item) => i.type === 'movie' || i.type === 'episode';
+
+// For a show or season: the episode to play next (Plex's On Deck), else the first unwatched, else the first.
+export async function nextEpisode(i: Item): Promise<Item | undefined> {
+  if (i.type === 'show') {
+    const [m] = await items(`/library/metadata/${i.ratingKey}?includeOnDeck=1`);
+    // Plex returns OnDeck.Metadata as a single object here, not an array.
+    const deck = m?.OnDeck?.Metadata;
+    const ep = Array.isArray(deck) ? deck[0] : deck;
+    if (ep) return ep;
+  }
+  const leaves = await items(`/library/metadata/${i.ratingKey}/allLeaves`);
+  return leaves.find((e) => !e.viewCount) || leaves[0];
+}
+
+export const img = (thumb: string | undefined, w: number, h: number) =>
+  // Plex artwork paths start with '/'; anything else (demo-mode bundled posters) is already a usable URL.
+  !thumb ? undefined : !thumb.startsWith('/') ? thumb : `plximg://img/?u=${encodeURIComponent(thumb)}&w=${w}&h=${h}`;
+
+export const minutes = (ms?: number) => (ms ? `${Math.round(ms / 60000)} min` : '');
+
+export const episodeLabel = (e: Item) => `S${e.parentIndex ?? '?'} · E${e.index ?? '?'}`;

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i61tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i61tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><clipPath id="i61clip"><rect x="8" y="8" width="240" height="240" rx="54"/></clipPath><linearGradient id="i61throw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f7c65a" stop-opacity=".9"/><stop offset="1" stop-color="#e5a00d" stop-opacity="0"/></linearGradient></defs>
+<polygon points="190,142 260,104 260,200 190,160" fill="url(#i61throw)" clip-path="url(#i61clip)"/>
+<circle cx="84" cy="88" r="25" fill="none" stroke="#e5a00d" stroke-width="3"/><circle cx="84" cy="88" r="5" fill="#e5a00d"/>
+<circle cx="144" cy="80" r="31" fill="none" stroke="#e5a00d" stroke-width="3"/><circle cx="144" cy="80" r="6" fill="#e5a00d"/>
+<rect x="60" y="122" width="112" height="56" rx="8" fill="#000" stroke="#e5a00d" stroke-width="3"/>
+<rect x="172" y="136" width="18" height="30" rx="3" fill="#e5a00d"/>
+<line x1="76" y1="178" x2="68" y2="200" stroke="#e5a00d" stroke-width="4"/><line x1="156" y1="178" x2="164" y2="200" stroke="#e5a00d" stroke-width="4"/></svg>

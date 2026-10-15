@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i77tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#111215"/><stop offset="1" stop-color="#020203"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i77tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><clipPath id="i77clip"><rect x="8" y="8" width="240" height="240" rx="54"/></clipPath><filter id="i77seam" x="-.2" y="-.2" width="1.4" height="1.4"><feGaussianBlur stdDeviation="2.5"/></filter></defs>
+<g clip-path="url(#i77clip)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<g stroke="#e5a00d" stroke-width="6" opacity=".45" filter="url(#i77seam)"><path d="M14,92 L86,106 L112,96 L138,126 L170,118 L242,156"/><path d="M112,96 L118,58 L134,14"/><path d="M138,126 L130,162 L146,196 L140,242"/><path d="M170,118 L190,92"/></g>
+<g stroke="#f7c65a" stroke-width="3"><path d="M14,92 L86,106 L112,96 L138,126 L170,118 L242,156"/><path d="M112,96 L118,58 L134,14"/><path d="M138,126 L130,162 L146,196 L140,242"/><path d="M170,118 L190,92"/></g></g></svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i39tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i39tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><radialGradient id="i39blade"><stop offset=".3" stop-color="#2a2c31"/><stop offset="1" stop-color="#101114"/></radialGradient></defs>
+<circle cx="128" cy="128" r="82" fill="url(#i39blade)"/>
+<polygon points="128.0,98.0 154.0,113.0 154.0,143.0 128.0,158.0 102.0,143.0 102.0,113.0" fill="#000"/>
+<line x1="128.0" y1="98.0" x2="208.3" y2="144.4" stroke="#c9ccd2" stroke-width="2.5" stroke-linecap="round"/><line x1="154.0" y1="113.0" x2="154.0" y2="205.8" stroke="#c9ccd2" stroke-width="2.5" stroke-linecap="round"/><line x1="154.0" y1="143.0" x2="73.6" y2="189.4" stroke="#c9ccd2" stroke-width="2.5" stroke-linecap="round"/><line x1="128.0" y1="158.0" x2="47.7" y2="111.6" stroke="#c9ccd2" stroke-width="2.5" stroke-linecap="round"/><line x1="102.0" y1="143.0" x2="102.0" y2="50.2" stroke="#c9ccd2" stroke-width="2.5" stroke-linecap="round"/><line x1="102.0" y1="113.0" x2="182.4" y2="66.6" stroke="#c9ccd2" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="128" cy="128" r="82" fill="none" stroke="#c9ccd2" stroke-width="3"/></svg>

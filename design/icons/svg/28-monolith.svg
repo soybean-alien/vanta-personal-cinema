@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i28tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i28tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><radialGradient id="i28halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#e5a00d" stop-opacity=".35"/><stop offset="1" stop-color="#e5a00d" stop-opacity="0"/></radialGradient></defs>
+<ellipse cx="128" cy="128" rx="74" ry="104" fill="url(#i28halo)"/>
+<rect x="98" y="42" width="60" height="172" rx="3" fill="#000"/>
+<line x1="157" y1="44" x2="157" y2="212" stroke="#f7c65a" stroke-width="2.5"/></svg>
