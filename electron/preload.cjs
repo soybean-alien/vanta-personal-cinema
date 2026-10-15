@@ -15,6 +15,15 @@ if (!new URLSearchParams(location.search).has('demo')) contextBridge.exposeInMai
   health: () => ipcRenderer.invoke('health:get'),
   checkHealth: () => ipcRenderer.invoke('health:check'),
   simulateHealth: (level) => ipcRenderer.invoke('health:simulate', level),
+  updateState: () => ipcRenderer.invoke('update:get'),
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdate: (cb) => {
+    const listener = (_e, s) => cb(s);
+    ipcRenderer.on('update', listener);
+    return () => ipcRenderer.removeListener('update', listener);
+  },
   onHealth: (cb) => {
     const listener = (_e, h) => cb(h);
     ipcRenderer.on('health', listener);

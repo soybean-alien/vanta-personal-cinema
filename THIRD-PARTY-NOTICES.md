@@ -8,6 +8,7 @@ following open-source software. Each component keeps its own license.
 | [mpv](https://mpv.io) (Windows build by shinchiro) | Video playback. A copy of `mpv.exe` is bundled in the installer under `resources\mpv`. | GPL v2 or later (this build includes GPL components) | [mpv-player/mpv](https://github.com/mpv-player/mpv), build scripts at [shinchiro/mpv-winbuild-cmake](https://github.com/shinchiro/mpv-winbuild-cmake) |
 | [Electron](https://www.electronjs.org) | Desktop app shell (includes Chromium and Node.js) | MIT (Chromium: BSD-3-Clause and others) | [electron/electron](https://github.com/electron/electron) |
 | [React](https://react.dev) | User interface | MIT | [facebook/react](https://github.com/facebook/react) |
+| [electron-updater](https://www.electron.build/auto-update) | In-app updates from GitHub Releases | MIT | [electron-userland/electron-builder](https://github.com/electron-userland/electron-builder) |
 | [Jost](https://indestructibletype.com/Jost.html) by Indestructible Type, via [Fontsource](https://fontsource.org) | Brand typeface | SIL Open Font License 1.1 | [indestructible-type/Jost](https://github.com/indestructible-type/Jost) |
 
 Build-time only (not shipped in the app): [Vite](https://github.com/vitejs/vite) (MIT), [TypeScript](https://github.com/microsoft/TypeScript) (Apache-2.0),

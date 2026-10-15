@@ -8,7 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const PRODUCT = 'Vanta';
-const VERSION = '1.0.0';
+const VERSION = require('../package.json').version;
 // Optional Plex Home user to land on automatically ("preferredUser" in settings.json). Empty = stay on the signed-in account.
 const preferredUser = () => (settings.preferredUser || '').trim();
 
@@ -52,6 +52,7 @@ const DEFAULT_PREFS = {
   },
   ui: {
     displayName: 'username', // username | title
+    updates: 'ask', // auto | ask | manual
     brandLayout: 'tagline', // inline | stacked | corner | bold | tagline | gilded | seal | monogram | row
     hiddenLibs: [],
     showPlaylists: true,
@@ -65,6 +66,14 @@ function getPrefs() {
     player: { ...DEFAULT_PREFS.player, ...p.player },
     ui: { ...DEFAULT_PREFS.ui, ...p.ui },
   };
+}
+
+// Small app-state values that aren't preferences (e.g. last run version for the updater).
+const getMeta = (key) => settings.meta?.[key];
+function setMeta(key, value) {
+  settings.meta = { ...(settings.meta || {}), [key]: value };
+  if (value === undefined) delete settings.meta[key];
+  saveSettings();
 }
 
 function setPrefs(patch) {
@@ -280,6 +289,8 @@ module.exports = {
   image,
   headers,
   getPrefs,
+  getMeta,
+  setMeta,
   setPrefs,
   getSession: () => session,
 };

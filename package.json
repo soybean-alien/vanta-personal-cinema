@@ -1,19 +1,22 @@
 {
   "name": "vanta",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Vanta Personal Cinema: a media library viewer (not a manager) for Plex. Browse and watch your own Plex library.",
   "author": "soybean_alien",
   "license": "GPL-3.0-only",
   "homepage": "https://github.com/soybean-alien/vanta-personal-cinema",
-  "repository": { "type": "git", "url": "https://github.com/soybean-alien/vanta-personal-cinema.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/soybean-alien/vanta-personal-cinema.git"
+  },
   "main": "electron/main.cjs",
   "scripts": {
     "build": "vite build",
     "start": "vite build && electron .",
     "demo": "vite build && electron . --demo",
     "typecheck": "tsc --noEmit",
-    "dist": "vite build && electron-builder --win nsis"
+    "dist": "vite build && electron-builder --win nsis --publish never"
   },
   "build": {
     "appId": "com.soybeanalien.vanta",
@@ -33,6 +36,14 @@
       },
       "LICENSE",
       "THIRD-PARTY-NOTICES.md"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "soybean-alien",
+        "repo": "vanta-personal-cinema",
+        "releaseType": "release"
+      }
     ],
     "win": {
       "target": "nsis",
@@ -61,5 +72,8 @@
     "react-dom": "^18.3.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

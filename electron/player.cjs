@@ -371,4 +371,4 @@ async function play(ratingKey, opts, events) {
   return { ok: true, title: item.title };
 }
 
-module.exports = { play, stop };
+module.exports = { play, stop, isPlaying: () => !!current };

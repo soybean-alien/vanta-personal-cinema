@@ -1,6 +1,6 @@
 // Vanta by soybean_alien
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Filters, Item, PlayOpts, Prefs, Section, episodeLabel, img, isWatched, markWatched, minutes, playable } from './api';
+import { Filters, Item, PlayOpts, Prefs, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState } from './api';
 import { focusEl, focusFirst, focusLost } from './nav';
 
 // When a view finishes loading and nothing useful has focus (keyboard/controller just opened it),
@@ -38,6 +38,16 @@ export interface Ctx {
 }
 
 export const AppCtx = createContext<Ctx>(null!);
+
+// Live updater state (pushed from the main process).
+export function useUpdate() {
+  const [u, setU] = useState<UpdateState>();
+  useEffect(() => {
+    window.plex.updateState().then(setU);
+    return window.plex.onUpdate(setU);
+  }, []);
+  return [u, setU] as const;
+}
 export const useApp = () => useContext(AppCtx);
 
 // Right-click / Y-button menu entries for any library item.
