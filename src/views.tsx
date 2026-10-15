@@ -21,7 +21,8 @@ import {
   nextEpisode,
   playable,
 } from './api';
-import { Choice, DeckRow, Modal, Poster, Toggle, useApp, useAutoFocus, useUpdate } from './components';
+import { Choice, DeckRow, Modal, Poster, Switch, Toggle, useApp, useAutoFocus, useUpdate } from './components';
+import { CHIMES, playChime, previewBadgeToast } from './badges';
 
 const loadFilters = (key: string): Filters => {
   try {
@@ -513,8 +514,10 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
   const setP = (patch: Partial<typeof p>) => ctx.setPrefs({ player: patch });
   const setUi = (patch: Partial<typeof ui>) => ctx.setPrefs({ ui: patch });
   const [playlists, setPlaylists] = useState<Item[]>([]);
+  const [devBuild, setDevBuild] = useState(false);
   useEffect(() => {
     items('/playlists?playlistType=video').then(setPlaylists, () => {});
+    window.plex.badges().then((b) => setDevBuild(!!b.dev), () => {});
   }, []);
 
   return (
@@ -638,6 +641,38 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
           </button>
         </div>
       ))}
+
+      <h2>Badges</h2>
+      <Switch
+        label="Show badges during playback"
+        hint={
+          ui.badgesDuringPlayback
+            ? 'On: a badge appears in the corner of the video the moment you earn it.'
+            : 'Off: Vanta holds badges until the gap between episodes, or until you’re back in the library.'
+        }
+        value={ui.badgesDuringPlayback}
+        onChange={(badgesDuringPlayback) => setUi({ badgesDuringPlayback })}
+      />
+      <div className="setting-grid" style={{ marginTop: 12 }}>
+        <Choice label="Unlock sound" value={ui.badgeSound} options={CHIMES} onChange={(badgeSound) => (setUi({ badgeSound }), playChime(badgeSound))} />
+        <button className="tool" data-nav onClick={() => playChime(ui.badgeSound)}>
+          ▶ Play sound
+        </button>
+        {devBuild && (
+          <button className="tool" data-nav title="Development builds only, until donations are set up" onClick={() => window.plex.devGrantBadge?.('patron')}>
+            ♥ Grant Patron (dev)
+          </button>
+        )}
+        {devBuild && (
+          <button className="tool" data-nav title="Development builds only: simulate a pledge that wasn't renewed" onClick={() => window.plex.devPatronLapse?.()}>
+            Patron lapses (dev)
+          </button>
+        )}
+        <button className="tool" data-nav onClick={() => previewBadgeToast(['first-light', 'night-owl', 'season-pass', 'marathoner', 'patron', 'patron:lapsed'][Math.floor(Math.random() * 6)])}>
+          🏅 Show a test badge
+        </button>
+      </div>
+      <p className="muted small">Badges are earned by watching in Vanta. The unlock sound is original to Vanta and plays softly.</p>
 
       <h2>Updates</h2>
       <UpdatesSection />

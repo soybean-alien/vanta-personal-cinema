@@ -17,6 +17,8 @@ export type View =
   | { kind: 'item'; ratingKey: string }
   | { kind: 'playlist'; ratingKey: string; title: string }
   | { kind: 'search' }
+  | { kind: 'badges' }
+  | { kind: 'badgeCategory'; category: string }
   | { kind: 'settings' };
 
 export interface MenuEntry {
@@ -312,6 +314,33 @@ export function Toggle({ label, value, onChange }: { label?: string; value: bool
     <button className={`toggle ${value ? 'on' : ''}`} data-nav onClick={() => onChange(!value)}>
       {label && <span className="choice-label">{label}</span>}
       <span className="pill">{value ? 'On' : 'Off'}</span>
+    </button>
+  );
+}
+
+// A sliding on/off switch. Click / Enter / A toggles; Left and Right set Off and On (controller-friendly).
+export function Switch({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      className={`switch ${value ? 'on' : ''}`}
+      role="switch"
+      aria-checked={value}
+      data-nav
+      onClick={() => onChange(!value)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          if ((e.key === 'ArrowRight') !== value) onChange(e.key === 'ArrowRight');
+        }
+      }}
+    >
+      <span className="switch-track">
+        <span className="switch-knob" />
+      </span>
+      <span className="switch-text">
+        <span className="switch-label">{label}</span>
+        {hint && <span className="switch-hint">{hint}</span>}
+      </span>
     </button>
   );
 }
