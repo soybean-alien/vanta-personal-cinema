@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import CATALOG from '../electron/badge-catalog.json';
 
-export type Tier = 'bronze' | 'silver' | 'gold' | 'platinum';
+// Rarity is designed per badge (how much effort it takes), never rolled. One color language everywhere.
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export interface BadgeDef {
   id: string;
   name: string;
-  tier: Tier;
+  rarity: Rarity;
   emblem: string;
   earned: string;
   secret?: boolean;
@@ -21,17 +22,18 @@ export interface BadgeState {
 }
 
 export const CATALOG_BY_ID: Record<string, BadgeDef> = Object.fromEntries((CATALOG as BadgeDef[]).map((b) => [b.id, b]));
+const CATALOG_INDEX: Record<string, number> = Object.fromEntries((CATALOG as BadgeDef[]).map((b, i) => [b.id, i]));
 
 // ── Art ────────────────────────────────────────────────────────────────
-const TIERS: Record<Tier, { lo: string; hi: string; glint: string; label: string }> = {
-  bronze: { lo: '#7a4a22', hi: '#e2a56b', glint: '#ffd9b0', label: 'Bronze' },
-  silver: { lo: '#7d848d', hi: '#e9edf1', glint: '#ffffff', label: 'Silver' },
-  gold: { lo: '#a8740a', hi: '#ffd76a', glint: '#fff3c4', label: 'Gold' },
-  platinum: { lo: '#7f9db3', hi: '#eef8ff', glint: '#d8f0ff', label: 'Platinum' },
+export const RARITY: Record<Rarity, { color: string; lo: string; hi: string; glint: string; label: string }> = {
+  common: { color: '#8a9099', lo: '#5f646c', hi: '#d6dade', glint: '#ffffff', label: 'Common' },
+  uncommon: { color: '#2f9e4f', lo: '#1c6a33', hi: '#7fdc95', glint: '#e2ffe9', label: 'Uncommon' },
+  rare: { color: '#3d6df2', lo: '#23449f', hi: '#93b2ff', glint: '#e6eeff', label: 'Rare' },
+  epic: { color: '#9a3df0', lo: '#5c1f99', hi: '#d2a6ff', glint: '#f4e8ff', label: 'Epic' },
+  legendary: { color: '#ff8a00', lo: '#a85700', hi: '#ffc46b', glint: '#fff2d9', label: 'Legendary' },
 };
-export const tierLabel = (t: Tier) => TIERS[t].label;
-
-// Emblems drawn in a 100x100 box centred on (50,50), stroked/filled with the tier highlight.
+export const rarityLabel = (r: Rarity) => RARITY[r].label;
+// Emblems drawn in a 100x100 box centred on (50,50), in the rarity highlight.
 const EMBLEMS: Record<string, (c: string) => string> = {
   spark: (c) => `<path d="M50 24 Q53 47 76 50 Q53 53 50 76 Q47 53 24 50 Q47 47 50 24Z" fill="${c}"/><circle cx="66" cy="34" r="3" fill="${c}"/>`,
   ticket: (c) =>
@@ -51,9 +53,9 @@ const EMBLEMS: Record<string, (c: string) => string> = {
     `<path d="M50 50 C44 40 30 38 28 50 C30 62 44 60 50 50 C56 40 70 38 72 50 C70 62 56 60 50 50Z" fill="none" stroke="${c}" stroke-width="5" stroke-linejoin="round"/>`,
 };
 
-// A 12-point rosette medal: tier-metal rim, black face, metal emblem. Returns the inner SVG markup.
+// A 12-point rosette medal: rarity-colored rim, black face, rarity emblem. Returns the inner SVG markup.
 function badgeSvg(badge: BadgeDef, uid: string, locked = false) {
-  const t = TIERS[badge.tier];
+  const t = RARITY[badge.rarity];
   const points = Array.from({ length: 24 }, (_, i) => {
     const r = i % 2 ? 44 : 49;
     const a = (i / 24) * Math.PI * 2 - Math.PI / 2;
@@ -84,19 +86,99 @@ export function BadgeArt({ badge, size = 48, locked = false }: { badge: BadgeDef
   );
 }
 
-// Raw premultiplied BGRA pixels of a medallion (base64) for mpv's overlay-add, used when a badge toast is
-// drawn inside the player during playback. Called from the main process.
-async function badgeBGRA(id: string, size: number): Promise<string> {
-  const b = CATALOG_BY_ID[id];
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}">${badgeSvg(b, 'r' + size)}</svg>`;
+// ── Unlock ticket ──────────────────────────────────────────────────────
+// A flat movie ticket: rarity-colored stub (VANTA ◆ RARITY), perforation, then the main ticket with a ribbon,
+// the badge name, rarity/date rows, a barcode and the medallion. One SVG serves both the in-app toast and the
+// overlay drawn inside mpv during playback, so they always match.
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+function wrapChars(text: string, max: number, lines = 2) {
+  const out: string[] = [];
+  for (const w of text.split(' ')) {
+    const last = out[out.length - 1];
+    if (last !== undefined && (last + ' ' + w).length <= max) out[out.length - 1] = last + ' ' + w;
+    else out.push(w);
+  }
+  return out.slice(0, lines);
+}
+function barcode(seed: string, x0: number, x1: number, y: number, h: number, color: string) {
+  let v = [...seed].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  let x = x0;
+  let out = '';
+  while (x < x1) {
+    v = (v * 1103515245 + 12345) >>> 0;
+    const w = 1 + (v % 3);
+    if ((v >> 5) % 3) out += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}"/>`;
+    x += w + 1;
+  }
+  return out;
+}
+const star = (cx: number, cy: number, r: number, fill: string) => {
+  const p = Array.from({ length: 10 }, (_, i) => {
+    const a = (Math.PI / 5) * i - Math.PI / 2;
+    const rr = i % 2 ? r * 0.45 : r;
+    return `${(cx + rr * Math.cos(a)).toFixed(1)},${(cy + rr * Math.sin(a)).toFixed(1)}`;
+  }).join(' ');
+  return `<polygon points="${p}" fill="${fill}"/>`;
+};
+
+export const TICKET = { w: 620, h: 240 };
+export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge: BadgeDef; at: number; more?: number; preview?: boolean; uid: string }) {
+  const r = RARITY[badge.rarity];
+  const date = new Date(at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const serial = `No.${String((CATALOG_INDEX[badge.id] ?? 0) + 1).padStart(4, '0')}`;
+  const title = more ? `+${more} more badges` : badge.name;
+  const titleSize = title.length > 18 ? 22 : title.length > 13 ? 26 : 31;
+  const sub = more ? 'Visit the Badges page to see them all.' : `You've just unlocked the ${badge.name} badge!`;
+  const subFit = sub.length * 6.6 > 250 ? ' textLength="250" lengthAdjust="spacingAndGlyphs"' : '';
+  const stubName = wrapChars((more ? 'Badges unlocked' : badge.name).toUpperCase(), 11);
+  const shape =
+    'M12 0 H140 A10 10 0 0 0 160 0 H588 Q600 0 600 12 V204 Q600 216 588 216 H160 A10 10 0 0 0 140 216 H12 Q0 216 0 204 V12 Q0 0 12 0 Z';
+  const font = "'Segoe UI', system-ui, sans-serif";
+  const display = "Bahnschrift, 'Segoe UI', sans-serif";
+  const inner = `<defs>
+<clipPath id="${uid}c"><path d="${shape}"/></clipPath>
+<filter id="${uid}s" x="-5%" y="-5%" width="110%" height="120%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity=".45"/></filter></defs>
+<g transform="translate(10 8)">
+<path d="${shape}" fill="#f6f4ef" filter="url(#${uid}s)"/>
+<g clip-path="url(#${uid}c)">
+  <rect x="0" y="0" width="42" height="216" fill="${r.color}"/>
+  <rect x="440" y="0" width="160" height="216" fill="#ebe7de"/>
+</g>
+<text transform="translate(27 108) rotate(-90)" text-anchor="middle" font-family="${display}" font-weight="700" font-size="15" letter-spacing="3" fill="#fff">VANTA ◆ ${r.label.toUpperCase()}</text>
+<svg x="66" y="12" width="58" height="58" viewBox="0 0 100 100">${badgeSvg(badge, uid + 'm')}</svg>
+${stubName.map((l, i) => `<text x="53" y="${90 + i * 15}" font-family="${display}" font-weight="700" font-size="12.5" fill="#3b3b3b">${esc(l)}</text>`).join('')}
+<text x="53" y="136" font-family="${font}" font-size="11" fill="#7a7a7a">${serial}</text>
+<text x="53" y="151" font-family="${font}" font-size="11" fill="#7a7a7a">${date}</text>
+<text x="53" y="166" font-family="${font}" font-size="11" fill="${preview ? '#c0392b' : '#7a7a7a'}">${preview ? 'PREVIEW' : r.label}</text>
+${barcode(badge.id + 'stub', 53, 140, 180, 18, '#3b3b3b')}
+<line x1="150" y1="14" x2="150" y2="202" stroke="#b8b2a6" stroke-width="1.5" stroke-dasharray="4 4"/>
+<polygon points="166,18 424,18 442,33 424,48 166,48" fill="${r.color}"/>
+<text x="180" y="39" font-family="${display}" font-weight="700" font-size="17" letter-spacing="1.5" fill="#fff">CONGRATULATIONS!</text>
+${star(492, 34, 9, r.color)}${star(520, 24, 12, r.color)}${star(548, 34, 9, r.color)}
+<text x="180" y="88" font-family="${display}" font-weight="700" font-size="${titleSize}" fill="#3b3b3b">${esc(title.toUpperCase())}</text>
+<text x="180" y="112" font-family="${font}" font-size="13" fill="#6b6b6b"${subFit}>${esc(sub)}</text>
+<text x="180" y="144" font-family="Georgia, serif" font-size="15" fill="#4a4a4a">Rarity:</text>
+<text x="426" y="144" text-anchor="end" font-family="Georgia, serif" font-size="15" font-weight="700" fill="${r.color}">${r.label}</text>
+<text x="180" y="167" font-family="Georgia, serif" font-size="15" fill="#4a4a4a">Unlocked:</text>
+<text x="426" y="167" text-anchor="end" font-family="Georgia, serif" font-size="15" fill="#4a4a4a">${date}</text>
+${barcode(badge.id, 180, 426, 180, 20, '#3b3b3b')}
+<circle cx="520" cy="124" r="62" fill="#ddd7cb"/>
+<svg x="462" y="66" width="116" height="116" viewBox="0 0 100 100">${badgeSvg(badge, uid + 'b')}</svg>
+</g>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TICKET.w} ${TICKET.h}" width="${TICKET.w}" height="${TICKET.h}">${inner}</svg>`;
+}
+
+// SVG -> raw premultiplied BGRA (base64) for mpv's overlay-add.
+async function svgToBGRA(svg: string, w: number, h: number): Promise<string> {
   const img = new Image();
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   await img.decode();
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
+  canvas.width = w;
+  canvas.height = h;
   const g = canvas.getContext('2d')!;
-  g.drawImage(img, 0, 0, size, size);
-  const px = g.getImageData(0, 0, size, size).data;
+  g.drawImage(img, 0, 0, w, h);
+  const px = g.getImageData(0, 0, w, h).data;
   const out = new Uint8Array(px.length);
   for (let i = 0; i < px.length; i += 4) {
     const a = px[i + 3] / 255;
@@ -106,10 +188,16 @@ async function badgeBGRA(id: string, size: number): Promise<string> {
     out[i + 3] = px[i + 3];
   }
   let bin = '';
-  out.forEach((v) => (bin += String.fromCharCode(v)));
+  for (let i = 0; i < out.length; i += 0x8000) bin += String.fromCharCode(...out.subarray(i, i + 0x8000));
   return btoa(bin);
 }
-(window as unknown as { __vantaBadgeBGRA: typeof badgeBGRA }).__vantaBadgeBGRA = badgeBGRA;
+// Called from the main process when a badge toast is drawn inside the player during playback.
+async function ticketBGRA(id: string, at: number, more: number, width: number) {
+  const height = Math.round((width * TICKET.h) / TICKET.w);
+  const svg = ticketSvg({ badge: CATALOG_BY_ID[id], at, more, uid: 't' + width });
+  return { b64: await svgToBGRA(svg, width, height), w: width, h: height };
+}
+(window as unknown as { __vantaTicketBGRA: typeof ticketBGRA }).__vantaTicketBGRA = ticketBGRA;
 // ── Chimes (original, synthesized; nothing licensed) ───────────────────
 export const CHIMES: [string, string][] = [
   ['ember', 'Ember (warm keys)'],
@@ -249,6 +337,7 @@ export function BadgeToasts({ sound, onEarned }: { sound: string; onEarned: () =
   const elapsed = useRef(0);
   const played = useRef(false);
   const hovering = useRef(false);
+  const shownAt = useRef(Date.now());
   const soundRef = useRef(sound);
   soundRef.current = sound;
   const current = queue[0];
@@ -290,6 +379,7 @@ export function BadgeToasts({ sound, onEarned }: { sound: string; onEarned: () =
     if (!current) return;
     elapsed.current = 0;
     played.current = false;
+    shownAt.current = Date.now();
     setPhase('in');
     const tick = setInterval(() => {
       const focused = document.hasFocus() && !document.hidden;
@@ -316,35 +406,14 @@ export function BadgeToasts({ sound, onEarned }: { sound: string; onEarned: () =
     <div
       className={`badge-toast ${phase}`}
       role="status"
+      aria-label={current.more ? `${current.more} more badges unlocked` : `Badge unlocked: ${b.name} (${rarityLabel(b.rarity)})`}
       onMouseEnter={() => (hovering.current = true)}
       onMouseLeave={() => (hovering.current = false)}
       onClick={dismiss}
-    >
-      <BadgeArt badge={b} size={78} />
-      <div className="badge-toast-text">
-        {current.more ? (
-          <>
-            <div className="badge-toast-kicker">And that's not all</div>
-            <div className="badge-toast-line">
-              You've unlocked <b>{current.more} more badges</b>!
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="badge-toast-kicker">
-              Congratulations! · {tierLabel(b.tier)}
-              {current.preview ? ' · preview' : ''}
-            </div>
-            <div className="badge-toast-line">
-              You've just unlocked the <b>{b.name}</b> badge!
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+      dangerouslySetInnerHTML={{ __html: ticketSvg({ badge: b, at: shownAt.current, more: current.more, preview: current.preview, uid: 'toast' }) }}
+    />
   );
 }
-
 // ── Sidebar showcase ───────────────────────────────────────────────────
 // Favorites (up to 6, chosen on the Badges page); until there are any, the most recent earned badges.
 export function BadgeShowcase({ state }: { state?: BadgeState }) {
@@ -383,7 +452,7 @@ export function BadgeShowcase({ state }: { state?: BadgeState }) {
       {t && (
         <div className="badge-tip" style={{ left: tip!.x, top: tip!.y }}>
           <div className="badge-tip-head">
-            <b>{t.name}</b> <span className={`tier-chip ${t.tier}`}>{tierLabel(t.tier)}</span>
+            <b>{t.name}</b> <span className={`rarity-chip ${t.rarity}`}>{rarityLabel(t.rarity)}</span>
           </div>
           <div>{t.earned}</div>
           <div className="muted small">Earned {new Date(state.earned[t.id].at).toLocaleDateString(undefined, { dateStyle: 'medium' })}</div>

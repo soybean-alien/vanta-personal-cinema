@@ -29,25 +29,24 @@ function queueBadges(ids) {
   if (win && !win.isDestroyed()) win.webContents.send('badges:earned');
 }
 
-// Rasterizes each medallion (in the UI, where the art lives) and hands the cards to the player.
+// Rasterizes each unlock ticket (in the UI, where the art lives) and hands them to the player.
 async function showInPlayer(ids) {
   try {
     const dims = await player.osdSize();
     if (!dims || !win || win.isDestroyed()) throw new Error('no player window');
-    const size = overlay.layout(dims.w, dims.h).img;
+    const width = overlay.layout(dims.w, dims.h).width;
     const dir = path.join(app.getPath('userData'), 'overlay');
     fs.mkdirSync(dir, { recursive: true });
     // More than three at once: the first in full, then one "+N more" card (same as the in-app toast).
     const shown = ids.length > 3 ? ids.slice(0, 2) : ids;
     const items = [];
     for (const [i, id] of shown.entries()) {
-      const def = CATALOG.find((b) => b.id === id);
-      if (!def) continue;
-      const b64 = await win.webContents.executeJavaScript(`window.__vantaBadgeBGRA(${JSON.stringify(id)}, ${size})`);
-      const file = path.join(dir, `${id}-${size}.bgra`);
-      fs.writeFileSync(file, Buffer.from(b64, 'base64'));
+      if (!CATALOG.some((b) => b.id === id)) continue;
       const more = ids.length > 3 && i === 1 ? ids.length - 1 : 0;
-      items.push({ id, name: def.name, tier: def.tier, file, size, more, moreIds: more ? ids.slice(2) : [] });
+      const t = await win.webContents.executeJavaScript(`window.__vantaTicketBGRA(${JSON.stringify(id)}, ${Date.now()}, ${more}, ${width})`);
+      const file = path.join(dir, `${id}-${t.w}.bgra`);
+      fs.writeFileSync(file, Buffer.from(t.b64, 'base64'));
+      items.push({ id, file, w: t.w, h: t.h, moreIds: more ? ids.slice(2) : [] });
     }
     if (!player.showBadges(items, dims)) throw new Error('player closed');
   } catch {

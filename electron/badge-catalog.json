@@ -1,12 +1,12 @@
 [
-  { "id": "first-light", "name": "First Light", "tier": "bronze", "emblem": "spark", "earned": "Opened Vanta for the first time.", "rule": { "type": "launch" } },
-  { "id": "opening-night", "name": "Opening Night", "tier": "bronze", "emblem": "ticket", "earned": "Finished your first movie in Vanta.", "rule": { "type": "finished", "count": 1, "kind": "movie" } },
-  { "id": "popcorn-ready", "name": "Popcorn Ready", "tier": "bronze", "emblem": "popcorn", "earned": "Watched your first full hour in Vanta.", "rule": { "type": "minutes", "total": 60 } },
-  { "id": "double-feature", "name": "Double Feature", "tier": "silver", "emblem": "reels", "earned": "Finished two movies on the same day.", "rule": { "type": "finishedSameDay", "count": 2, "kind": "movie" } },
-  { "id": "time-traveler", "name": "Time Traveler", "tier": "silver", "emblem": "hourglass", "earned": "Finished a movie released before 1970.", "rule": { "type": "finishedBeforeYear", "year": 1970 } },
-  { "id": "night-owl", "name": "Night Owl", "tier": "silver", "emblem": "moon", "secret": true, "hint": "Some films are best after the world goes quiet…", "earned": "Finished a title between midnight and 5 a.m.", "rule": { "type": "finishedBetweenHours", "from": 0, "to": 5 } },
-  { "id": "binge-starter", "name": "Binge Starter", "tier": "silver", "emblem": "stack", "earned": "Finished three episodes of the same show in one day.", "rule": { "type": "episodesSameShowSameDay", "count": 3 } },
-  { "id": "genre-hopper", "name": "Genre Hopper", "tier": "gold", "emblem": "compass", "earned": "Finished movies from five different genres.", "rule": { "type": "distinctGenres", "count": 5 } },
-  { "id": "season-pass", "name": "Season Pass", "tier": "gold", "emblem": "crown", "earned": "Finished every episode of a season in Vanta.", "rule": { "type": "seasonComplete" } },
-  { "id": "marathoner", "name": "Marathoner", "tier": "platinum", "emblem": "infinity", "earned": "Watched 24 hours in Vanta.", "rule": { "type": "minutes", "total": 1440 } }
+  { "id": "first-light", "name": "First Light", "rarity": "legendary", "emblem": "spark", "earned": "Opened Vanta for the first time. Every viewer's welcome gift.", "rule": { "type": "launch" } },
+  { "id": "opening-night", "name": "Opening Night", "rarity": "common", "emblem": "ticket", "earned": "Finished your first movie in Vanta.", "rule": { "type": "finished", "count": 1, "kind": "movie" } },
+  { "id": "popcorn-ready", "name": "Popcorn Ready", "rarity": "common", "emblem": "popcorn", "earned": "Watched your first full hour in Vanta.", "rule": { "type": "minutes", "total": 60 } },
+  { "id": "double-feature", "name": "Double Feature", "rarity": "uncommon", "emblem": "reels", "earned": "Finished two movies on the same day.", "rule": { "type": "finishedSameDay", "count": 2, "kind": "movie" } },
+  { "id": "time-traveler", "name": "Time Traveler", "rarity": "uncommon", "emblem": "hourglass", "earned": "Finished a movie released before 1970.", "rule": { "type": "finishedBeforeYear", "year": 1970 } },
+  { "id": "binge-starter", "name": "Binge Starter", "rarity": "uncommon", "emblem": "stack", "earned": "Finished three episodes of the same show in one day.", "rule": { "type": "episodesSameShowSameDay", "count": 3 } },
+  { "id": "night-owl", "name": "Night Owl", "rarity": "rare", "emblem": "moon", "secret": true, "hint": "Some films are best after the world goes quiet…", "earned": "Finished a title between midnight and 5 a.m.", "rule": { "type": "finishedBetweenHours", "from": 0, "to": 5 } },
+  { "id": "genre-hopper", "name": "Genre Hopper", "rarity": "rare", "emblem": "compass", "earned": "Finished movies from five different genres.", "rule": { "type": "distinctGenres", "count": 5 } },
+  { "id": "season-pass", "name": "Season Pass", "rarity": "rare", "emblem": "crown", "earned": "Finished every episode of a season in Vanta.", "rule": { "type": "seasonComplete" } },
+  { "id": "marathoner", "name": "Marathoner", "rarity": "epic", "emblem": "infinity", "earned": "Watched 24 hours in Vanta.", "rule": { "type": "minutes", "total": 1440 } }
 ]
