@@ -13,7 +13,7 @@ const { app } = require('electron');
 //   rare      dedicated viewing; roughly 1 in 10
 //   epic      much harder, real commitment; roughly 3 in 100
 //   legendary the elite few; roughly 1 in 100 (exception: First Light, everyone's onboarding gift)
-// Each badge exists once and can't be earned twice.
+// Each badge exists once and can't be earned twice. Secret badges are ALWAYS epic (user rule; the engine test enforces it).
 // rule.type 'grant' is never evaluated automatically; such badges are granted explicitly (Patron: donations,
 // dev builds only until a donation backend exists). unreleased: hidden from normal builds unless already earned.
 // special (foiled, full-color ticket) is reserved for Patron alone: golden while pledging, purple as Previous Patron.
@@ -34,6 +34,8 @@ function load() {
   store.favorites ??= []; // ids shown in the sidebar showcase, in order
   store.sessions ??= []; // finished/partial watch sessions recorded by Vanta
   store.minutes ??= 0; // total real watch time
+  // real watch time per kind ('movie', 'episode'); older stores are rebuilt from their sessions
+  store.kindMinutes ??= store.sessions.reduce((m, s) => ((m[s.kind] = (m[s.kind] || 0) + (s.min || 0)), m), {});
   store.seasonSizes ??= {}; // season ratingKey -> episode count (from Plex)
   store.patron ??= null; // { status: 'active' | 'lapsed', at } once Patron is earned
 }
@@ -48,27 +50,31 @@ const localDay = (ms) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+// Finished sessions of kind (optionally the same show as show) in the hours before end, one per title
+// (rewatching a title inside the window doesn't count twice).
+function inWindow(sessions, { kind, hours, sameShow }, end, show) {
+  const from = end - hours * 3600e3;
+  return sessions.filter((x) => x.done && x.at > from && x.at <= end && (!kind || x.kind === kind) && (!sameShow || x.show === show));
+}
+const distinct = (list) => new Set(list.map((x) => x.rk)).size;
+
 // Rule evaluators: (rule, ctx) -> boolean. ctx = { store, session?, event }.
+// No time limit unless a rule says so: totals (minutes, finished) accumulate forever; finishedWithin is a
+// rolling window (e.g. 24 hours) ending at the session that just finished.
 const RULES = {
   launch: (_r, c) => c.event === 'launch',
-  minutes: (r, c) => c.store.minutes >= r.total,
-  finished: (r, c) => done(c).filter((s) => !r.kind || s.kind === r.kind).length >= r.count,
-  finishedSameDay: (r, c) => {
+  minutes: (r, c) => (r.kind ? c.store.kindMinutes[r.kind] || 0 : c.store.minutes) >= r.total,
+  finished: (r, c) => distinct(done(c).filter((s) => !r.kind || s.kind === r.kind)) >= r.count, // distinct titles
+  finishedWithin: (r, c) => {
     const s = c.session;
     if (!s?.done || (r.kind && s.kind !== r.kind)) return false;
-    return done(c).filter((x) => x.day === s.day && (!r.kind || x.kind === r.kind)).length >= r.count;
+    return distinct(inWindow(c.store.sessions, r, s.at, s.show)) >= r.count;
   },
   finishedBeforeYear: (r, c) => !!c.session?.done && c.session.kind === 'movie' && c.session.year > 0 && c.session.year < r.year,
   finishedBetweenHours: (r, c) => {
     if (!c.session?.done) return false;
     const h = new Date(c.session.at).getHours();
     return h >= r.from && h < r.to;
-  },
-  episodesSameShowSameDay: (r, c) => {
-    const s = c.session;
-    if (!s?.done || s.kind !== 'episode') return false;
-    const eps = new Set(done(c).filter((x) => x.kind === 'episode' && x.show === s.show && x.day === s.day).map((x) => x.rk));
-    return eps.size >= r.count;
   },
   distinctGenres: (r, c) => new Set(done(c).filter((x) => x.kind === 'movie').flatMap((x) => x.genres)).size >= r.count,
   seasonComplete: (_r, c) => {
@@ -83,22 +89,19 @@ const RULES = {
 const done = (c) => c.store.sessions.filter((s) => s.done);
 
 // Progress toward an unearned badge, for the Badges page ('1/10 days' style). null = nothing to measure.
-const today = () => localDay(Date.now());
-function maxBy(list, key) {
-  const n = {};
-  for (const x of list) n[key(x)] = (n[key(x)] || 0) + 1;
-  return Math.max(0, ...Object.values(n));
-}
 const PROGRESS = {
-  minutes: (r, s) => ({ cur: Math.floor(s.minutes), max: r.total, unit: 'min' }),
-  finished: (r, s) => ({ cur: s.sessions.filter((x) => x.done && (!r.kind || x.kind === r.kind)).length, max: r.count, unit: r.kind === 'movie' ? 'movies' : 'titles' }),
-  finishedSameDay: (r, s) => ({ cur: s.sessions.filter((x) => x.done && x.day === today() && (!r.kind || x.kind === r.kind)).length, max: r.count, unit: 'today' }),
-  distinctGenres: (r, s) => ({ cur: new Set(s.sessions.filter((x) => x.done && x.kind === 'movie').flatMap((x) => x.genres)).size, max: r.count, unit: 'genres' }),
-  episodesSameShowSameDay: (r, s) => {
-    const eps = s.sessions.filter((x) => x.done && x.kind === 'episode' && x.day === today());
-    const uniq = [...new Map(eps.map((x) => [x.rk, x])).values()];
-    return { cur: maxBy(uniq, (x) => x.show), max: r.count, unit: 'episodes today' };
+  minutes: (r, s) => ({ cur: Math.floor(r.kind ? s.kindMinutes[r.kind] || 0 : s.minutes), max: r.total, unit: 'min' }),
+  finished: (r, s) => ({ cur: Math.min(r.count, distinct(s.sessions.filter((x) => x.done && (!r.kind || x.kind === r.kind)))), max: r.count, unit: r.kind === 'movie' ? 'movies' : 'titles' }),
+  // The best run inside the window ending now (per show when the rule needs the same show).
+  finishedWithin: (r, s) => {
+    const hits = inWindow(s.sessions, { ...r, sameShow: false }, Date.now());
+    const byShow = {};
+    for (const x of hits) (byShow[x.show || ''] ??= []).push(x);
+    const groups = r.sameShow ? Object.values(byShow) : [hits];
+    const cur = Math.max(0, ...groups.map(distinct));
+    return { cur: Math.min(cur, r.count), max: r.count, unit: `${r.kind === 'episode' ? 'episodes' : 'movies'} in ${r.hours} hrs` };
   },
+  distinctGenres: (r, s) => ({ cur: new Set(s.sessions.filter((x) => x.done && x.kind === 'movie').flatMap((x) => x.genres)).size, max: r.count, unit: 'genres' }),
   seasonComplete: (_r, s) => {
     let best = null;
     for (const [season, size] of Object.entries(s.seasonSizes)) {
@@ -140,6 +143,7 @@ module.exports = {
   record({ meta, watchedSec, done: finished, seasonSize }) {
     const at = Date.now();
     store.minutes += Math.max(0, watchedSec) / 60;
+    store.kindMinutes[meta.type] = (store.kindMinutes[meta.type] || 0) + Math.max(0, watchedSec) / 60;
     if (meta.type === 'episode' && meta.parentRatingKey && seasonSize) store.seasonSizes[meta.parentRatingKey] = seasonSize;
     const session = {
       rk: String(meta.ratingKey),
