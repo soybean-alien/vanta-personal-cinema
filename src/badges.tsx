@@ -83,12 +83,12 @@ ${emblem}`;
 
 // ── Chimes (original, synthesized; nothing licensed) ───────────────────
 export const CHIMES: [string, string][] = [
+  ['ember', 'Ember (warm keys)'],
   ['temple', 'Temple (singing bowl)'],
   ['dusk', 'Dusk (deep dong)'],
   ['hearth', 'Hearth (low two-note)'],
   ['lantern', 'Lantern (wooden mallet)'],
   ['harbor', 'Harbor (distant gong)'],
-  ['ember', 'Ember (warm keys)'],
   ['off', 'Off'],
 ];
 
