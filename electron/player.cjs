@@ -135,6 +135,12 @@ async function timeline(state, c, it = c.item) {
 // Report the finished/stopped item, marking it watched when 90%+ was seen.
 async function finishItem(c) {
   const it = c.item;
+  // One badge session per item: finished means past 90% AND at least half of it actually watched.
+  if (!c.reported && c.events.onSession) {
+    c.reported = true;
+    const watched = c.watched || 0;
+    c.events.onSession({ meta: it.m, watchedSec: watched, done: !!c.duration && c.time / c.duration >= 0.9 && watched >= c.duration * 0.5 });
+  }
   await timeline('stopped', c, it);
   if (c.duration && c.time / c.duration >= 0.9) {
     try {
@@ -162,6 +168,8 @@ async function loadInto(c, next) {
   c.item = it;
   if (next.queueIndex != null) c.queueIndex = next.queueIndex;
   c.time = 0;
+  c.watched = 0;
+  c.reported = false;
   c.duration = (it.m.duration || 0) / 1000;
   c.ended = false;
   c.introShown = c.creditsShown = c.introSkipped = false;
@@ -287,6 +295,9 @@ function handle(c, msg) {
   }
   if (msg.event !== 'property-change' || msg.data == null) return;
   if (msg.name === 'time-pos') {
+    // Real watch time for badges: only normal forward playback counts; seeks and skips don't.
+    const step = msg.data - c.time;
+    if (!c.paused && !c.ended && step > 0 && step < 3) c.watched = (c.watched || 0) + step;
     c.time = msg.data;
     onTime(c);
   } else if (msg.name === 'duration') {

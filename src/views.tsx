@@ -19,6 +19,7 @@ import {
   playable,
 } from './api';
 import { Choice, DeckRow, Modal, Poster, Toggle, useApp, useAutoFocus, useUpdate } from './components';
+import { CHIMES, playChime, previewBadgeToast } from './badges';
 
 const loadFilters = (key: string): Filters => {
   try {
@@ -628,6 +629,18 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
           </button>
         </div>
       ))}
+
+      <h2>Badges</h2>
+      <div className="setting-grid">
+        <Choice label="Unlock sound" value={ui.badgeSound} options={CHIMES} onChange={(badgeSound) => (setUi({ badgeSound }), playChime(badgeSound))} />
+        <button className="tool" data-nav onClick={() => playChime(ui.badgeSound)}>
+          ▶ Play sound
+        </button>
+        <button className="tool" data-nav onClick={() => previewBadgeToast(['first-light', 'night-owl', 'season-pass', 'marathoner'][Math.floor(Math.random() * 4)])}>
+          🏅 Show a test badge
+        </button>
+      </div>
+      <p className="muted small">Badges are earned by watching in Vanta. The unlock sound is original to Vanta and plays softly.</p>
 
       <h2>Updates</h2>
       <UpdatesSection />

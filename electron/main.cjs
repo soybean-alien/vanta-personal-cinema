@@ -6,6 +6,15 @@ const plex = require('./plex.cjs');
 const player = require('./player.cjs');
 const health = require('./health.cjs');
 const updater = require('./updater.cjs');
+const badges = require('./badges.cjs');
+
+// Newly earned badges wait here until nothing is playing; the UI then takes them and shows the toasts.
+const pendingBadges = [];
+function queueBadges(ids) {
+  if (!ids?.length) return;
+  pendingBadges.push(...ids);
+  if (!player.isPlaying() && win && !win.isDestroyed()) win.webContents.send('badges:earned');
+}
 
 // One-time carry-over from before the PlexClient → Vanta rename, so login, pins, settings and
 // per-library filters survive (the userData folder is named after the package).
@@ -105,6 +114,9 @@ app.whenReady().then(() => {
     updater.configure(); // the update mode may have changed
     return prefs;
   });
+  handle('badges:get', () => badges.state());
+  handle('badges:take', () => (player.isPlaying() ? [] : pendingBadges.splice(0)));
+  handle('badges:setFavorites', (ids) => badges.setFavorites(ids));
   handle('update:get', () => updater.get());
   handle('update:check', () => updater.check().then(updater.get));
   handle('update:download', () => updater.download().then(updater.get));
@@ -112,9 +124,23 @@ app.whenReady().then(() => {
   handle('player:stop', () => player.stop());
   handle('player:play', (ratingKey, opts) =>
     player.play(String(ratingKey), opts || {}, {
+      onSession: async (session) => {
+        try {
+          // Season size from Plex, for the 'finish a whole season' badge.
+          let seasonSize;
+          if (session.meta.type === 'episode' && session.meta.parentRatingKey) {
+            const r = await plex.pms(`/library/metadata/${session.meta.parentRatingKey}`).catch(() => null);
+            seasonSize = r?.MediaContainer?.Metadata?.[0]?.leafCount;
+          }
+          queueBadges(badges.record({ ...session, seasonSize }));
+        } catch (e) {
+          console.warn('badge session failed:', e.message);
+        }
+      },
       onState: (s) => {
         if (!win || win.isDestroyed()) return;
         win.webContents.send('player:state', s);
+        if (!s.playing && pendingBadges.length) win.webContents.send('badges:earned');
         // Hand focus back to the app when mpv closes so keyboard/controller navigation continues.
         if (!s.playing) win.focus();
       },
@@ -123,6 +149,7 @@ app.whenReady().then(() => {
   handle('window:toggleFullscreen', () => win.setFullScreen(!win.isFullScreen()));
 
   createWindow();
+  if (!DEMO) queueBadges(badges.init());
   if (!DEMO) updater.start({ onChange: (s) => win && !win.isDestroyed() && win.webContents.send('update', updater.get()), isBusy: player.isPlaying });
 });
 
