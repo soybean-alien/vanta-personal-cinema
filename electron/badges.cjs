@@ -1,0 +1,134 @@
+// Vanta by soybean_alien
+// Badges: earned by watching in Vanta (never retroactive from Plex history). One profile per install,
+// stored in %APPDATA%\vanta\badges.json. The catalog is data; each badge names a rule that the engine evaluates
+// after every watch session.
+const fs = require('fs');
+const path = require('path');
+const { app } = require('electron');
+
+// The catalog is plain data shared with the UI (electron/badge-catalog.json). tier: bronze | silver | gold | platinum;
+// emblem: art key drawn by the UI; secret: only `hint` shows until earned; rule: evaluated by RULES below.
+const CATALOG = require('./badge-catalog.json');
+
+const FILE = () => path.join(app.getPath('userData'), 'badges.json');
+let store = null;
+
+function load() {
+  try {
+    store = JSON.parse(fs.readFileSync(FILE(), 'utf8'));
+  } catch {
+    store = {};
+  }
+  store.earned ??= {}; // id -> { at }
+  store.favorites ??= []; // ids shown in the sidebar showcase, in order
+  store.sessions ??= []; // finished/partial watch sessions recorded by Vanta
+  store.minutes ??= 0; // total real watch time
+  store.seasonSizes ??= {}; // season ratingKey -> episode count (from Plex)
+}
+
+function save() {
+  fs.mkdirSync(path.dirname(FILE()), { recursive: true });
+  fs.writeFileSync(FILE(), JSON.stringify(store));
+}
+
+const localDay = (ms) => {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Rule evaluators: (rule, ctx) -> boolean. ctx = { store, session?, event }.
+const RULES = {
+  launch: (_r, c) => c.event === 'launch',
+  minutes: (r, c) => c.store.minutes >= r.total,
+  finished: (r, c) => done(c).filter((s) => !r.kind || s.kind === r.kind).length >= r.count,
+  finishedSameDay: (r, c) => {
+    const s = c.session;
+    if (!s?.done || (r.kind && s.kind !== r.kind)) return false;
+    return done(c).filter((x) => x.day === s.day && (!r.kind || x.kind === r.kind)).length >= r.count;
+  },
+  finishedBeforeYear: (r, c) => !!c.session?.done && c.session.kind === 'movie' && c.session.year > 0 && c.session.year < r.year,
+  finishedBetweenHours: (r, c) => {
+    if (!c.session?.done) return false;
+    const h = new Date(c.session.at).getHours();
+    return h >= r.from && h < r.to;
+  },
+  episodesSameShowSameDay: (r, c) => {
+    const s = c.session;
+    if (!s?.done || s.kind !== 'episode') return false;
+    const eps = new Set(done(c).filter((x) => x.kind === 'episode' && x.show === s.show && x.day === s.day).map((x) => x.rk));
+    return eps.size >= r.count;
+  },
+  distinctGenres: (r, c) => new Set(done(c).filter((x) => x.kind === 'movie').flatMap((x) => x.genres)).size >= r.count,
+  seasonComplete: (_r, c) => {
+    const s = c.session;
+    if (!s?.done || s.kind !== 'episode' || !s.season) return false;
+    const size = c.store.seasonSizes[s.season];
+    if (!size) return false;
+    const eps = new Set(done(c).filter((x) => x.season === s.season).map((x) => x.rk));
+    return eps.size >= size;
+  },
+};
+const done = (c) => c.store.sessions.filter((s) => s.done);
+
+function evaluate(event, session) {
+  const fresh = [];
+  for (const b of CATALOG) {
+    if (store.earned[b.id]) continue;
+    const rule = RULES[b.rule.type];
+    if (rule && rule(b.rule, { store, session, event })) {
+      store.earned[b.id] = { at: Date.now() };
+      fresh.push(b.id);
+    }
+  }
+  if (fresh.length) save();
+  return fresh;
+}
+
+module.exports = {
+  init() {
+    load();
+    return evaluate('launch');
+  },
+  // A watch session from the player. `watchedSec` is real playback time (seeks don't count).
+  record({ meta, watchedSec, done: finished, seasonSize }) {
+    const at = Date.now();
+    store.minutes += Math.max(0, watchedSec) / 60;
+    if (meta.type === 'episode' && meta.parentRatingKey && seasonSize) store.seasonSizes[meta.parentRatingKey] = seasonSize;
+    const session = {
+      rk: String(meta.ratingKey),
+      kind: meta.type,
+      year: meta.year || 0,
+      genres: (meta.Genre || []).map((g) => g.tag),
+      show: meta.grandparentRatingKey ? String(meta.grandparentRatingKey) : undefined,
+      season: meta.parentRatingKey ? String(meta.parentRatingKey) : undefined,
+      min: Math.round(watchedSec / 60),
+      done: !!finished,
+      at,
+      day: localDay(at),
+    };
+    store.sessions.push(session);
+    if (store.sessions.length > 5000) store.sessions = store.sessions.slice(-5000);
+    save();
+    return evaluate('session', session);
+  },
+  state() {
+    return {
+      catalog: CATALOG.map(({ rule, ...b }) => b),
+      earned: store.earned,
+      favorites: store.favorites,
+      minutes: Math.round(store.minutes),
+    };
+  },
+  setFavorites(ids) {
+    store.favorites = ids.filter((id) => store.earned[id]).slice(0, 6);
+    save();
+    return this.state();
+  },
+  // Dev builds only: mark a badge earned to preview the toast.
+  debugAward(id) {
+    if (!CATALOG.some((b) => b.id === id)) return [];
+    store.earned[id] = { at: Date.now() };
+    save();
+    return [id];
+  },
+};

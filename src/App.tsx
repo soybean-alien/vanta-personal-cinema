@@ -4,6 +4,7 @@ import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, Use
 import { AppCtx, Ctx, Menu, MenuEntry, Modal, View, useUpdate } from './components';
 import { focusEl, focusFirst, installGamepad, installKeys } from './nav';
 import mark from './assets/vanta-mark.svg';
+import { BadgeShowcase, BadgeState, BadgeToasts } from './badges';
 import { Collections, Detail, Library, Playlist, Search, Settings } from './views';
 
 export default function App() {
@@ -254,6 +255,11 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
   const [menu, setMenu] = useState<{ x: number; y: number; entries: MenuEntry[] } | null>(null);
   const [player, setPlayer] = useState<PlayerState>({ playing: false });
   const [query, setQuery] = useState('');
+  const [badgeState, setBadgeState] = useState<BadgeState>();
+  const refreshBadges = useCallback(() => window.plex.badges().then(setBadgeState), []);
+  useEffect(() => {
+    refreshBadges();
+  }, [refreshBadges]);
   const searchRef = useRef<HTMLInputElement>(null);
   const playingRef = useRef(false);
   const restoreRef = useRef<HTMLElement | null>(null);
@@ -506,6 +512,7 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
               </button>
             </div>
           )}
+          <BadgeShowcase state={badgeState} />
           <button
             className={`settings-btn ${top?.view.kind === 'settings' ? 'active' : ''}`}
             data-nav
@@ -542,6 +549,7 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
         </main>
       </div>
       {menu && <Menu {...menu} onClose={() => setMenu(null)} />}
+      <BadgeToasts sound={prefs.ui.badgeSound} onEarned={refreshBadges} />
     </AppCtx.Provider>
   );
 }

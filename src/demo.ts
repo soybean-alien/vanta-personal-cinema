@@ -3,6 +3,7 @@
 // poster art without any personal data. Posters are Wikimedia Commons files marked public domain; see
 // demo/posters/CREDITS.md. Start it with `npm run demo` (electron . --demo).
 import type { Health, Item, Prefs } from './api';
+import CATALOG from '../electron/badge-catalog.json';
 
 const POSTERS = import.meta.glob('../demo/posters/*.{jpg,png}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -174,10 +175,18 @@ const HEALTH: Health = {
   ],
 };
 
+const BADGE_IDS = (CATALOG as { id: string }[]).map((b) => b.id);
+const DEMO_BADGES = {
+  catalog: CATALOG,
+  earned: Object.fromEntries(BADGE_IDS.map((id, i) => [id, { at: Date.UTC(2026, 9, 1 + i, 20) }])),
+  favorites: ['marathoner', 'season-pass', 'genre-hopper', 'night-owl', 'double-feature', 'opening-night'],
+  minutes: 1520,
+} as any;
+
 export function install() {
   let prefs: Prefs = {
     player: { fullscreen: true, autoplay: true, countdown: 5, skipIntro: 'button', audioLang: 'default', subLang: 'english', subMode: 'smart', hwdec: true, quality: 'default', smoothMotion: false, shaders: '', extraArgs: '' },
-    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', hiddenLibs: [], showPlaylists: true, pins: [] },
+    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'halo', hiddenLibs: [], showPlaylists: true, pins: [] },
   };
   const stateListeners = new Set<(s: any) => void>();
   const later = <T>(v: T, ms = 40) => new Promise<T>((r) => setTimeout(() => r(v), ms));
@@ -209,6 +218,11 @@ export function install() {
     checkHealth: () => later({ ...HEALTH, at: Date.now() }, 600),
     simulateHealth: () => later(HEALTH),
     onHealth: () => () => {},
+    // Demo profile: all sample badges earned, six favorited for the sidebar showcase.
+    badges: () => later(DEMO_BADGES),
+    takeBadges: () => later([] as string[]),
+    setFavoriteBadges: (ids: string[]) => later({ ...DEMO_BADGES, favorites: ids.slice(0, 6) }),
+    onBadgesEarned: () => () => {},
     updateState: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),
     checkUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
     downloadUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),

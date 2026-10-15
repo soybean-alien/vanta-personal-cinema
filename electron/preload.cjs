@@ -15,6 +15,14 @@ if (!new URLSearchParams(location.search).has('demo')) contextBridge.exposeInMai
   health: () => ipcRenderer.invoke('health:get'),
   checkHealth: () => ipcRenderer.invoke('health:check'),
   simulateHealth: (level) => ipcRenderer.invoke('health:simulate', level),
+  badges: () => ipcRenderer.invoke('badges:get'),
+  takeBadges: () => ipcRenderer.invoke('badges:take'),
+  setFavoriteBadges: (ids) => ipcRenderer.invoke('badges:setFavorites', ids),
+  onBadgesEarned: (cb) => {
+    const listener = () => cb();
+    ipcRenderer.on('badges:earned', listener);
+    return () => ipcRenderer.removeListener('badges:earned', listener);
+  },
   updateState: () => ipcRenderer.invoke('update:get'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),
