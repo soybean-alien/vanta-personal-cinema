@@ -4,7 +4,7 @@ import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, Use
 import { AppCtx, Ctx, Menu, MenuEntry, Modal, View, useUpdate } from './components';
 import { focusEl, focusFirst, installGamepad, installKeys } from './nav';
 import mark from './assets/vanta-mark.svg';
-import { BadgeShowcase, BadgeState, BadgeToasts } from './badges';
+import { BadgeShowcase, BadgeState, BadgeToasts, setTicketHolder } from './badges';
 import { BadgeCategoryPage, BadgesPage } from './badges-page';
 import { Collections, Detail, Library, Playlist, Search, Settings } from './views';
 
@@ -434,6 +434,7 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
     </button>
   );
 
+  setTicketHolder(user.username || user.name);
   return (
     <AppCtx.Provider value={ctx}>
       <div className="shell">

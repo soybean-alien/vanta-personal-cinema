@@ -189,6 +189,12 @@ const star = (cx: number, cy: number, r: number, fill: string) => {
   return `<polygon points="${p}" fill="${fill}"/>`;
 };
 
+// The ticket is issued to the signed-in Plex account's username (set by the app shell once signed in).
+let ticketHolder = '';
+export const setTicketHolder = (name: string) => {
+  ticketHolder = name;
+};
+
 export const TICKET = { w: 620, h: 240 };
 export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge: BadgeDef; at: number; more?: number; preview?: boolean; uid: string }) {
   const r = RARITY[badge.rarity];
@@ -212,10 +218,17 @@ export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge
   const golden = foil && badge.special === 'golden';
   const purple = foil && badge.special === 'purple';
   const p = purple
-    ? { paper: `url(#${uid}v)`, stub: '#4c1784', panel: 'rgba(255,255,255,0.12)', ink: '#ffffff', muted: '#e6d4ff', sub: '#f1e6ff', label: '#efe3ff', accent: '#ffffff', ribbon: '#24073f', ribbonText: '#d8b6ff', perf: '#e3ccff', disc: 'rgba(255,255,255,0.18)', stars: '#f1e3ff' }
+    ? { paper: `url(#${uid}v)`, stub: '#4c1784', panel: 'rgba(255,255,255,0.12)', ink: '#ffffff', muted: '#e6d4ff', sub: '#f1e6ff', label: '#efe3ff', accent: '#ffffff', ribbon: '#24073f', ribbonText: '#d8b6ff', perf: '#e3ccff', disc: 'rgba(255,255,255,0.18)', stars: '#f1e3ff', reason: '#ffffff' }
     : golden
-    ? { paper: `url(#${uid}g)`, stub: '#c46400', panel: 'rgba(255,255,255,0.16)', ink: '#3a1d00', muted: '#6e3a00', sub: '#5a2e00', label: '#4a2600', accent: '#3a1d00', ribbon: '#3a1d00', ribbonText: '#ffd27a', perf: '#fff0d0', disc: 'rgba(255,255,255,0.28)', stars: '#fff6dc' }
-    : { paper: '#f6f4ef', stub: r.color, panel: '#ebe7de', ink: '#3b3b3b', muted: '#7a7a7a', sub: '#6b6b6b', label: '#4a4a4a', accent: r.color, ribbon: r.color, ribbonText: '#fff', perf: '#b8b2a6', disc: '#ddd7cb', stars: r.color };
+    ? { paper: `url(#${uid}g)`, stub: '#c46400', panel: 'rgba(255,255,255,0.16)', ink: '#3a1d00', muted: '#6e3a00', sub: '#5a2e00', label: '#4a2600', accent: '#3a1d00', ribbon: '#3a1d00', ribbonText: '#ffd27a', perf: '#fff0d0', disc: 'rgba(255,255,255,0.28)', stars: '#fff6dc', reason: '#3a1d00' }
+    : { paper: '#f6f4ef', stub: r.color, panel: '#ebe7de', ink: '#3b3b3b', muted: '#7a7a7a', sub: '#6b6b6b', label: '#4a4a4a', accent: r.color, ribbon: r.color, ribbonText: '#fff', perf: '#b8b2a6', disc: '#ddd7cb', stars: r.color, reason: r.lo };
+  // The holder's username on a tag in the ribbon colors so it stands out (falls back to the rarity word).
+  const holderTag = (name: string, fallback: string, y: number) => {
+    if (!name) return `<text x="426" y="${y}" text-anchor="end" font-family="Georgia, serif" font-size="14" font-weight="700" fill="${p.accent}">${fallback}</text>`;
+    const shown = name.length > 22 ? name.slice(0, 21) + '…' : name;
+    const w = Math.round(shown.length * 7.6 + 18);
+    return `<rect x="${426 - w}" y="${y - 14}" width="${w}" height="19" rx="9.5" fill="${p.ribbon}"/><text x="${426 - w / 2}" y="${y}" text-anchor="middle" font-family="${display}" font-weight="700" font-size="13" fill="${p.ribbonText}">${esc(shown)}</text>`;
+  };
   const inner = `<defs>
 <clipPath id="${uid}c"><path d="${shape}"/></clipPath>
 <linearGradient id="${uid}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffc85a"/><stop offset=".55" stop-color="#ff9a12"/><stop offset="1" stop-color="#f07c00"/></linearGradient>
@@ -241,9 +254,9 @@ ${barcode(badge.id + 'stub', 53, 140, 180, 18, p.ink)}
 ${star(492, 34, 9, p.stars)}${star(520, 24, 12, p.stars)}${star(548, 34, 9, p.stars)}
 <text x="180" y="80" font-family="${display}" font-weight="700" font-size="${titleSize}" fill="${p.ink}">${esc(title.toUpperCase())}</text>
 <text x="180" y="100" font-family="${font}" font-size="13" fill="${p.sub}"${subFit}>${esc(sub)}</text>
-${reason.map((l, i) => `<text x="180" y="${121 + i * 16}" font-family="${font}" font-size="13" font-style="italic" font-weight="600" fill="${p.label}">${esc(l)}</text>`).join('')}
-<text x="180" y="${more ? 144 : 161}" font-family="Georgia, serif" font-size="14" fill="${p.label}">Rarity:</text>
-<text x="426" y="${more ? 144 : 161}" text-anchor="end" font-family="Georgia, serif" font-size="14" font-weight="700" fill="${p.accent}">${r.label}</text>
+${reason.map((l, i) => `<text x="180" y="${121 + i * 16}" font-family="${font}" font-size="13" font-style="italic" font-weight="700" fill="${p.reason}">${esc(l)}</text>`).join('')}
+<text x="180" y="${more ? 144 : 161}" font-family="Georgia, serif" font-size="14" fill="${p.label}">${ticketHolder ? 'Issued to:' : 'Rarity:'}</text>
+${holderTag(ticketHolder, r.label, more ? 144 : 161)}
 <text x="180" y="${more ? 167 : 179}" font-family="Georgia, serif" font-size="14" fill="${p.label}">Unlocked:</text>
 <text x="426" y="${more ? 167 : 179}" text-anchor="end" font-family="Georgia, serif" font-size="14" fill="${p.label}">${date}</text>
 ${barcode(badge.id, 180, 426, 186, 16, p.ink)}
