@@ -51,9 +51,8 @@ const EMBLEMS: Record<string, (c: string) => string> = {
     `<path d="M50 50 C44 40 30 38 28 50 C30 62 44 60 50 50 C56 40 70 38 72 50 C70 62 56 60 50 50Z" fill="none" stroke="${c}" stroke-width="5" stroke-linejoin="round"/>`,
 };
 
-// A 12-point rosette medal: tier-metal rim, black face, metal emblem.
-export function BadgeArt({ badge, size = 48, locked = false }: { badge: BadgeDef; size?: number; locked?: boolean }) {
-  const uid = useId().replace(/:/g, '');
+// A 12-point rosette medal: tier-metal rim, black face, metal emblem. Returns the inner SVG markup.
+function badgeSvg(badge: BadgeDef, uid: string, locked = false) {
   const t = TIERS[badge.tier];
   const points = Array.from({ length: 24 }, (_, i) => {
     const r = i % 2 ? 44 : 49;
@@ -61,7 +60,7 @@ export function BadgeArt({ badge, size = 48, locked = false }: { badge: BadgeDef
     return `${(50 + r * Math.cos(a)).toFixed(1)},${(50 + r * Math.sin(a)).toFixed(1)}`;
   }).join(' ');
   const emblem = locked ? `<text x="50" y="60" text-anchor="middle" font-size="30" font-weight="700" fill="${t.lo}">?</text>` : (EMBLEMS[badge.emblem] || EMBLEMS.spark)(`url(#${uid}m)`);
-  const svg = `<defs>
+  return `<defs>
 <linearGradient id="${uid}r" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${t.hi}"/><stop offset=".45" stop-color="${t.lo}"/><stop offset=".7" stop-color="${t.hi}"/><stop offset="1" stop-color="${t.lo}"/></linearGradient>
 <linearGradient id="${uid}m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.glint}"/><stop offset="1" stop-color="${t.hi}"/></linearGradient>
 <radialGradient id="${uid}f" cx=".5" cy=".35" r=".7"><stop offset="0" stop-color="#2a241a"/><stop offset="1" stop-color="#0b0906"/></radialGradient></defs>
@@ -69,6 +68,10 @@ export function BadgeArt({ badge, size = 48, locked = false }: { badge: BadgeDef
 <circle cx="50" cy="50" r="36" fill="url(#${uid}f)" stroke="${t.lo}" stroke-width="1.5"/>
 <circle cx="50" cy="50" r="33" fill="none" stroke="${t.hi}" stroke-opacity=".35" stroke-width="1"/>
 ${emblem}`;
+}
+
+export function BadgeArt({ badge, size = 48, locked = false }: { badge: BadgeDef; size?: number; locked?: boolean }) {
+  const uid = useId().replace(/:/g, '');
   return (
     <svg
       className={`badge-art ${locked ? 'locked' : ''}`}
@@ -76,11 +79,37 @@ ${emblem}`;
       width={size}
       height={size}
       aria-label={badge.name}
-      dangerouslySetInnerHTML={{ __html: svg }}
+      dangerouslySetInnerHTML={{ __html: badgeSvg(badge, uid, locked) }}
     />
   );
 }
 
+// Raw premultiplied BGRA pixels of a medallion (base64) for mpv's overlay-add, used when a badge toast is
+// drawn inside the player during playback. Called from the main process.
+async function badgeBGRA(id: string, size: number): Promise<string> {
+  const b = CATALOG_BY_ID[id];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}">${badgeSvg(b, 'r' + size)}</svg>`;
+  const img = new Image();
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  await img.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const g = canvas.getContext('2d')!;
+  g.drawImage(img, 0, 0, size, size);
+  const px = g.getImageData(0, 0, size, size).data;
+  const out = new Uint8Array(px.length);
+  for (let i = 0; i < px.length; i += 4) {
+    const a = px[i + 3] / 255;
+    out[i] = px[i + 2] * a; // B
+    out[i + 1] = px[i + 1] * a; // G
+    out[i + 2] = px[i] * a; // R
+    out[i + 3] = px[i + 3];
+  }
+  let bin = '';
+  out.forEach((v) => (bin += String.fromCharCode(v)));
+  return btoa(bin);
+}
+(window as unknown as { __vantaBadgeBGRA: typeof badgeBGRA }).__vantaBadgeBGRA = badgeBGRA;
 // ── Chimes (original, synthesized; nothing licensed) ───────────────────
 export const CHIMES: [string, string][] = [
   ['ember', 'Ember (warm keys)'],
@@ -220,6 +249,8 @@ export function BadgeToasts({ sound, onEarned }: { sound: string; onEarned: () =
   const elapsed = useRef(0);
   const played = useRef(false);
   const hovering = useRef(false);
+  const soundRef = useRef(sound);
+  soundRef.current = sound;
   const current = queue[0];
 
   const enqueue = useCallback((ids: string[], preview = false) => {
@@ -240,10 +271,16 @@ export function BadgeToasts({ sound, onEarned }: { sound: string; onEarned: () =
     };
     pull();
     const off = window.plex.onBadgesEarned(pull);
+    // A badge drawn inside the player during playback: play the chime here and refresh the showcase.
+    const offShown = window.plex.onBadgeShown(() => {
+      playChime(soundRef.current);
+      onEarned();
+    });
     const prev = (e: Event) => enqueue([(e as CustomEvent).detail], true);
     window.addEventListener('vanta:badge-preview', prev);
     return () => {
       off();
+      offShown();
       window.removeEventListener('vanta:badge-preview', prev);
     };
   }, [enqueue, onEarned]);

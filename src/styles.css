@@ -245,3 +245,13 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .badge-tip-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .tier-chip { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 10px; padding: 1px 7px; color: #111; }
 .tier-chip.bronze { background: #e2a56b; } .tier-chip.silver { background: #e9edf1; } .tier-chip.gold { background: #ffd76a; } .tier-chip.platinum { background: #d8f0ff; }
+/* sliding switch */
+.switch { display: flex; align-items: center; gap: 14px; background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; text-align: left; width: 100%; max-width: 680px; }
+.switch:hover { border-color: #444b59; }
+.switch-track { position: relative; flex-shrink: 0; width: 46px; height: 26px; border-radius: 13px; background: #3a404d; transition: background 0.2s; }
+.switch-knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #c9cdd6; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); transition: transform 0.22s cubic-bezier(0.3, 0.9, 0.3, 1.1), background 0.2s; }
+.switch.on .switch-track { background: var(--accent); }
+.switch.on .switch-knob { transform: translateX(20px); background: #1b1406; }
+.switch-text { display: flex; flex-direction: column; gap: 2px; }
+.switch-label { font-weight: 600; }
+.switch-hint { font-size: 12.5px; color: var(--muted); }

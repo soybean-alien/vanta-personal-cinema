@@ -53,6 +53,7 @@ const DEFAULT_PREFS = {
   ui: {
     displayName: 'username', // username | title
     updates: 'ask', // auto | ask | manual
+    badgesDuringPlayback: false, // off = hold badges for transitions / the library
     badgeSound: 'ember', // temple | dusk | hearth | lantern | harbor | ember | off
     brandLayout: 'tagline', // inline | stacked | corner | bold | tagline | gilded | seal | monogram | row
     hiddenLibs: [],

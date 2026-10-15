@@ -73,6 +73,7 @@ export interface UiPrefs {
   brandLayout: 'inline' | 'stacked' | 'corner' | 'bold' | 'tagline' | 'gilded' | 'seal' | 'monogram' | 'row';
   updates: 'auto' | 'ask' | 'manual';
   badgeSound: string;
+  badgesDuringPlayback: boolean;
   hiddenLibs: string[];
   showPlaylists: boolean;
   pins: Pin[];
@@ -148,6 +149,7 @@ declare global {
       takeBadges(): Promise<string[]>;
       setFavoriteBadges(ids: string[]): Promise<import('./badges').BadgeState>;
       onBadgesEarned(cb: () => void): () => void;
+      onBadgeShown(cb: (id: string) => void): () => void;
       updateState(): Promise<UpdateState>;
       checkUpdate(): Promise<UpdateState>;
       downloadUpdate(): Promise<UpdateState>;

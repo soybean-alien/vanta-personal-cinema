@@ -8,12 +8,51 @@ const health = require('./health.cjs');
 const updater = require('./updater.cjs');
 const badges = require('./badges.cjs');
 
-// Newly earned badges wait here until nothing is playing; the UI then takes them and shows the toasts.
+const overlay = require('./badge-overlay.cjs');
+const CATALOG = require('./badge-catalog.json');
+
+// Where a newly earned badge gets shown:
+//  - nothing playing          -> Vanta's own toast (pendingBadges, taken by the UI)
+//  - playing, "Show badges during playback" on -> drawn inside mpv right away
+//  - playing, setting off     -> held, then drawn in mpv at the next transition (between episodes/queue items),
+//                                or handed to Vanta's toast when playback stops
 const pendingBadges = [];
+const heldForPlayback = [];
 function queueBadges(ids) {
   if (!ids?.length) return;
+  if (player.isPlaying()) {
+    if (plex.getPrefs().ui.badgesDuringPlayback || player.inTransition()) showInPlayer(ids);
+    else heldForPlayback.push(...ids);
+    return;
+  }
   pendingBadges.push(...ids);
-  if (!player.isPlaying() && win && !win.isDestroyed()) win.webContents.send('badges:earned');
+  if (win && !win.isDestroyed()) win.webContents.send('badges:earned');
+}
+
+// Rasterizes each medallion (in the UI, where the art lives) and hands the cards to the player.
+async function showInPlayer(ids) {
+  try {
+    const dims = await player.osdSize();
+    if (!dims || !win || win.isDestroyed()) throw new Error('no player window');
+    const size = overlay.layout(dims.w, dims.h).img;
+    const dir = path.join(app.getPath('userData'), 'overlay');
+    fs.mkdirSync(dir, { recursive: true });
+    // More than three at once: the first in full, then one "+N more" card (same as the in-app toast).
+    const shown = ids.length > 3 ? ids.slice(0, 2) : ids;
+    const items = [];
+    for (const [i, id] of shown.entries()) {
+      const def = CATALOG.find((b) => b.id === id);
+      if (!def) continue;
+      const b64 = await win.webContents.executeJavaScript(`window.__vantaBadgeBGRA(${JSON.stringify(id)}, ${size})`);
+      const file = path.join(dir, `${id}-${size}.bgra`);
+      fs.writeFileSync(file, Buffer.from(b64, 'base64'));
+      const more = ids.length > 3 && i === 1 ? ids.length - 1 : 0;
+      items.push({ id, name: def.name, tier: def.tier, file, size, more, moreIds: more ? ids.slice(2) : [] });
+    }
+    if (!player.showBadges(items, dims)) throw new Error('player closed');
+  } catch {
+    pendingBadges.push(...ids); // fall back to the in-app toast once playback stops
+  }
 }
 
 // One-time carry-over from before the PlexClient → Vanta rename, so login, pins, settings and
@@ -124,6 +163,11 @@ app.whenReady().then(() => {
   handle('player:stop', () => player.stop());
   handle('player:play', (ratingKey, opts) =>
     player.play(String(ratingKey), opts || {}, {
+      onTransition: () => {
+        if (heldForPlayback.length) showInPlayer(heldForPlayback.splice(0));
+      },
+      onBadgeShown: (id) => win && !win.isDestroyed() && win.webContents.send('badges:shown', id),
+      onBadgesUndelivered: (ids) => pendingBadges.push(...ids),
       onSession: async (session) => {
         try {
           // Season size from Plex, for the 'finish a whole season' badge.
@@ -140,7 +184,10 @@ app.whenReady().then(() => {
       onState: (s) => {
         if (!win || win.isDestroyed()) return;
         win.webContents.send('player:state', s);
-        if (!s.playing && pendingBadges.length) win.webContents.send('badges:earned');
+        if (!s.playing) {
+          pendingBadges.push(...heldForPlayback.splice(0)); // back at the library: show what was held
+          if (pendingBadges.length) win.webContents.send('badges:earned');
+        }
         // Hand focus back to the app when mpv closes so keyboard/controller navigation continues.
         if (!s.playing) win.focus();
       },
