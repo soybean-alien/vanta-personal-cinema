@@ -42,7 +42,57 @@ export interface Item {
   rating?: number;
   librarySectionID?: number | string;
   Genre?: { tag: string }[];
+  Media?: { videoResolution?: string; width?: number; height?: number }[];
   OnDeck?: { Metadata?: Item | Item[] };
+}
+
+// File resolution as a tier for the library grid's corner tag. Plex reports videoResolution as '4k', '1080',
+// '720', '576', '480' or 'sd'; width is the fallback (scope films like 1920x800 are still 1080p). Best version wins.
+export type ResTier = { label: string; tier: '4k' | '1080' | '720' | 'low' };
+const tierOf = (m: { videoResolution?: string; width?: number }): number => {
+  const r = (m.videoResolution || '').toLowerCase();
+  if (r === '4k' || (m.width ?? 0) >= 3200) return 4;
+  if (r === '1080' || (m.width ?? 0) >= 1700) return 3;
+  if (r === '720' || (m.width ?? 0) >= 1200) return 2;
+  return r || m.width ? 1 : 0;
+};
+export function resolutionOf(media?: Item['Media']): ResTier | null {
+  if (!media?.length) return null;
+  const best = media.reduce((a, m) => (tierOf(m) > tierOf(a) ? m : a));
+  const t = tierOf(best);
+  if (t === 4) return { label: '4K', tier: '4k' };
+  if (t === 3) return { label: '1080p', tier: '1080' };
+  if (t === 2) return { label: '720p', tier: '720' };
+  if (t === 1) {
+    const r = (best.videoResolution || '').toLowerCase();
+    return { label: /^\d+$/.test(r) ? `${r}p` : 'SD', tier: 'low' };
+  }
+  return null;
+}
+
+// TV shows carry no file info, so a show's tag comes from its episodes: the most common tier (ties go to the
+// higher one). One request per show library, cached for the session.
+const showResCache = new Map<string, Promise<Record<string, ResTier>>>();
+export function showResolutions(sectionKey: string): Promise<Record<string, ResTier>> {
+  if (!showResCache.has(sectionKey)) {
+    const p = items(`/library/sections/${sectionKey}/all?type=4`).then((eps) => {
+      const counts: Record<string, Record<string, { n: number; res: ResTier; rank: number }>> = {};
+      const rank = { '4k': 4, '1080': 3, '720': 2, low: 1 };
+      for (const e of eps) {
+        const res = resolutionOf(e.Media);
+        if (!res || !e.grandparentRatingKey) continue;
+        const show = (counts[e.grandparentRatingKey] ??= {});
+        const c = (show[res.label] ??= { n: 0, res, rank: rank[res.tier] });
+        c.n++;
+      }
+      return Object.fromEntries(
+        Object.entries(counts).map(([rk, c]) => [rk, Object.values(c).sort((a, b) => b.n - a.n || b.rank - a.rank)[0].res]),
+      );
+    });
+    p.catch(() => showResCache.delete(sectionKey));
+    showResCache.set(sectionKey, p);
+  }
+  return showResCache.get(sectionKey)!;
 }
 
 export interface PlayerPrefs {
