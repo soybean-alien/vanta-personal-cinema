@@ -3,6 +3,7 @@
 // poster art without any personal data. Posters are Wikimedia Commons files marked public domain; see
 // demo/posters/CREDITS.md. Start it with `npm run demo` (electron . --demo).
 import type { Health, Item, Prefs } from './api';
+import CATALOG from '../electron/badge-catalog.json';
 
 const POSTERS = import.meta.glob('../demo/posters/*.{jpg,png}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -176,10 +177,30 @@ const HEALTH: Health = {
   ],
 };
 
+// Demo profile: a realistic mix of earned and in-progress badges (unreleased ones like Patron hidden, as in normal builds).
+const DEMO_EARNED = ['first-light', 'opening-night', 'popcorn-ready', 'double-feature', 'night-owl', 'genre-hopper', 'binge-starter'];
+const DEMO_BADGES = {
+  catalog: (CATALOG as any[]).filter((b) => !b.unreleased).map(({ rule, variants, ...b }) => b),
+  earned: Object.fromEntries(DEMO_EARNED.map((id, i) => [id, { at: Date.UTC(2026, 9, 1 + i * 2, 20) }])),
+  favorites: ['genre-hopper', 'night-owl', 'double-feature', 'opening-night', 'first-light', 'binge-starter'],
+  minutes: 1010,
+  progress: {
+    'time-traveler': null,
+    'triple-feature': { cur: 2, max: 3, unit: 'movies in 24 hrs' },
+    'quadruple-feature': { cur: 2, max: 4, unit: 'movies in 24 hrs' },
+    'six-pack': { cur: 2, max: 6, unit: 'movies in 24 hrs' },
+    'season-pass': { cur: 5, max: 8, unit: 'episodes' },
+    marathoner: { cur: 1010, max: 2880, unit: 'min' },
+  },
+} as any;
+for (const [k, v] of Object.entries(DEMO_BADGES.progress)) if (!v) delete DEMO_BADGES.progress[k];
+
+const demoUnlocks: string[] = [];
+
 export function install() {
   let prefs: Prefs = {
     player: { fullscreen: true, autoplay: true, countdown: 5, skipIntro: 'button', audioLang: 'default', subLang: 'english', subMode: 'smart', hwdec: true, quality: 'default', smoothMotion: false, shaders: '', extraArgs: '' },
-    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', hiddenLibs: [], showPlaylists: true, pins: [] },
+    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'ember', badgesDuringPlayback: false, hiddenLibs: [], showPlaylists: true, pins: [] },
   };
   const stateListeners = new Set<(s: any) => void>();
   const later = <T>(v: T, ms = 40) => new Promise<T>((r) => setTimeout(() => r(v), ms));
@@ -211,9 +232,30 @@ export function install() {
     checkHealth: () => later({ ...HEALTH, at: Date.now() }, 600),
     simulateHealth: () => later(HEALTH),
     onHealth: () => () => {},
-    updateState: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),
-    checkUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
-    downloadUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),
+    // Fresh copies each call, like real IPC, so React sees favorites change.
+    // A fictional, generated avatar (no real person) for the demo account.
+    avatar: () =>
+      later(
+        'data:image/svg+xml;base64,' +
+          btoa(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4b6cb7"/><stop offset="1" stop-color="#182848"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="32" cy="25" r="11" fill="#e8c9a0"/><path d="M12 60 C14 44 50 44 52 60Z" fill="#e5a00d"/></svg>',
+          ),
+      ),
+    badges: () => later({ ...DEMO_BADGES }),
+    takeBadges: () => later(demoUnlocks.splice(0)),
+    setFavoriteBadges: (ids: string[]) => {
+      DEMO_BADGES.favorites = ids.slice(0, 6);
+      return later({ ...DEMO_BADGES });
+    },
+    // Recording hook: window.__vantaDemoUnlock(['six-pack']) shows a real (non-preview) unlock ticket.
+    onBadgesEarned: (cb: () => void) => {
+      (window as any).__vantaDemoUnlock = (ids: string[]) => (demoUnlocks.push(...ids), cb());
+      return () => {};
+    },
+    onBadgeShown: () => () => {},
+    updateState: () => later({ state: 'none', current: '1.5.0', mode: prefs.ui.updates, packaged: true }),
+    checkUpdate: () => later({ state: 'none', current: '1.5.0', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
+    downloadUpdate: () => later({ state: 'none', current: '1.5.0', mode: prefs.ui.updates, packaged: true }),
     installUpdate: () => later({ ok: true }),
     onUpdate: () => () => {},
   };

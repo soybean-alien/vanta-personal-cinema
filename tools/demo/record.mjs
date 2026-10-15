@@ -1,6 +1,7 @@
 // Vanta by soybean_alien
 // Re-records the README media from the real app running in demo mode (public-domain films and their posters):
-//   docs/demo.gif, docs/screenshot-movies.png, docs/screenshot-genres.png, docs/screenshot-connection.png, tools/banner/app.png
+//   docs/demo.gif, docs/screenshot-movies.png, docs/screenshot-genres.png, docs/screenshot-connection.png,
+//   docs/screenshot-badges.png, docs/screenshot-ticket.png, tools/banner/app.png
 // Usage: npm run build && node tools/demo/record.mjs
 // It launches Electron with --demo and a debug port, then drives the UI over the Chrome DevTools Protocol.
 import { spawn } from 'child_process';
@@ -68,9 +69,37 @@ await sleep(700);
 fs.writeFileSync(path.join(docs, 'screenshot-connection.png'), await png());
 await dismiss('.modal-backdrop');
 await sleep(400);
-console.log('wrote 3 screenshots');
+// Badges: the page, and an unlock ticket drawn by the same code the player overlay uses (premultiplied BGRA -> PNG).
+await clickText('.settings-btn', 'Badges');
+await sleep(900);
+fs.writeFileSync(path.join(docs, 'screenshot-badges.png'), await png());
+const t = await js(`window.__vantaTicketBGRA('six-pack', Date.now(), 0, 1240)`);
+const raw = Buffer.from(t.b64, 'base64');
+const tp = new PNG({ width: t.w, height: t.h });
+for (let i = 0; i < t.w * t.h; i++) {
+  const a = raw[i * 4 + 3];
+  const un = (v) => (a ? Math.min(255, Math.round((v * 255) / a)) : 0);
+  tp.data.set([un(raw[i * 4 + 2]), un(raw[i * 4 + 1]), un(raw[i * 4]), a], i * 4);
+}
+fs.writeFileSync(path.join(docs, 'screenshot-ticket.png'), PNG.sync.write(tp));
+await clickText('.sidebar nav button', 'Movies');
+await sleep(900);
+console.log('wrote 5 screenshots');
 
-// The tour: library → keyboard focus → detail → genre filter → random → second library → collection → search → status → settings
+// The tour: badges page → an unlock ticket → library (resolution tags) → keyboard focus → detail → genre filter →
+// random → second library → collection → search → status → settings
+await clickText('.settings-btn', 'Badges');
+await sleep(900);
+await frame(1800);
+await js(`document.querySelector('.view:not(.behind)').scrollTo({ top: 330, behavior: 'instant' })`);
+await sleep(400);
+await frame(1300);
+await js(`window.__vantaDemoUnlock(['six-pack'])`);
+await sleep(1500);
+await frame(2600);
+await js(`document.querySelector('.view:not(.behind)').scrollTo({ top: 0, behavior: 'instant' })`);
+await clickText('.sidebar nav button', 'Movies');
+await sleep(900);
 await frame(1600);
 await key('ArrowRight');
 await frame(600);

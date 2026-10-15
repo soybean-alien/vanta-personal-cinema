@@ -122,6 +122,8 @@ export interface UiPrefs {
   displayName: 'username' | 'title';
   brandLayout: 'inline' | 'stacked' | 'corner' | 'bold' | 'tagline' | 'gilded' | 'seal' | 'monogram' | 'row';
   updates: 'auto' | 'ask' | 'manual';
+  badgeSound: string;
+  badgesDuringPlayback: boolean;
   hiddenLibs: string[];
   showPlaylists: boolean;
   pins: Pin[];
@@ -193,6 +195,14 @@ declare global {
       checkHealth(): Promise<Health>;
       simulateHealth(level: 'warn' | 'bad' | null): Promise<Health>;
       onHealth(cb: (h: Health) => void): () => void;
+      badges(): Promise<import('./badges').BadgeState>;
+      takeBadges(): Promise<string[]>;
+      setFavoriteBadges(ids: string[]): Promise<import('./badges').BadgeState>;
+      avatar(): Promise<string | null | { error: string }>;
+      devGrantBadge?(id: string): Promise<void>;
+      devPatronLapse?(): Promise<boolean>;
+      onBadgesEarned(cb: () => void): () => void;
+      onBadgeShown(cb: (id: string) => void): () => void;
       updateState(): Promise<UpdateState>;
       checkUpdate(): Promise<UpdateState>;
       downloadUpdate(): Promise<UpdateState>;

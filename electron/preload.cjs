@@ -15,6 +15,22 @@ if (!new URLSearchParams(location.search).has('demo')) contextBridge.exposeInMai
   health: () => ipcRenderer.invoke('health:get'),
   checkHealth: () => ipcRenderer.invoke('health:check'),
   simulateHealth: (level) => ipcRenderer.invoke('health:simulate', level),
+  avatar: () => ipcRenderer.invoke('user:avatar'),
+  badges: () => ipcRenderer.invoke('badges:get'),
+  takeBadges: () => ipcRenderer.invoke('badges:take'),
+  setFavoriteBadges: (ids) => ipcRenderer.invoke('badges:setFavorites', ids),
+  devGrantBadge: (id) => ipcRenderer.invoke('badges:devGrant', id),
+  devPatronLapse: () => ipcRenderer.invoke('badges:devPatronLapse'),
+  onBadgeShown: (cb) => {
+    const listener = (_e, id) => cb(id);
+    ipcRenderer.on('badges:shown', listener);
+    return () => ipcRenderer.removeListener('badges:shown', listener);
+  },
+  onBadgesEarned: (cb) => {
+    const listener = () => cb();
+    ipcRenderer.on('badges:earned', listener);
+    return () => ipcRenderer.removeListener('badges:earned', listener);
+  },
   updateState: () => ipcRenderer.invoke('update:get'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),

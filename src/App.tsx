@@ -4,6 +4,8 @@ import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, Use
 import { AppCtx, Ctx, Menu, MenuEntry, Modal, View, useUpdate } from './components';
 import { focusEl, focusFirst, installGamepad, installKeys } from './nav';
 import mark from './assets/vanta-mark.svg';
+import { BadgeShowcase, BadgeState, BadgeToasts, setTicketAvatar, setTicketHolder } from './badges';
+import { BadgeCategoryPage, BadgesPage } from './badges-page';
 import { Collections, Detail, Library, Playlist, Search, Settings } from './views';
 
 export default function App() {
@@ -254,6 +256,17 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
   const [menu, setMenu] = useState<{ x: number; y: number; entries: MenuEntry[] } | null>(null);
   const [player, setPlayer] = useState<PlayerState>({ playing: false });
   const [query, setQuery] = useState('');
+  const [badgeState, setBadgeState] = useState<BadgeState>();
+  const refreshBadges = useCallback(() => window.plex.badges().then(setBadgeState), []);
+  useEffect(() => {
+    refreshBadges();
+    window.addEventListener('vanta:badges-changed', refreshBadges);
+    return () => window.removeEventListener('vanta:badges-changed', refreshBadges);
+  }, [refreshBadges]);
+  // Badge tickets carry the user's Plex profile picture (fetched once by the main process).
+  useEffect(() => {
+    window.plex.avatar().then((a) => typeof a === 'string' && setTicketAvatar(a)).catch(() => {});
+  }, [user.thumb]);
   const searchRef = useRef<HTMLInputElement>(null);
   const playingRef = useRef(false);
   const restoreRef = useRef<HTMLElement | null>(null);
@@ -275,6 +288,11 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
   }, [visibleLibs]);
 
   const go = useCallback((view: View) => setHistory([{ id: nextId++, view }]), []);
+  useEffect(() => {
+    const openBadges = () => go({ kind: 'badges' });
+    window.addEventListener('vanta:open-badges', openBadges);
+    return () => window.removeEventListener('vanta:open-badges', openBadges);
+  }, [go]);
   const open = useCallback((view: View) => {
     const focus = document.activeElement as HTMLElement | null;
     setHistory((h) => {
@@ -420,6 +438,7 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
     </button>
   );
 
+  setTicketHolder(user.username || user.name);
   return (
     <AppCtx.Provider value={ctx}>
       <div className="shell">
@@ -506,6 +525,14 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
               </button>
             </div>
           )}
+          <BadgeShowcase state={badgeState} />
+          <button
+            className={`settings-btn ${top?.view.kind === 'badges' || top?.view.kind === 'badgeCategory' ? 'active' : ''}`}
+            data-nav
+            onClick={() => go({ kind: 'badges' })}
+          >
+            🏅 Badges
+          </button>
           <button
             className={`settings-btn ${top?.view.kind === 'settings' ? 'active' : ''}`}
             data-nav
@@ -536,12 +563,15 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
                 {v.kind === 'playlist' && <Playlist ratingKey={v.ratingKey} title={v.title} />}
                 {v.kind === 'search' && <Search query={query} setQuery={setQuery} />}
                 {v.kind === 'settings' && <Settings onSignOut={onSignOut} />}
+                {v.kind === 'badges' && <BadgesPage />}
+                {v.kind === 'badgeCategory' && <BadgeCategoryPage category={v.category} />}
               </div>
             );
           })}
         </main>
       </div>
       {menu && <Menu {...menu} onClose={() => setMenu(null)} />}
+      <BadgeToasts sound={prefs.ui.badgeSound} onEarned={refreshBadges} />
     </AppCtx.Provider>
   );
 }
