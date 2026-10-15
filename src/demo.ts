@@ -182,7 +182,14 @@ const DEMO_BADGES = {
   earned: Object.fromEntries(DEMO_EARNED.map((id, i) => [id, { at: Date.UTC(2026, 9, 1 + i * 2, 20) }])),
   favorites: ['genre-hopper', 'night-owl', 'double-feature', 'opening-night', 'first-light', 'binge-starter'],
   minutes: 1010,
-  progress: { 'time-traveler': null, 'season-pass': { cur: 5, max: 8, unit: 'episodes' }, marathoner: { cur: 1010, max: 1440, unit: 'min' } },
+  progress: {
+    'time-traveler': null,
+    'triple-feature': { cur: 2, max: 3, unit: 'movies in 24 hrs' },
+    'quadruple-feature': { cur: 2, max: 4, unit: 'movies in 24 hrs' },
+    'six-pack': { cur: 2, max: 6, unit: 'movies in 24 hrs' },
+    'season-pass': { cur: 5, max: 8, unit: 'episodes' },
+    marathoner: { cur: 1010, max: 2880, unit: 'min' },
+  },
 } as any;
 for (const [k, v] of Object.entries(DEMO_BADGES.progress)) if (!v) delete DEMO_BADGES.progress[k];
 
