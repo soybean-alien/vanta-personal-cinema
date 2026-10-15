@@ -18,6 +18,11 @@ if (!new URLSearchParams(location.search).has('demo')) contextBridge.exposeInMai
   badges: () => ipcRenderer.invoke('badges:get'),
   takeBadges: () => ipcRenderer.invoke('badges:take'),
   setFavoriteBadges: (ids) => ipcRenderer.invoke('badges:setFavorites', ids),
+  onBadgeShown: (cb) => {
+    const listener = (_e, id) => cb(id);
+    ipcRenderer.on('badges:shown', listener);
+    return () => ipcRenderer.removeListener('badges:shown', listener);
+  },
   onBadgesEarned: (cb) => {
     const listener = () => cb();
     ipcRenderer.on('badges:earned', listener);

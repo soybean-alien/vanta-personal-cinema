@@ -18,7 +18,7 @@ import {
   nextEpisode,
   playable,
 } from './api';
-import { Choice, DeckRow, Modal, Poster, Toggle, useApp, useAutoFocus, useUpdate } from './components';
+import { Choice, DeckRow, Modal, Poster, Switch, Toggle, useApp, useAutoFocus, useUpdate } from './components';
 import { CHIMES, playChime, previewBadgeToast } from './badges';
 
 const loadFilters = (key: string): Filters => {
@@ -631,7 +631,17 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
       ))}
 
       <h2>Badges</h2>
-      <div className="setting-grid">
+      <Switch
+        label="Show badges during playback"
+        hint={
+          ui.badgesDuringPlayback
+            ? 'On: a badge appears in the corner of the video the moment you earn it.'
+            : 'Off: Vanta holds badges until the gap between episodes, or until you’re back in the library.'
+        }
+        value={ui.badgesDuringPlayback}
+        onChange={(badgesDuringPlayback) => setUi({ badgesDuringPlayback })}
+      />
+      <div className="setting-grid" style={{ marginTop: 12 }}>
         <Choice label="Unlock sound" value={ui.badgeSound} options={CHIMES} onChange={(badgeSound) => (setUi({ badgeSound }), playChime(badgeSound))} />
         <button className="tool" data-nav onClick={() => playChime(ui.badgeSound)}>
           ▶ Play sound

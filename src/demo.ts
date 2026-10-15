@@ -186,7 +186,7 @@ const DEMO_BADGES = {
 export function install() {
   let prefs: Prefs = {
     player: { fullscreen: true, autoplay: true, countdown: 5, skipIntro: 'button', audioLang: 'default', subLang: 'english', subMode: 'smart', hwdec: true, quality: 'default', smoothMotion: false, shaders: '', extraArgs: '' },
-    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'ember', hiddenLibs: [], showPlaylists: true, pins: [] },
+    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'ember', badgesDuringPlayback: false, hiddenLibs: [], showPlaylists: true, pins: [] },
   };
   const stateListeners = new Set<(s: any) => void>();
   const later = <T>(v: T, ms = 40) => new Promise<T>((r) => setTimeout(() => r(v), ms));
@@ -223,6 +223,7 @@ export function install() {
     takeBadges: () => later([] as string[]),
     setFavoriteBadges: (ids: string[]) => later({ ...DEMO_BADGES, favorites: ids.slice(0, 6) }),
     onBadgesEarned: () => () => {},
+    onBadgeShown: () => () => {},
     updateState: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),
     checkUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
     downloadUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),

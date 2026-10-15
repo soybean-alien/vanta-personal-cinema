@@ -6,6 +6,7 @@ const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const plex = require('./plex.cjs');
+const overlay = require('./badge-overlay.cjs');
 
 const PIPE = '\\\\.\\pipe\\vanta-mpv';
 const REPORT_EVERY_MS = 10000;
@@ -113,8 +114,50 @@ async function resolve(ratingKey) {
 
 let current = null;
 
+// A single object argument is mpv's named-argument form ({ name: 'osd-overlay', ... }).
 function send(c, ...command) {
-  if (c.sock && !c.sock.destroyed) c.sock.write(JSON.stringify({ command }) + '\n');
+  const cmd = command.length === 1 && typeof command[0] === 'object' ? command[0] : command;
+  if (c.sock && !c.sock.destroyed) c.sock.write(JSON.stringify({ command: cmd }) + '\n');
+}
+
+// Command with a reply (e.g. get_property).
+let nextRequest = 1;
+function request(c, ...command) {
+  return new Promise((resolve) => {
+    if (!c.sock || c.sock.destroyed) return resolve(null);
+    const id = nextRequest++;
+    c.requests.set(id, resolve);
+    setTimeout(() => c.requests.delete(id) && resolve(null), 2000);
+    c.sock.write(JSON.stringify({ command, request_id: id }) + '\n');
+  });
+}
+
+// ── Badge toasts inside mpv ──
+const OVERLAY_MS = 12000;
+async function osdSize() {
+  const c = current;
+  if (!c || c.exited) return null;
+  const [w, h] = await Promise.all([request(c, 'get_property', 'osd-width'), request(c, 'get_property', 'osd-height')]);
+  return w?.data && h?.data ? { w: w.data, h: h.data } : null;
+}
+// items: [{ id, name, tier, file, size, more? }]. Returns false if there's no player to draw in.
+function showBadges(items, dims) {
+  const c = current;
+  if (!c || c.exited || !c.sock) return false;
+  c.overlayQueue.push(...items.map((it) => ({ ...it, dims })));
+  if (!c.overlayBusy) runOverlays(c);
+  return true;
+}
+async function runOverlays(c) {
+  c.overlayBusy = true;
+  while (c.overlayQueue.length && !c.exited) {
+    const it = c.overlayQueue.shift();
+    overlay.show((...a) => send(c, ...a), it.dims, it, { file: it.file, size: it.size }, it.more || 0);
+    c.events.onBadgeShown?.(it.id);
+    for (let t = 0; t < OVERLAY_MS && !c.exited; t += 250) await new Promise((r) => setTimeout(r, 250));
+    if (!c.exited) overlay.hide((...a) => send(c, ...a));
+  }
+  c.overlayBusy = false;
 }
 
 async function timeline(state, c, it = c.item) {
@@ -192,6 +235,7 @@ async function goNext(c, { countdown } = {}) {
     const next = c.nextCache !== undefined ? c.nextCache : await findNext(c);
     await finishItem(c);
     c.events.onState({ playing: true, refresh: true, ratingKey: c.item.ratingKey, title: c.item.title });
+    c.events.onTransition?.(); // between items: held badges may show now
     if (!next) {
       send(c, 'quit');
       return;
@@ -283,6 +327,11 @@ function attachIpc(c) {
 }
 
 function handle(c, msg) {
+  if (msg.request_id && c.requests.has(msg.request_id)) {
+    c.requests.get(msg.request_id)(msg);
+    c.requests.delete(msg.request_id);
+    return;
+  }
   if (msg.event === 'file-loaded') {
     for (const s of c.pendingSubs || []) send(c, 'sub-add', s, 'auto');
     c.pendingSubs = null;
@@ -359,6 +408,8 @@ async function play(ratingKey, opts, events) {
     time: (opts.fromStart ? 0 : item.m.viewOffset || 0) / 1000,
     duration: (item.m.duration || 0) / 1000,
     paused: false,
+    requests: new Map(),
+    overlayQueue: [],
   };
   current = c;
   events.onState({ playing: true, ratingKey: item.ratingKey, title: item.title });
@@ -372,6 +423,8 @@ async function play(ratingKey, opts, events) {
     clearInterval(c.timer);
     if (current === c) current = null;
     if (!c.advancing) await finishItem(c);
+    // Badges still waiting for their turn on screen go back to Vanta's own toast.
+    if (c.overlayQueue.length) events.onBadgesUndelivered?.(c.overlayQueue.splice(0).flatMap((it) => [it.id, ...(it.moreIds || [])]));
     events.onState({ playing: false, refresh: true });
   });
 
@@ -382,4 +435,12 @@ async function play(ratingKey, opts, events) {
   return { ok: true, title: item.title };
 }
 
-module.exports = { play, stop, isPlaying: () => !!current };
+module.exports = {
+  play,
+  stop,
+  isPlaying: () => !!current,
+  // Between items (end-of-episode countdown / loading the next queue item).
+  inTransition: () => !!current && (current.ended || !!current.advancing),
+  osdSize,
+  showBadges,
+};

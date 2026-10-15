@@ -312,3 +312,30 @@ export function Toggle({ label, value, onChange }: { label?: string; value: bool
     </button>
   );
 }
+
+// A sliding on/off switch. Click / Enter / A toggles; Left and Right set Off and On (controller-friendly).
+export function Switch({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      className={`switch ${value ? 'on' : ''}`}
+      role="switch"
+      aria-checked={value}
+      data-nav
+      onClick={() => onChange(!value)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          if ((e.key === 'ArrowRight') !== value) onChange(e.key === 'ArrowRight');
+        }
+      }}
+    >
+      <span className="switch-track">
+        <span className="switch-knob" />
+      </span>
+      <span className="switch-text">
+        <span className="switch-label">{label}</span>
+        {hint && <span className="switch-hint">{hint}</span>}
+      </span>
+    </button>
+  );
+}
