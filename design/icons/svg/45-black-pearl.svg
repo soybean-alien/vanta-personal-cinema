@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i45tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i45tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><radialGradient id="i45pearl" cx=".36" cy=".32" r=".75"><stop offset="0" stop-color="#4a4d55"/><stop offset=".35" stop-color="#121317"/><stop offset="1" stop-color="#000"/></radialGradient></defs>
+<ellipse cx="128" cy="186" rx="62" ry="14" fill="none" stroke="#e5a00d" stroke-width="4"/>
+<circle cx="128" cy="120" r="66" fill="url(#i45pearl)"/>
+<ellipse cx="104" cy="94" rx="16" ry="10" fill="#f7c65a" fill-opacity=".7" transform="rotate(-35 104 94)"/>
+<path d="M68,186 A62,14 0 0,0 188,186" fill="none" stroke="#f7c65a" stroke-width="4"/></svg>

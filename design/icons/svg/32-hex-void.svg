@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i32tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i32tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<polygon points="128.0,42.0 202.5,85.0 202.5,171.0 128.0,214.0 53.5,171.0 53.5,85.0" fill="none" stroke="#e5a00d" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="128.0,76.0 173.0,102.0 173.0,154.0 128.0,180.0 83.0,154.0 83.0,102.0" fill="#000" stroke="#e5a00d" stroke-opacity=".45" stroke-width="2" stroke-linejoin="round"/></svg>

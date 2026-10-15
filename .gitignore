@@ -1,0 +1,13 @@
+node_modules/
+dist/
+out/
+release/
+vendor/
+*.log
+CODEX_HANDOFF.md
+AGENTS.md
+
+# never published: local screenshots with real server data, OS clutter
+design/private/
+Desktop.ini
+*.lnk

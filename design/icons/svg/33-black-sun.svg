@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i33tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i33tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<defs><radialGradient id="i33sky" cx=".5" cy=".62" r=".5"><stop offset="0" stop-color="#e5a00d" stop-opacity=".45"/><stop offset="1" stop-color="#e5a00d" stop-opacity="0"/></radialGradient></defs>
+<rect x="8" y="8" width="240" height="140" rx="54" fill="url(#i33sky)"/>
+<path d="M76,142 A52,52 0 0,1 180,142 Z" fill="#000" stroke="#e5a00d" stroke-width="2.5"/>
+<line x1="34" y1="142" x2="222" y2="142" stroke="#f7c65a" stroke-width="3" stroke-linecap="round"/>
+<g stroke="#e5a00d" stroke-linecap="round"><line x1="84" y1="158" x2="172" y2="158" stroke-width="3" stroke-opacity=".6"/><line x1="98" y1="172" x2="158" y2="172" stroke-width="3" stroke-opacity=".4"/><line x1="112" y1="186" x2="144" y2="186" stroke-width="3" stroke-opacity=".22"/></g></svg>

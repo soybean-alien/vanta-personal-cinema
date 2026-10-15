@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i62tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17191e"/><stop offset="1" stop-color="#040506"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i62tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<rect x="36" y="84" width="184" height="88" rx="8" fill="#e5a00d"/>
+<circle cx="36" cy="128" r="14" fill="#0c0d10"/><circle cx="220" cy="128" r="14" fill="#0c0d10"/>
+<line x1="94" y1="92" x2="94" y2="164" stroke="#050607" stroke-width="2.5" stroke-dasharray="5 5"/>
+<text x="68" y="132" text-anchor="middle" font-family="Georgia, serif" font-size="12" font-weight="700" letter-spacing="1" fill="#050607" transform="rotate(-90 68 128)">ADMIT</text>
+<path d="M136,104 L157,150 L178,104" fill="none" stroke="#050607" stroke-width="9" stroke-linejoin="miter"/></svg>

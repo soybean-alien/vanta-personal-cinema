@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="i07tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2d33"/><stop offset="1" stop-color="#14161a"/></linearGradient></defs>
+<rect x="8" y="8" width="240" height="240" rx="54" fill="url(#i07tile)"/>
+<rect x="8.5" y="8.5" width="239" height="239" rx="53.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+<rect x="66" y="66" width="124" height="124" rx="12" fill="#000"/>
+<rect x="66.5" y="66.5" width="123" height="123" rx="11.5" fill="none" stroke="#fff" stroke-opacity=".06"/>
+<path d="M164,170 L170,182 L176,170" fill="none" stroke="#e5a00d" stroke-width="3" stroke-linejoin="miter"/></svg>
