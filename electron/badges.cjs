@@ -70,7 +70,8 @@ const RULES = {
     if (!s?.done || (r.kind && s.kind !== r.kind)) return false;
     return distinct(inWindow(c.store.sessions, r, s.at, s.show)) >= r.count;
   },
-  finishedBeforeYear: (r, c) => !!c.session?.done && c.session.kind === 'movie' && c.session.year > 0 && c.session.year < r.year,
+  // A finished movie whose release year is in [from, to] (inclusive), e.g. 1990-1999.
+  finishedReleasedIn: (r, c) => !!c.session?.done && c.session.kind === 'movie' && c.session.year >= r.from && c.session.year <= r.to,
   finishedBetweenHours: (r, c) => {
     if (!c.session?.done) return false;
     const h = new Date(c.session.at).getHours();
