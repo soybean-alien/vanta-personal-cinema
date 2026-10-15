@@ -195,6 +195,8 @@ const DEMO_BADGES = {
 } as any;
 for (const [k, v] of Object.entries(DEMO_BADGES.progress)) if (!v) delete DEMO_BADGES.progress[k];
 
+const demoUnlocks: string[] = [];
+
 export function install() {
   let prefs: Prefs = {
     player: { fullscreen: true, autoplay: true, countdown: 5, skipIntro: 'button', audioLang: 'default', subLang: 'english', subMode: 'smart', hwdec: true, quality: 'default', smoothMotion: false, shaders: '', extraArgs: '' },
@@ -240,16 +242,20 @@ export function install() {
           ),
       ),
     badges: () => later({ ...DEMO_BADGES }),
-    takeBadges: () => later([] as string[]),
+    takeBadges: () => later(demoUnlocks.splice(0)),
     setFavoriteBadges: (ids: string[]) => {
       DEMO_BADGES.favorites = ids.slice(0, 6);
       return later({ ...DEMO_BADGES });
     },
-    onBadgesEarned: () => () => {},
+    // Recording hook: window.__vantaDemoUnlock(['six-pack']) shows a real (non-preview) unlock ticket.
+    onBadgesEarned: (cb: () => void) => {
+      (window as any).__vantaDemoUnlock = (ids: string[]) => (demoUnlocks.push(...ids), cb());
+      return () => {};
+    },
     onBadgeShown: () => () => {},
-    updateState: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),
-    checkUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
-    downloadUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),
+    updateState: () => later({ state: 'none', current: '1.5.0', mode: prefs.ui.updates, packaged: true }),
+    checkUpdate: () => later({ state: 'none', current: '1.5.0', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
+    downloadUpdate: () => later({ state: 'none', current: '1.5.0', mode: prefs.ui.updates, packaged: true }),
     installUpdate: () => later({ ok: true }),
     onUpdate: () => () => {},
   };

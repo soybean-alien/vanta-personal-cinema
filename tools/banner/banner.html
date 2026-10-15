@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- Vanta by soybean_alien. Repo banner, rendered to docs/banner.png at 2560x1280:
+<!-- Vanta by soybean_alien. Repo banner (1.5, the Badges release), rendered to docs/banner.png at 2560x1280:
+     npm run build && node tools/banner/capture.mjs      (badge art + ticket from demo mode, sample data)
      node_modules/electron/dist/electron design/icons/render.cjs tools/banner/banner.html docs/banner.png 2560 1280 -->
 <html>
   <head>
@@ -10,99 +11,136 @@
         src: url('../../node_modules/@fontsource-variable/jost/files/jost-latin-wght-normal.woff2') format('woff2');
         font-weight: 100 900;
       }
-      :root {
-        --gold: #e5a00d;
-        --gold-hi: #f7c65a;
-        --ink: #f3efe6;
-      }
-      * { box-sizing: border-box; margin: 0; }
+      :root { --gold: #e5a00d; --gold-hi: #f7c65a; --ink: #f3efe6; --sand: #c2b199; --sand-hi: #dcc9a8; --dim: #7d8391; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body { width: 2560px; height: 1280px; overflow: hidden; background: #040405; }
       body { position: relative; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--ink); }
 
-      /* atmosphere: eclipse glow behind the type, warm haze on the right, faint stars */
       .sky { position: absolute; inset: 0;
         background:
-          radial-gradient(820px 820px at 435px 370px, rgba(229, 160, 13, 0.16), transparent 62%),
-          radial-gradient(1400px 700px at 1850px 1040px, rgba(229, 160, 13, 0.10), transparent 70%),
+          radial-gradient(900px 620px at 1280px 640px, rgba(229, 160, 13, 0.16), transparent 70%),
+          radial-gradient(700px 500px at 200px 120px, rgba(229, 160, 13, 0.10), transparent 70%),
           radial-gradient(1600px 900px at 50% 0%, #0d0e12 0%, #040405 70%); }
-      .stars { position: absolute; inset: 0; opacity: 0.55;
+      .stars { position: absolute; inset: 0; opacity: 0.5;
         background-image:
-          radial-gradient(1.6px 1.6px at 12% 18%, #fff 50%, transparent 51%),
-          radial-gradient(1.2px 1.2px at 27% 72%, #fff 50%, transparent 51%),
-          radial-gradient(1.4px 1.4px at 41% 12%, #fff 50%, transparent 51%),
-          radial-gradient(1.2px 1.2px at 58% 8%, #fff 50%, transparent 51%),
-          radial-gradient(1.8px 1.8px at 66% 22%, #f7c65a 50%, transparent 51%),
-          radial-gradient(1.2px 1.2px at 79% 6%, #fff 50%, transparent 51%),
-          radial-gradient(1.4px 1.4px at 92% 16%, #fff 50%, transparent 51%),
-          radial-gradient(1.2px 1.2px at 7% 88%, #fff 50%, transparent 51%),
-          radial-gradient(1.4px 1.4px at 34% 94%, #fff 50%, transparent 51%),
-          radial-gradient(1.2px 1.2px at 48% 60%, #fff 50%, transparent 51%); }
+          radial-gradient(1.6px 1.6px at 12% 18%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 27% 72%, #fff 50%, transparent 51%),
+          radial-gradient(1.4px 1.4px at 41% 12%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 58% 8%, #fff 50%, transparent 51%),
+          radial-gradient(1.8px 1.8px at 66% 22%, #f7c65a 50%, transparent 51%), radial-gradient(1.2px 1.2px at 79% 6%, #fff 50%, transparent 51%),
+          radial-gradient(1.4px 1.4px at 92% 16%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 7% 88%, #fff 50%, transparent 51%),
+          radial-gradient(1.4px 1.4px at 34% 94%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 88% 60%, #fff 50%, transparent 51%); }
 
-      /* the eclipse */
-      .eclipse { position: absolute; left: 175px; top: 110px; width: 520px; height: 520px; }
-      .eclipse .halo { position: absolute; inset: -150px; border-radius: 50%;
-        background: radial-gradient(circle, transparent 38%, rgba(229, 160, 13, 0.55) 46%, rgba(229, 160, 13, 0.16) 58%, transparent 72%); filter: blur(6px); }
-      .eclipse .ring { position: absolute; inset: 60px; border-radius: 50%;
-        background: radial-gradient(circle, #000 0 69%, var(--gold-hi) 71%, var(--gold) 86%, rgba(229, 160, 13, 0.0) 100%);
-        box-shadow: 0 0 120px rgba(247, 198, 90, 0.55), inset 0 0 60px rgba(0, 0, 0, 0.9); }
-      .eclipse .flare { position: absolute; left: 350px; top: 74px; width: 120px; height: 120px; border-radius: 50%;
-        background: radial-gradient(circle, #fff 0 6%, rgba(255, 233, 180, 0.9) 12%, rgba(247, 198, 90, 0.35) 34%, transparent 66%); }
+      /* brand, top left */
+      .brand { position: absolute; left: 110px; top: 80px; display: flex; align-items: center; gap: 34px; }
+      .ring { width: 128px; height: 128px; border-radius: 50%;
+        background: radial-gradient(circle, #000 0 64%, var(--gold-hi) 67%, var(--gold) 84%, rgba(229, 160, 13, 0) 100%);
+        box-shadow: 0 0 70px rgba(247, 198, 90, 0.55), inset 0 0 30px rgba(0, 0, 0, 0.9); }
+      .word { font-family: 'Jost', sans-serif; font-weight: 600; font-size: 92px; letter-spacing: 0.22em; line-height: 1; }
+      .tag { font-family: 'Jost', sans-serif; font-weight: 500; font-size: 24px; letter-spacing: 0.6em; color: var(--gold); margin-top: 14px; }
 
-      /* type */
-      .type { position: absolute; left: 160px; top: 700px; width: 1150px; }
-      .word { font-family: 'Jost', sans-serif; font-weight: 600; font-size: 150px; letter-spacing: 0.24em; line-height: 1; margin-left: -6px; }
-      .tag { font-family: 'Jost', sans-serif; font-weight: 500; font-size: 34px; letter-spacing: 0.62em; color: var(--gold); margin-top: 26px; }
-      /* warm sand earth tones: readable on black, distinct from the white wordmark and the gold accent */
-      .line { font-size: 34px; line-height: 1.45; color: #c2b199; margin-top: 40px; letter-spacing: 0.01em; max-width: 1010px; }
-      .line b { color: #dcc9a8; font-weight: 600; }
+      /* release pill, top right */
+      .release { position: absolute; right: 110px; top: 104px; display: flex; gap: 0; border-radius: 999px; overflow: hidden;
+        box-shadow: 0 0 0 2px rgba(247, 198, 90, 0.7), 0 0 50px rgba(229, 160, 13, 0.35); font-family: 'Jost', sans-serif; }
+      .release b { background: linear-gradient(135deg, var(--gold-hi), var(--gold)); color: #1a1205; font-size: 34px; font-weight: 700; padding: 14px 30px; letter-spacing: 0.06em; }
+      .release span { background: rgba(10, 10, 12, 0.85); color: var(--gold-hi); font-size: 26px; font-weight: 600; letter-spacing: 0.22em; padding: 20px 30px 0; }
 
-      /* stage: the app window tilted toward the viewer, on a lit horizon */
-      .horizon { position: absolute; left: 1080px; right: -40px; top: 1118px; height: 3px;
-        background: linear-gradient(90deg, transparent, rgba(247, 198, 90, 0.95) 30%, rgba(247, 198, 90, 0.95) 72%, transparent);
-        box-shadow: 0 0 40px 8px rgba(229, 160, 13, 0.45); }
-      .floor { position: absolute; left: 1080px; right: 0; top: 1121px; bottom: 0;
-        background: radial-gradient(900px 200px at 60% 0%, rgba(229, 160, 13, 0.20), transparent 70%); }
-      .stage { position: absolute; left: 1250px; top: 150px; width: 1270px; height: 840px; perspective: 2600px; }
-      .window { position: absolute; inset: 0; border-radius: 26px; overflow: hidden; transform-origin: 30% 60%;
-        transform: rotateY(-16deg) rotateX(5deg) rotateZ(0.6deg) scale(0.98);
-        box-shadow: 0 0 0 2px rgba(247, 198, 90, 0.35), 0 60px 140px rgba(0, 0, 0, 0.85), 0 0 160px rgba(229, 160, 13, 0.18); }
-      .window img { display: block; width: 100%; height: 100%; }
-      .window::after { content: ''; position: absolute; inset: 0;
-        background: linear-gradient(115deg, rgba(255, 255, 255, 0.10) 0%, transparent 28%, transparent 70%, rgba(229, 160, 13, 0.10) 100%); }
-      .reflection { position: absolute; left: 1250px; top: 1124px; width: 1270px; height: 150px; perspective: 2600px; opacity: 0.22; overflow: hidden;
-        -webkit-mask-image: linear-gradient(to bottom, #000, transparent 85%); }
-      .reflection .window { inset: auto; top: -840px; left: 0; width: 1270px; height: 840px; transform: scaleY(-1) rotateY(16deg) rotateX(5deg); box-shadow: none; filter: blur(3px); }
+      /* center: badges, front and center */
+      .hero { position: absolute; left: 760px; width: 1040px; top: 236px; text-align: center; }
+      .eyebrow { font-family: 'Jost', sans-serif; font-weight: 600; font-size: 28px; letter-spacing: 0.5em; color: var(--gold); }
+      .headline { font-family: 'Jost', sans-serif; font-weight: 700; font-size: 132px; line-height: 1.02; margin-top: 10px;
+        background: linear-gradient(180deg, #fff 0%, #fff3d6 55%, var(--gold-hi) 100%); -webkit-background-clip: text; color: transparent;
+        filter: drop-shadow(0 0 40px rgba(229, 160, 13, 0.35)); }
+      .sub { font-size: 32px; color: var(--sand); margin-top: 14px; }
+      .sub b { color: var(--sand-hi); font-weight: 600; }
+      .medals { display: flex; justify-content: center; gap: 30px; margin-top: 34px; }
+      .medal { width: 168px; text-align: center; }
+      .medal img { width: 168px; height: 168px; display: block; }
+      .medal div { font-family: 'Jost', sans-serif; font-size: 20px; font-weight: 600; letter-spacing: 0.16em; margin-top: 4px; }
+      .ticket { position: absolute; left: 790px; top: 760px; width: 980px; filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 60px rgba(61, 109, 242, 0.25)); transform: rotate(-1.2deg); }
+      .soon { position: absolute; left: 760px; width: 1040px; top: 1150px; text-align: center; font-family: 'Jost', sans-serif; font-weight: 600;
+        font-size: 30px; letter-spacing: 0.32em; color: var(--gold-hi); }
+      .soon::before, .soon::after { content: '✦'; color: var(--gold); margin: 0 26px; }
+
+      /* side lists */
+      .col { position: absolute; top: 300px; width: 590px; }
+      .col.left { left: 110px; }
+      .col.right { right: 110px; }
+      .col h3 { font-family: 'Jost', sans-serif; font-weight: 600; font-size: 30px; letter-spacing: 0.32em; color: var(--gold); padding-bottom: 14px;
+        border-bottom: 2px solid rgba(229, 160, 13, 0.45); margin-bottom: 18px; }
+      .col .lead { font-size: 27px; line-height: 1.4; color: var(--sand); margin-bottom: 30px; }
+      .col .lead b { color: var(--sand-hi); font-weight: 600; }
+      .col ul { list-style: none; }
+      .col li { font-size: 29px; line-height: 1.32; padding: 9px 0 9px 44px; position: relative; color: #ece6da; }
+      .col li::before { content: ''; position: absolute; left: 6px; top: 22px; width: 14px; height: 14px; border-radius: 50%;
+        background: var(--gold); box-shadow: 0 0 14px rgba(229, 160, 13, 0.8); }
+      .col li small { display: block; font-size: 22px; color: var(--dim); margin-top: 2px; }
+      .chip { display: inline-block; font-size: 19px; font-weight: 800; color: #fff; border-radius: 5px; padding: 2px 9px; margin-right: 6px; vertical-align: 3px; }
+      .new { display: inline-block; font-family: 'Jost', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.12em; color: #1a1205; background: var(--gold-hi); border-radius: 4px; padding: 1px 8px; margin-right: 10px; vertical-align: 4px; }
 
       /* maker's mark */
-      .emblem { position: absolute; right: 70px; bottom: 54px; width: 300px; height: 300px; border-radius: 50%;
-        box-shadow: 0 0 0 6px #040405, 0 0 0 9px rgba(247, 198, 90, 0.85), 0 20px 70px rgba(0, 0, 0, 0.8), 0 0 90px rgba(229, 160, 13, 0.35); overflow: hidden; }
+      .emblem { position: absolute; right: 70px; bottom: 54px; width: 220px; height: 220px; border-radius: 50%;
+        box-shadow: 0 0 0 5px #040405, 0 0 0 8px rgba(247, 198, 90, 0.85), 0 20px 70px rgba(0, 0, 0, 0.8), 0 0 90px rgba(229, 160, 13, 0.35); overflow: hidden; }
       .emblem img { width: 100%; height: 100%; display: block; }
-      .by { position: absolute; right: 400px; bottom: 96px; font-family: 'Jost', sans-serif; font-size: 34px; font-weight: 500; letter-spacing: 0.08em; color: var(--gold-hi); }
-
-      .meta { position: absolute; left: 150px; bottom: 74px; font-size: 26px; color: #7d8391; letter-spacing: 0.04em; }
-      .meta span { color: #4b505b; margin: 0 16px; }
+      .by { position: absolute; right: 318px; bottom: 82px; font-family: 'Jost', sans-serif; font-size: 30px; font-weight: 500; letter-spacing: 0.08em; color: var(--gold-hi); }
+      .meta { position: absolute; left: 110px; bottom: 70px; font-size: 24px; color: var(--dim); letter-spacing: 0.04em; }
+      .meta span { color: #4b505b; margin: 0 14px; }
     </style>
   </head>
   <body>
     <div class="sky"></div>
     <div class="stars"></div>
 
-    <div class="eclipse"><div class="halo"></div><div class="ring"></div><div class="flare"></div></div>
+    <div class="brand">
+      <div class="ring"></div>
+      <div><div class="word">VANTA</div><div class="tag">PRIVATE CINEMA</div></div>
+    </div>
+    <div class="release"><b>1.5</b><span>MAJOR RELEASE · FEATURE COMPLETE</span></div>
 
-    <div class="type">
-      <div class="word">VANTA</div>
-      <div class="tag">PRIVATE CINEMA</div>
-      <div class="line">A lightweight, fast and quiet beautiful home for all the <b>films and shows you already own.</b></div>
+    <div class="col left">
+      <h3>🏅 BADGES</h3>
+      <div class="lead">Watch the <b>films and shows you already own</b>. Earn something for it.</div>
+      <ul>
+        <li>13 badges to earn today<small>with many more coming very, very soon</small></li>
+        <li>5 rarities, Common to Legendary</li>
+        <li>A movie ticket for every unlock<small>with your Plex profile picture and username</small></li>
+        <li>In the player or after the credits</li>
+        <li>Progress bars on every locked badge</li>
+        <li>Secret badges to discover</li>
+        <li>Your 6 favorites in the sidebar</li>
+      </ul>
     </div>
 
-    <div class="floor"></div>
-    <div class="horizon"></div>
-    <div class="stage"><div class="window"><img src="app.png" /></div></div>
+    <div class="hero">
+      <div class="eyebrow">NEW IN VANTA 1.5</div>
+      <div class="headline">Badges are here.</div>
+      <div class="sub">Every film and episode you finish counts toward <b>collectible badges</b>.</div>
+      <div class="medals">
+        <div class="medal"><img src="badge-opening-night.svg" /><div style="color:#b8bec7">COMMON</div></div>
+        <div class="medal"><img src="badge-popcorn-ready.svg" /><div style="color:#5fd07e">UNCOMMON</div></div>
+        <div class="medal"><img src="badge-genre-hopper.svg" /><div style="color:#7d9bff">RARE</div></div>
+        <div class="medal"><img src="badge-night-owl.svg" /><div style="color:#c08bff">EPIC</div></div>
+        <div class="medal"><img src="badge-first-light.svg" /><div style="color:#ffae4a">LEGENDARY</div></div>
+      </div>
+    </div>
+    <img class="ticket" src="ticket.png" />
+    <div class="soon">MORE BADGES COMING VERY, VERY SOON</div>
 
+    <div class="col right">
+      <h3>EVERYTHING ELSE</h3>
+      <ul>
+        <li><span class="new">NEW</span>Resolution on every poster<small><span class="chip" style="background:#8e3be6">4K</span><span class="chip" style="background:#2f63e8">1080p</span><span class="chip" style="background:#2a9a4b">720p</span><span class="chip" style="background:#d63a3a">SD</span></small></li>
+        <li>Continue Watching</li>
+        <li>Sort, filter, random pick, pinned views</li>
+        <li>Search every library at once</li>
+        <li>Collections and playlists</li>
+        <li>Direct play in mpv<small>4K HDR and lossless audio, no transcoding</small></li>
+        <li>Xbox controller, everywhere</li>
+        <li>Connection status that fixes itself</li>
+        <li>Silent in-app updates</li>
+      </ul>
+    </div>
 
     <div class="by">by soybean_alien</div>
     <div class="emblem"><img src="soybean_alien-logo.png" /></div>
-
-    <div class="meta">v1.0.0<span>·</span>Windows 10 &amp; 11<span>·</span>For Plex Media Server<span>·</span>Free &amp; open source (GPL-3.0)</div>
+    <div class="meta">v1.5.0<span>·</span>Windows 10 &amp; 11<span>·</span>For Plex Media Server<span>·</span>Free &amp; open source (GPL-3.0)</div>
   </body>
 </html>
