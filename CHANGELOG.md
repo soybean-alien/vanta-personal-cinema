@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1 (2026-10-15)
+
+- **Vanta now updates itself.** It checks this repository's releases and installs new versions silently, keeping your sign-in, settings and progress. Choose *Install automatically*, *Ask me first* (default) or *Only when I check* in Settings → Updates.
+- An **Update available** / **Restart to update** note in the sidebar, with release notes, and an **Updated** note after an update.
+- Updates download only what changed and never interrupt playback.
+- Settings → Updates shows your current version and has a **Check now** button.
+- 1.0.0 can't update itself, so install 1.0.1 once by hand; later versions arrive automatically.
+
 ## 1.0.0 (2026-10-15)
 
 First public release.

@@ -18,7 +18,7 @@ import {
   nextEpisode,
   playable,
 } from './api';
-import { Choice, DeckRow, Modal, Poster, Toggle, useApp, useAutoFocus } from './components';
+import { Choice, DeckRow, Modal, Poster, Toggle, useApp, useAutoFocus, useUpdate } from './components';
 
 const loadFilters = (key: string): Filters => {
   try {
@@ -629,6 +629,9 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
         </div>
       ))}
 
+      <h2>Updates</h2>
+      <UpdatesSection />
+
       <h2>Account</h2>
       <div className="setting-grid">
         <Choice
@@ -713,5 +716,87 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+// Settings → Updates: when to update, the current version, and a manual check.
+function UpdatesSection() {
+  const ctx = useApp();
+  const [u, setU] = useUpdate();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  if (!u) return null;
+  const when = (t?: number) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
+  const status =
+    u.state === 'dev'
+      ? 'Updates are turned off when running from source.'
+      : u.state === 'checking'
+        ? 'Checking for updates…'
+        : u.state === 'none'
+          ? `You're up to date${u.checkedAt ? ` (checked ${when(u.checkedAt)})` : ''}.`
+          : u.state === 'available'
+            ? `Vanta ${u.version} is available.`
+            : u.state === 'downloading'
+              ? `Downloading Vanta ${u.version}… ${u.percent ?? 0}%`
+              : u.state === 'ready'
+                ? `Vanta ${u.version} is ready. Restart to finish updating.`
+                : u.state === 'error'
+                  ? `Couldn't check for updates: ${u.error}`
+                  : 'Vanta checks for updates shortly after it starts.';
+  return (
+    <>
+      <div className="setting-grid">
+        <Choice
+          label="When an update is out"
+          value={ctx.prefs.ui.updates}
+          options={[
+            ['auto', 'Install automatically'],
+            ['ask', 'Ask me first'],
+            ['manual', 'Only when I check'],
+          ]}
+          onChange={(updates) => ctx.setPrefs({ ui: { updates } })}
+        />
+      </div>
+      <div className="update-row" style={{ marginTop: 12 }}>
+        <span>
+          <b>Vanta {u.current}</b> <span className="muted">· {error || status}</span>
+        </span>
+        {u.state === 'available' && (
+          <button className="play" data-nav onClick={async () => setU(await window.plex.downloadUpdate())}>
+            ⬇ Download update
+          </button>
+        )}
+        {u.state === 'ready' && (
+          <button
+            className="play"
+            data-nav
+            onClick={async () => {
+              const r = await window.plex.installUpdate();
+              if (r.error) setError(r.error);
+            }}
+          >
+            ⟳ Restart to update
+          </button>
+        )}
+        <button
+          className="tool"
+          data-nav
+          disabled={busy || u.state === 'dev' || u.state === 'downloading'}
+          onClick={async () => {
+            setBusy(true);
+            setError(undefined);
+            setU(await window.plex.checkUpdate());
+            setBusy(false);
+          }}
+        >
+          {busy ? 'Checking…' : '⟳ Check now'}
+        </button>
+      </div>
+      {u.state === 'available' && u.notes && <pre className="notes">{u.notes}</pre>}
+      <p className="muted small">
+        Install automatically: downloads in the background and finishes the next time Vanta restarts. Ask me first: shows an
+        “Update available” note in the sidebar. Updates never interrupt playback and keep your sign-in and settings.
+      </p>
+    </>
   );
 }

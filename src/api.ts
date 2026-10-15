@@ -71,6 +71,7 @@ export interface Pin {
 export interface UiPrefs {
   displayName: 'username' | 'title';
   brandLayout: 'inline' | 'stacked' | 'corner' | 'bold' | 'tagline' | 'gilded' | 'seal' | 'monogram' | 'row';
+  updates: 'auto' | 'ask' | 'manual';
   hiddenLibs: string[];
   showPlaylists: boolean;
   pins: Pin[];
@@ -104,6 +105,19 @@ export interface Health {
   at?: number;
 }
 
+export interface UpdateState {
+  state: 'idle' | 'dev' | 'checking' | 'none' | 'available' | 'downloading' | 'ready' | 'error';
+  current: string;
+  mode: 'auto' | 'ask' | 'manual';
+  packaged: boolean;
+  version?: string;
+  notes?: string;
+  percent?: number;
+  error?: string;
+  checkedAt?: number;
+  justUpdated?: { version: string; notes: string };
+}
+
 export interface PlayerState {
   playing: boolean;
   ratingKey?: string;
@@ -129,6 +143,11 @@ declare global {
       checkHealth(): Promise<Health>;
       simulateHealth(level: 'warn' | 'bad' | null): Promise<Health>;
       onHealth(cb: (h: Health) => void): () => void;
+      updateState(): Promise<UpdateState>;
+      checkUpdate(): Promise<UpdateState>;
+      downloadUpdate(): Promise<UpdateState>;
+      installUpdate(): Promise<{ ok?: boolean; error?: string }>;
+      onUpdate(cb: (s: UpdateState) => void): () => void;
     };
   }
 }

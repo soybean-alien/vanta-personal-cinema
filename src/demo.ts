@@ -177,7 +177,7 @@ const HEALTH: Health = {
 export function install() {
   let prefs: Prefs = {
     player: { fullscreen: true, autoplay: true, countdown: 5, skipIntro: 'button', audioLang: 'default', subLang: 'english', subMode: 'smart', hwdec: true, quality: 'default', smoothMotion: false, shaders: '', extraArgs: '' },
-    ui: { displayName: 'username', brandLayout: 'tagline', hiddenLibs: [], showPlaylists: true, pins: [] },
+    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', hiddenLibs: [], showPlaylists: true, pins: [] },
   };
   const stateListeners = new Set<(s: any) => void>();
   const later = <T>(v: T, ms = 40) => new Promise<T>((r) => setTimeout(() => r(v), ms));
@@ -209,5 +209,10 @@ export function install() {
     checkHealth: () => later({ ...HEALTH, at: Date.now() }, 600),
     simulateHealth: () => later(HEALTH),
     onHealth: () => () => {},
+    updateState: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),
+    checkUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
+    downloadUpdate: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),
+    installUpdate: () => later({ ok: true }),
+    onUpdate: () => () => {},
   };
 }

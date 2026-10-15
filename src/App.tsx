@@ -1,7 +1,7 @@
 // Vanta by soybean_alien
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, User, items, nextEpisode, playable, sections } from './api';
-import { AppCtx, Ctx, Menu, MenuEntry, Modal, View } from './components';
+import { AppCtx, Ctx, Menu, MenuEntry, Modal, View, useUpdate } from './components';
 import { focusEl, focusFirst, installGamepad, installKeys } from './nav';
 import mark from './assets/vanta-mark.svg';
 import { Collections, Detail, Library, Playlist, Search, Settings } from './views';
@@ -145,6 +145,95 @@ function StatusLine() {
               Checked {h.at ? new Date(h.at).toLocaleTimeString() : 'just now'}. Vanta rechecks every 15 s (every 5 s while offline) and
               switches routes automatically if one stops answering.
             </p>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+// Update notice under the connection status. It only appears when there is something to say:
+// an update to download (ask mode), download progress, "restart to update", or "updated to x" once after updating.
+function UpdatePill() {
+  const [u, setU] = useUpdate();
+  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [error, setError] = useState<string>();
+  if (!u) return null;
+  const justUpdated = u.justUpdated && !dismissed;
+  const show = u.state === 'available' || u.state === 'downloading' || u.state === 'ready' || justUpdated;
+  if (!show) return null;
+
+  const install = async () => {
+    const r = await window.plex.installUpdate();
+    if (r.error) setError(r.error);
+  };
+  const label =
+    u.state === 'downloading'
+      ? `Downloading update · ${u.percent ?? 0}%`
+      : u.state === 'ready'
+        ? 'Restart to update'
+        : u.state === 'available'
+          ? 'Update available'
+          : 'Updated';
+  const sub = u.state === 'downloading' || u.state === 'ready' || u.state === 'available' ? `Vanta ${u.version}` : `Now on ${u.justUpdated!.version} · what's new`;
+
+  return (
+    <>
+      <button
+        className={`update-pill ${u.state === 'ready' ? 'ready' : ''}`}
+        data-nav
+        onClick={() => (u.state === 'ready' ? install() : setOpen(true))}
+      >
+        <span className="update-icon">{u.state === 'ready' ? '⟳' : justUpdated && u.state !== 'downloading' && u.state !== 'available' ? '✓' : '⬆'}</span>
+        <span className="status-text">
+          <span className="status-title">{label}</span>
+          <span className="status-reason">{error || sub}</span>
+        </span>
+        {u.state === 'downloading' && (
+          <span className="update-bar">
+            <span style={{ width: `${u.percent ?? 0}%` }} />
+          </span>
+        )}
+      </button>
+      {open && (
+        <Modal onClose={() => setOpen(false)}>
+          <div className="diag">
+            <h2>{u.state === 'available' ? `Vanta ${u.version} is available` : `Updated to Vanta ${u.justUpdated?.version}`}</h2>
+            <p className="muted small">You have {u.current}. Updates install silently and keep your sign-in, settings and progress.</p>
+            <pre className="notes">{(u.state === 'available' ? u.notes : u.justUpdated?.notes) || 'Bug fixes and improvements.'}</pre>
+            <div className="actions">
+              {u.state === 'available' ? (
+                <>
+                  <button
+                    className="play"
+                    data-nav
+                    data-autofocus
+                    onClick={async () => {
+                      setOpen(false);
+                      setU(await window.plex.downloadUpdate());
+                    }}
+                  >
+                    ⬇ Download update
+                  </button>
+                  <button className="tool" data-nav onClick={() => setOpen(false)}>
+                    Later
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="play"
+                  data-nav
+                  data-autofocus
+                  onClick={() => {
+                    setOpen(false);
+                    setDismissed(true);
+                  }}
+                >
+                  Got it
+                </button>
+              )}
+            </div>
           </div>
         </Modal>
       )}
@@ -337,6 +426,7 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
         <aside className="sidebar">
           <Brand layout={prefs.ui.brandLayout} />
           <StatusLine />
+          <UpdatePill />
           <div className="who">
             <div className="user">{prefs.ui.displayName === 'username' ? user.username : user.name}</div>
             <div className="server">{server}</div>

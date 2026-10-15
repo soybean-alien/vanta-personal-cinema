@@ -208,3 +208,14 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .diag-checks td, .diag-checks th { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; }
 .diag-checks th { color: var(--muted); font-weight: 500; width: 110px; }
 .diag-checks td:first-child { width: 18px; }
+/* updates: sidebar pill + release notes */
+.update-pill { display: flex; align-items: center; gap: 11px; position: relative; overflow: hidden; background: rgba(229, 160, 13, 0.1); border: 1px solid rgba(229, 160, 13, 0.35); border-radius: 8px; padding: 7px 10px; text-align: left; flex-shrink: 0; }
+.update-pill:hover { background: rgba(229, 160, 13, 0.18); }
+.update-pill.ready { background: var(--accent); color: #111; border-color: var(--accent); }
+.update-pill.ready .status-reason { color: #3b2a05; }
+.update-icon { width: 10px; text-align: center; color: var(--accent); font-weight: 700; }
+.update-pill.ready .update-icon { color: #111; }
+.update-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(0, 0, 0, 0.35); }
+.update-bar span { display: block; height: 100%; background: var(--accent); transition: width 0.3s; }
+.notes { white-space: pre-wrap; font-family: inherit; font-size: 14px; line-height: 1.5; color: #c9cdd6; background: var(--raised); border-radius: 8px; padding: 12px 14px; max-height: 300px; overflow-y: auto; margin: 12px 0 18px; }
+.update-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

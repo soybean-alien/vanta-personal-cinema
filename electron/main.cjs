@@ -5,6 +5,7 @@ const path = require('path');
 const plex = require('./plex.cjs');
 const player = require('./player.cjs');
 const health = require('./health.cjs');
+const updater = require('./updater.cjs');
 
 // One-time carry-over from before the PlexClient → Vanta rename, so login, pins, settings and
 // per-library filters survive (the userData folder is named after the package).
@@ -99,7 +100,15 @@ app.whenReady().then(() => {
   handle('auth:signOut', () => plex.signOut());
   handle('pms:get', (p) => plex.pms(p));
   handle('prefs:get', () => plex.getPrefs());
-  handle('prefs:set', (patch) => plex.setPrefs(patch));
+  handle('prefs:set', (patch) => {
+    const prefs = plex.setPrefs(patch);
+    updater.configure(); // the update mode may have changed
+    return prefs;
+  });
+  handle('update:get', () => updater.get());
+  handle('update:check', () => updater.check().then(updater.get));
+  handle('update:download', () => updater.download().then(updater.get));
+  handle('update:install', () => updater.install());
   handle('player:stop', () => player.stop());
   handle('player:play', (ratingKey, opts) =>
     player.play(String(ratingKey), opts || {}, {
@@ -114,6 +123,7 @@ app.whenReady().then(() => {
   handle('window:toggleFullscreen', () => win.setFullScreen(!win.isFullScreen()));
 
   createWindow();
+  if (!DEMO) updater.start({ onChange: (s) => win && !win.isDestroyed() && win.webContents.send('update', updater.get()), isBusy: player.isPlaying });
 });
 
 app.on('window-all-closed', () => {

@@ -15,7 +15,7 @@ stays out of the way.
 - **Plays everything, untouched.** Files play directly in mpv, so 4K HDR, HEVC, lossless audio and image subtitles reach your screen as they are, with no transcoding.
 - **Built for the couch.** Every screen works with the keyboard or an Xbox controller, and you sign in once.
 
-> Release: **1.0.0**. For Windows 10 and 11, with Plex Media Server on the same PC or on another PC in your home network.
+> Release: **1.0.1**. For Windows 10 and 11, with Plex Media Server on the same PC or on another PC in your home network.
 
 ---
 
@@ -30,6 +30,7 @@ stays out of the way.
 - [Controls](#controls)
 - [Settings](#settings)
 - [Connection status](#connection-status)
+- [Updates](#updates)
 - [Privacy and security](#privacy-and-security)
 - [Troubleshooting](#troubleshooting)
 - [Uninstall](#uninstall)
@@ -109,7 +110,7 @@ music libraries and photo libraries. Vanta shows your video libraries and nothin
 
 ## Install
 
-1. Download **`Vanta-Setup-1.0.0.exe`** from the [Releases](../../releases) page.
+1. Download **`Vanta-Setup-1.0.1.exe`** (or newer) from the [Releases](../../releases) page.
 2. Run it. Windows SmartScreen may say *"Windows protected your PC"* because the installer isn't code-signed.
    Click **More info → Run anyway**.
 3. Pick an install folder (or keep the default) and finish. Vanta adds shortcuts to the **Start Menu** and the **Desktop**.
@@ -193,11 +194,33 @@ route to your server stops answering, it tries every other route and switches to
 
 ---
 
+## Updates
+
+Vanta updates itself from this repository's releases. You never need to come back here to download a new version.
+
+Choose how in **Settings → Updates → When an update is out**:
+
+| Option | What happens |
+|---|---|
+| **Install automatically** | The update downloads in the background and finishes the next time Vanta restarts. |
+| **Ask me first** *(default)* | A gold **Update available** note appears in the sidebar. Click it to see what's new and download, then **Restart to update**. |
+| **Only when I check** | No background checks. Use **Check now** in Settings whenever you like. |
+
+- Updates are small: only the parts of Vanta that changed are downloaded.
+- They install silently and keep your sign-in, settings, pins and progress.
+- They never interrupt a film. Restarting to update waits until playback has stopped.
+- After an update, the sidebar says **Updated** once; click it to see what's new.
+- Settings → Updates always shows your current version and a **Check now** button.
+
+> Coming from **1.0.0**? That version can't update itself yet. Install 1.0.1 once from the [Releases](../../releases) page, and every later version arrives automatically.
+
+---
+
 ## Privacy and security
 
 - **Sign-in happens on Plex's own page.** Vanta receives a sign-in token, never your password.
 - **The token is encrypted** with Windows' own data protection (DPAPI) and stored in `%APPDATA%\vanta\auth.bin`. Only your Windows user can decrypt it.
-- **Vanta talks to two places:** plex.tv (sign-in and finding your server) and your own Plex Media Server.
+- **Vanta talks to three places:** plex.tv (sign-in and finding your server), your own Plex Media Server, and GitHub (to check this repository for updates, unless you choose *Only when I check*).
 - **No telemetry, analytics or ads.** Vanta doesn't collect or send anything about you or what you watch.
 - The settings file (`%APPDATA%\vanta\settings.json`) holds your preferences and a random device ID that Plex uses to recognise this install.
 
