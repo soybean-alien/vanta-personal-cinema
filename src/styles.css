@@ -140,6 +140,12 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .poster .check { background: rgba(0, 0, 0, 0.7); color: var(--accent); }
 .poster .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(0, 0, 0, 0.6); }
 .poster .bar div { height: 100%; background: var(--accent); }
+/* File resolution tag, bottom-right of the art (library grid only): 4K purple, 1080p blue, 720p green, lower red. */
+.poster .res { position: absolute; right: 6px; bottom: 8px; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.3px; color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35); }
+.poster .res-4k { background: #8e3be6; }
+.poster .res-1080 { background: #2f63e8; }
+.poster .res-720 { background: #2a9a4b; }
+.poster .res-low { background: #d63a3a; }
 
 /* detail */
 .detail { position: relative; }
