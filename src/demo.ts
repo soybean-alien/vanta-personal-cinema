@@ -77,6 +77,8 @@ const addFilms = (films: Film[], section: '1' | '2') =>
       audienceRating: 6.2 + (hash(title) % 30) / 10,
       contentRating: 'NR',
       Genre: genres.map((tag) => ({ tag })),
+      // Sample file resolutions so every tag color shows up.
+      Media: [{ videoResolution: ['4k', '1080', '1080', '720', '480'][hash(title + 'res') % 5] }],
       librarySectionID: Number(section),
       addedAt: 1700000000 + (hash(title + 'added') % 400) * 86400,
     });
