@@ -140,7 +140,7 @@ async function osdSize() {
   const [w, h] = await Promise.all([request(c, 'get_property', 'osd-width'), request(c, 'get_property', 'osd-height')]);
   return w?.data && h?.data ? { w: w.data, h: h.data } : null;
 }
-// items: [{ id, name, tier, file, size, more? }]. Returns false if there's no player to draw in.
+// items: [{ id, file, w, h, moreIds? }] (rasterized unlock tickets). Returns false if there's no player to draw in.
 function showBadges(items, dims) {
   const c = current;
   if (!c || c.exited || !c.sock) return false;
@@ -152,7 +152,7 @@ async function runOverlays(c) {
   c.overlayBusy = true;
   while (c.overlayQueue.length && !c.exited) {
     const it = c.overlayQueue.shift();
-    overlay.show((...a) => send(c, ...a), it.dims, it, { file: it.file, size: it.size }, it.more || 0);
+    overlay.show((...a) => send(c, ...a), it.dims, { file: it.file, w: it.w, h: it.h });
     c.events.onBadgeShown?.(it.id);
     for (let t = 0; t < OVERLAY_MS && !c.exited; t += 250) await new Promise((r) => setTimeout(r, 250));
     if (!c.exited) overlay.hide((...a) => send(c, ...a));

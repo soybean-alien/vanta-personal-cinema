@@ -6,7 +6,14 @@ const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
 
-// The catalog is plain data shared with the UI (electron/badge-catalog.json). tier: bronze | silver | gold | platinum;
+// The catalog is plain data shared with the UI (electron/badge-catalog.json).
+// rarity is DESIGNED (not rolled): it states how much effort a badge takes. Guide when adding badges:
+//   common    easy and farmable; nearly every viewer gets these
+//   uncommon  sustained effort (hours, a director's run, a genre streak); roughly 1 in 5 viewers
+//   rare      dedicated viewing; roughly 1 in 10
+//   epic      much harder, real commitment; roughly 3 in 100
+//   legendary the elite few; roughly 1 in 100 (exception: First Light, everyone's onboarding gift)
+// Each badge exists once and can't be earned twice.
 // emblem: art key drawn by the UI; secret: only `hint` shows until earned; rule: evaluated by RULES below.
 const CATALOG = require('./badge-catalog.json');
 
