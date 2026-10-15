@@ -4,6 +4,9 @@ import {
   DEFAULT_FILTERS,
   Filters,
   Item,
+  ResTier,
+  resolutionOf,
+  showResolutions,
   SORTS,
   Section,
   directory,
@@ -63,6 +66,13 @@ export function Library({ section, initial, pinId }: { section: Section; initial
   useEffect(() => {
     items(`/library/sections/${section.key}/onDeck`).then(setDeck, () => setDeck([]));
   }, [section.key, ctx.refresh]);
+
+  // Show libraries: each show's resolution tag comes from its episodes (one cached request per library).
+  const [showRes, setShowRes] = useState<Record<string, ResTier>>({});
+  useEffect(() => {
+    setShowRes({});
+    if (section.type === 'show') showResolutions(section.key).then(setShowRes, () => {});
+  }, [section.key, section.type]);
 
   useEffect(() => {
     directory(`/library/sections/${section.key}/genre`).then(setGenres, () => {});
@@ -152,7 +162,7 @@ export function Library({ section, initial, pinId }: { section: Section; initial
       ) : (
         <div className="grid">
           {shown.map((i) => (
-            <Poster key={i.ratingKey} item={i} />
+            <Poster key={i.ratingKey} item={i} res={i.type === 'show' ? showRes[i.ratingKey] : resolutionOf(i.Media)} />
           ))}
         </div>
       )}

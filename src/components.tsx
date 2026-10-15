@@ -1,6 +1,6 @@
 // Vanta by soybean_alien
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Filters, Item, PlayOpts, Prefs, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState } from './api';
+import { Filters, Item, PlayOpts, Prefs, ResTier, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState } from './api';
 import { focusEl, focusFirst, focusLost } from './nav';
 
 // When a view finishes loading and nothing useful has focus (keyboard/controller just opened it),
@@ -103,12 +103,14 @@ export function Poster({
   onClick,
   title,
   sub,
+  res,
 }: {
   item: Item;
   wide?: boolean;
   onClick?: () => void;
   title?: string;
   sub?: string;
+  res?: ResTier | null; // file resolution tag (library grid only)
 }) {
   const ctx = useApp();
   const watched = isWatched(item);
@@ -140,6 +142,7 @@ export function Poster({
         {!watched && !group && !progress && playable(item) && <span className="dot" />}
         {unwatchedEps > 0 && <span className="badge">{unwatchedEps}</span>}
         {group && watched && <span className="check">✓</span>}
+        {res && <span className={`res res-${res.tier}`}>{res.label}</span>}
         {progress > 0 && (
           <div className="bar">
             <div style={{ width: `${progress * 100}%` }} />
