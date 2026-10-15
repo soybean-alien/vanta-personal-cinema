@@ -17,6 +17,7 @@ export interface BadgeDef {
   special?: 'golden' | 'purple'; // full-color ticket: golden = current Patron, purple = Previous Patron
   variant?: string; // set by the engine when a badge shows an alternate state (Patron 'lapsed')
   variants?: Record<string, Partial<BadgeDef>>;
+  category?: string;
 }
 export interface BadgeState {
   dev?: boolean; // development build (enables dev-only grants)
@@ -24,6 +25,7 @@ export interface BadgeState {
   earned: Record<string, { at: number }>;
   favorites: string[];
   minutes: number;
+  progress?: Record<string, { cur: number; max: number; unit: string }>;
 }
 
 export const CATALOG_BY_ID: Record<string, BadgeDef> = Object.fromEntries((CATALOG as BadgeDef[]).map((b) => [b.id, b]));
@@ -66,14 +68,18 @@ const EMBLEMS: Record<string, (c: string) => string> = {
 };
 
 // A 12-point rosette medal: rarity-colored rim, black face, rarity emblem. Returns the inner SVG markup.
-function badgeSvg(badge: BadgeDef, uid: string, locked = false) {
-  const t = RARITY[badge.rarity];
+// locked = an unearned silhouette (grey, emblem shape still readable); secret = a locked badge showing only '?'.
+const SILHOUETTE = { color: '#3a3d44', lo: '#2a2d33', hi: '#4b4f57', glint: '#5b6069', label: '' };
+function badgeSvg(badge: BadgeDef, uid: string, locked = false, secret = false) {
+  const t = locked ? SILHOUETTE : RARITY[badge.rarity];
   const points = Array.from({ length: 24 }, (_, i) => {
     const r = i % 2 ? 44 : 49;
     const a = (i / 24) * Math.PI * 2 - Math.PI / 2;
     return `${(50 + r * Math.cos(a)).toFixed(1)},${(50 + r * Math.sin(a)).toFixed(1)}`;
   }).join(' ');
-  const emblem = locked ? `<text x="50" y="60" text-anchor="middle" font-size="30" font-weight="700" fill="${t.lo}">?</text>` : (EMBLEMS[badge.emblem] || EMBLEMS.spark)(`url(#${uid}m)`);
+  const emblem = secret
+    ? `<text x="50" y="61" text-anchor="middle" font-family="Segoe UI" font-size="32" font-weight="700" fill="#5b6069">?</text>`
+    : (EMBLEMS[badge.emblem] || EMBLEMS.spark)(locked ? '#41454d' : `url(#${uid}m)`);
   return `<defs>
 <linearGradient id="${uid}r" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${t.hi}"/><stop offset=".45" stop-color="${t.lo}"/><stop offset=".7" stop-color="${t.hi}"/><stop offset="1" stop-color="${t.lo}"/></linearGradient>
 <linearGradient id="${uid}m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.glint}"/><stop offset="1" stop-color="${t.hi}"/></linearGradient>
@@ -84,7 +90,7 @@ function badgeSvg(badge: BadgeDef, uid: string, locked = false) {
 ${emblem}`;
 }
 
-export function BadgeArt({ badge, size = 48, locked = false }: { badge: BadgeDef; size?: number; locked?: boolean }) {
+export function BadgeArt({ badge, size = 48, locked = false, secret = false }: { badge: BadgeDef; size?: number; locked?: boolean; secret?: boolean }) {
   const uid = useId().replace(/:/g, '');
   return (
     <svg
@@ -93,7 +99,7 @@ export function BadgeArt({ badge, size = 48, locked = false }: { badge: BadgeDef
       width={size}
       height={size}
       aria-label={badge.name}
-      dangerouslySetInnerHTML={{ __html: badgeSvg(badge, uid, locked) }}
+      dangerouslySetInnerHTML={{ __html: badgeSvg(badge, uid, locked, secret) }}
     />
   );
 }
@@ -456,7 +462,9 @@ export function BadgeShowcase({ state }: { state?: BadgeState }) {
   const t = tip && def(tip.id);
   return (
     <section className="showcase" aria-label="Badge showcase">
-      <div className="nav-head">Badges</div>
+      <button className="nav-head showcase-head" data-nav onClick={() => window.dispatchEvent(new Event('vanta:open-badges'))}>
+        Badges ›
+      </button>
       <div className="showcase-grid">
         {ids.map((id) => {
           const b = def(id);

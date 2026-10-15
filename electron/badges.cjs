@@ -82,6 +82,33 @@ const RULES = {
 };
 const done = (c) => c.store.sessions.filter((s) => s.done);
 
+// Progress toward an unearned badge, for the Badges page ('1/10 days' style). null = nothing to measure.
+const today = () => localDay(Date.now());
+function maxBy(list, key) {
+  const n = {};
+  for (const x of list) n[key(x)] = (n[key(x)] || 0) + 1;
+  return Math.max(0, ...Object.values(n));
+}
+const PROGRESS = {
+  minutes: (r, s) => ({ cur: Math.floor(s.minutes), max: r.total, unit: 'min' }),
+  finished: (r, s) => ({ cur: s.sessions.filter((x) => x.done && (!r.kind || x.kind === r.kind)).length, max: r.count, unit: r.kind === 'movie' ? 'movies' : 'titles' }),
+  finishedSameDay: (r, s) => ({ cur: s.sessions.filter((x) => x.done && x.day === today() && (!r.kind || x.kind === r.kind)).length, max: r.count, unit: 'today' }),
+  distinctGenres: (r, s) => ({ cur: new Set(s.sessions.filter((x) => x.done && x.kind === 'movie').flatMap((x) => x.genres)).size, max: r.count, unit: 'genres' }),
+  episodesSameShowSameDay: (r, s) => {
+    const eps = s.sessions.filter((x) => x.done && x.kind === 'episode' && x.day === today());
+    const uniq = [...new Map(eps.map((x) => [x.rk, x])).values()];
+    return { cur: maxBy(uniq, (x) => x.show), max: r.count, unit: 'episodes today' };
+  },
+  seasonComplete: (_r, s) => {
+    let best = null;
+    for (const [season, size] of Object.entries(s.seasonSizes)) {
+      const cur = new Set(s.sessions.filter((x) => x.done && x.season === season).map((x) => x.rk)).size;
+      if (!best || cur / size > best.cur / best.max) best = { cur, max: size, unit: 'episodes' };
+    }
+    return best;
+  },
+};
+
 // A badge as the viewer sees it right now: Patron shows its 'lapsed' variant (Previous Patron, Epic, purple)
 // when the pledge isn't current. Rules and variant tables never leave the main process.
 function resolve(b) {
@@ -139,6 +166,11 @@ module.exports = {
       catalog: CATALOG.filter((b) => dev || !b.unreleased || store.earned[b.id]).map(resolve),
       earned: store.earned,
       favorites: store.favorites,
+      progress: Object.fromEntries(
+        CATALOG.filter((b) => !store.earned[b.id] && PROGRESS[b.rule.type])
+          .map((b) => [b.id, PROGRESS[b.rule.type](b.rule, store)])
+          .filter(([, p]) => p),
+      ),
       minutes: Math.round(store.minutes),
     };
   },

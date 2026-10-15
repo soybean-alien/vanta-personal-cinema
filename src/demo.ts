@@ -175,13 +175,16 @@ const HEALTH: Health = {
   ],
 };
 
-const BADGE_IDS = (CATALOG as { id: string }[]).map((b) => b.id);
+// Demo profile: a realistic mix of earned and in-progress badges (unreleased ones like Patron hidden, as in normal builds).
+const DEMO_EARNED = ['first-light', 'opening-night', 'popcorn-ready', 'double-feature', 'night-owl', 'genre-hopper', 'binge-starter'];
 const DEMO_BADGES = {
-  catalog: CATALOG,
-  earned: Object.fromEntries(BADGE_IDS.map((id, i) => [id, { at: Date.UTC(2026, 9, 1 + i, 20) }])),
-  favorites: ['marathoner', 'season-pass', 'genre-hopper', 'night-owl', 'double-feature', 'opening-night'],
-  minutes: 1520,
+  catalog: (CATALOG as any[]).filter((b) => !b.unreleased).map(({ rule, variants, ...b }) => b),
+  earned: Object.fromEntries(DEMO_EARNED.map((id, i) => [id, { at: Date.UTC(2026, 9, 1 + i * 2, 20) }])),
+  favorites: ['genre-hopper', 'night-owl', 'double-feature', 'opening-night', 'first-light', 'binge-starter'],
+  minutes: 1010,
+  progress: { 'time-traveler': null, 'season-pass': { cur: 5, max: 8, unit: 'episodes' }, marathoner: { cur: 1010, max: 1440, unit: 'min' } },
 } as any;
+for (const [k, v] of Object.entries(DEMO_BADGES.progress)) if (!v) delete DEMO_BADGES.progress[k];
 
 export function install() {
   let prefs: Prefs = {
@@ -218,10 +221,13 @@ export function install() {
     checkHealth: () => later({ ...HEALTH, at: Date.now() }, 600),
     simulateHealth: () => later(HEALTH),
     onHealth: () => () => {},
-    // Demo profile: all sample badges earned, six favorited for the sidebar showcase.
-    badges: () => later(DEMO_BADGES),
+    // Fresh copies each call, like real IPC, so React sees favorites change.
+    badges: () => later({ ...DEMO_BADGES }),
     takeBadges: () => later([] as string[]),
-    setFavoriteBadges: (ids: string[]) => later({ ...DEMO_BADGES, favorites: ids.slice(0, 6) }),
+    setFavoriteBadges: (ids: string[]) => {
+      DEMO_BADGES.favorites = ids.slice(0, 6);
+      return later({ ...DEMO_BADGES });
+    },
     onBadgesEarned: () => () => {},
     onBadgeShown: () => () => {},
     updateState: () => later({ state: 'none', current: '1.0.1', mode: prefs.ui.updates, packaged: true }),
