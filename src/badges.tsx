@@ -160,6 +160,14 @@ function wrapChars(text: string, max: number, lines = 2) {
   }
   return out.slice(0, lines);
 }
+// One line if it fits, otherwise two lines split at the space nearest the middle (no lonely last word).
+function balanced(text: string, max: number) {
+  if (text.length <= max) return [text];
+  const mid = text.length / 2;
+  let cut = -1;
+  for (let i = 0; i < text.length; i++) if (text[i] === ' ' && (cut < 0 || Math.abs(i - mid) < Math.abs(cut - mid))) cut = i;
+  return cut < 0 ? [text] : [text.slice(0, cut), text.slice(cut + 1)];
+}
 function barcode(seed: string, x0: number, x1: number, y: number, h: number, color: string) {
   let v = [...seed].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
   let x = x0;
@@ -190,6 +198,8 @@ export function ticketSvg({ badge, at, more = 0, preview = false, uid }: { badge
   const titleSize = title.length > 18 ? 22 : title.length > 13 ? 26 : 31;
   const sub = more ? 'Visit the Badges page to see them all.' : `You've just unlocked the ${badge.name} badge!`;
   const subFit = sub.length * 6.6 > 250 ? ' textLength="250" lengthAdjust="spacingAndGlyphs"' : '';
+  // Why it was earned (the catalog's `earned` text), up to two lines under the headline.
+  const reason = more ? [] : balanced(badge.earned || '', 38);
   const stubName = wrapChars((more ? 'Badges unlocked' : badge.name).toUpperCase(), 11);
   const shape =
     'M12 0 H140 A10 10 0 0 0 160 0 H588 Q600 0 600 12 V204 Q600 216 588 216 H160 A10 10 0 0 0 140 216 H12 Q0 216 0 204 V12 Q0 0 12 0 Z';
@@ -229,13 +239,14 @@ ${barcode(badge.id + 'stub', 53, 140, 180, 18, p.ink)}
 <polygon points="166,18 424,18 442,33 424,48 166,48" fill="${p.ribbon}"/>
 <text x="180" y="39" font-family="${display}" font-weight="700" font-size="17" letter-spacing="1.5" fill="${p.ribbonText}">${golden || purple ? 'THANK YOU!' : 'CONGRATULATIONS!'}</text>
 ${star(492, 34, 9, p.stars)}${star(520, 24, 12, p.stars)}${star(548, 34, 9, p.stars)}
-<text x="180" y="88" font-family="${display}" font-weight="700" font-size="${titleSize}" fill="${p.ink}">${esc(title.toUpperCase())}</text>
-<text x="180" y="112" font-family="${font}" font-size="13" fill="${p.sub}"${subFit}>${esc(sub)}</text>
-<text x="180" y="144" font-family="Georgia, serif" font-size="15" fill="${p.label}">Rarity:</text>
-<text x="426" y="144" text-anchor="end" font-family="Georgia, serif" font-size="15" font-weight="700" fill="${p.accent}">${r.label}</text>
-<text x="180" y="167" font-family="Georgia, serif" font-size="15" fill="${p.label}">Unlocked:</text>
-<text x="426" y="167" text-anchor="end" font-family="Georgia, serif" font-size="15" fill="${p.label}">${date}</text>
-${barcode(badge.id, 180, 426, 180, 20, p.ink)}
+<text x="180" y="80" font-family="${display}" font-weight="700" font-size="${titleSize}" fill="${p.ink}">${esc(title.toUpperCase())}</text>
+<text x="180" y="100" font-family="${font}" font-size="13" fill="${p.sub}"${subFit}>${esc(sub)}</text>
+${reason.map((l, i) => `<text x="180" y="${121 + i * 16}" font-family="${font}" font-size="13" font-style="italic" font-weight="600" fill="${p.label}">${esc(l)}</text>`).join('')}
+<text x="180" y="${more ? 144 : 161}" font-family="Georgia, serif" font-size="14" fill="${p.label}">Rarity:</text>
+<text x="426" y="${more ? 144 : 161}" text-anchor="end" font-family="Georgia, serif" font-size="14" font-weight="700" fill="${p.accent}">${r.label}</text>
+<text x="180" y="${more ? 167 : 179}" font-family="Georgia, serif" font-size="14" fill="${p.label}">Unlocked:</text>
+<text x="426" y="${more ? 167 : 179}" text-anchor="end" font-family="Georgia, serif" font-size="14" fill="${p.label}">${date}</text>
+${barcode(badge.id, 180, 426, 186, 16, p.ink)}
 <circle cx="520" cy="124" r="62" fill="${p.disc}"/>
 <svg x="462" y="66" width="116" height="116" viewBox="0 0 100 100" overflow="visible">${badgeSvg(badge, uid + 'b')}</svg>
 </g>`;  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TICKET.w} ${TICKET.h}" width="${TICKET.w}" height="${TICKET.h}">${inner}</svg>`;
