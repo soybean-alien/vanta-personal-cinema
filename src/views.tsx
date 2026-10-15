@@ -653,7 +653,12 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
             ♥ Grant Patron (dev)
           </button>
         )}
-        <button className="tool" data-nav onClick={() => previewBadgeToast(['first-light', 'night-owl', 'season-pass', 'marathoner', 'patron'][Math.floor(Math.random() * 5)])}>
+        {devBuild && (
+          <button className="tool" data-nav title="Development builds only: simulate a pledge that wasn't renewed" onClick={() => window.plex.devPatronLapse?.()}>
+            Patron lapses (dev)
+          </button>
+        )}
+        <button className="tool" data-nav onClick={() => previewBadgeToast(['first-light', 'night-owl', 'season-pass', 'marathoner', 'patron', 'patron:lapsed'][Math.floor(Math.random() * 6)])}>
           🏅 Show a test badge
         </button>
       </div>
