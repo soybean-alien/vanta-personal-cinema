@@ -16,6 +16,8 @@ const { app } = require('electron');
 // Each badge exists once and can't be earned twice.
 // rule.type 'grant' is never evaluated automatically; such badges are granted explicitly (Patron: donations,
 // dev builds only until a donation backend exists). unreleased: hidden from normal builds unless already earned.
+// special (foiled, full-color ticket) is reserved for Patron alone: golden while pledging, purple as Previous Patron.
+// No other badge may use it (the UI refuses, and the engine test fails if the catalog tries).
 // emblem: art key drawn by the UI; secret: only `hint` shows until earned; rule: evaluated by RULES below.
 const CATALOG = require('./badge-catalog.json');
 
