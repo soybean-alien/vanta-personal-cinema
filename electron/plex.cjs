@@ -58,6 +58,7 @@ const DEFAULT_PREFS = {
     brandLayout: 'tagline', // inline | stacked | corner | bold | tagline | gilded | seal | monogram | row
     hiddenLibs: [],
     showPlaylists: true,
+    groupCollections: true, // fold each Plex collection's films into one folder poster in the movie grid
     pins: [],
   },
 };

@@ -146,6 +146,11 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .poster .res-1080 { background: #2f63e8; }
 .poster .res-720 { background: #2a9a4b; }
 .poster .res-low { background: #d63a3a; }
+/* A collection folded into the movie grid: two cards peeking out behind the first film's poster. */
+.poster.folder .art { overflow: visible; box-shadow: 5px -5px 0 -1px #6a6a74, 10px -10px 0 -2px #45454d; }
+.poster.folder .art img { border-radius: 6px; }
+.poster.folder:hover img, .kbd .poster.folder:focus img { transform: none; }
+.poster .stack-count { position: absolute; left: 6px; bottom: 8px; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 800; color: #fff; background: rgba(0, 0, 0, 0.75); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
 
 /* detail */
 .detail { position: relative; }

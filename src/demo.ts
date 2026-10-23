@@ -200,7 +200,7 @@ const demoUnlocks: string[] = [];
 export function install() {
   let prefs: Prefs = {
     player: { fullscreen: true, autoplay: true, countdown: 5, skipIntro: 'button', audioLang: 'default', subLang: 'english', subMode: 'smart', hwdec: true, quality: 'default', smoothMotion: false, shaders: '', extraArgs: '' },
-    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'ember', badgesDuringPlayback: false, hiddenLibs: [], showPlaylists: true, pins: [] },
+    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'ember', badgesDuringPlayback: false, hiddenLibs: [], showPlaylists: true, groupCollections: true, pins: [] },
   };
   const stateListeners = new Set<(s: any) => void>();
   const later = <T>(v: T, ms = 40) => new Promise<T>((r) => setTimeout(() => r(v), ms));
@@ -241,6 +241,10 @@ export function install() {
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4b6cb7"/><stop offset="1" stop-color="#182848"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="32" cy="25" r="11" fill="#e8c9a0"/><path d="M12 60 C14 44 50 44 52 60Z" fill="#e5a00d"/></svg>',
           ),
       ),
+    // No TMDB in demo mode: the sample library's folders come from its Plex-style collections only.
+    tmdbStatus: () => later({ hasKey: false, cached: 0 }),
+    tmdbSetKey: () => later({ error: 'TMDB lookups are off in demo mode.' }),
+    tmdbCollections: () => later({ byFilm: {}, looked: 0, failed: 0 }),
     badges: () => later({ ...DEMO_BADGES }),
     takeBadges: () => later(demoUnlocks.splice(0)),
     setFavoriteBadges: (ids: string[]) => {

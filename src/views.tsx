@@ -3,7 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   DEFAULT_FILTERS,
   Filters,
+  Folder,
+  Folders,
   Item,
+  TmdbStatus,
+  collectionFolders,
+  releaseOrder,
   ResTier,
   resolutionOf,
   showResolutions,
@@ -21,7 +26,7 @@ import {
   nextEpisode,
   playable,
 } from './api';
-import { Choice, DeckRow, Modal, Poster, Switch, Toggle, useApp, useAutoFocus, useUpdate } from './components';
+import { Choice, DeckRow, Modal, Poster, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
 import { CHIMES, playChime, previewBadgeToast } from './badges';
 
 const loadFilters = (key: string): Filters => {
@@ -83,6 +88,36 @@ export function Library({ section, initial, pinId }: { section: Section; initial
     () => list?.filter((i) => i.title.toLowerCase().includes(text.toLowerCase())),
     [list, text],
   );
+
+  // Movie libraries: fold each Plex collection into one folder poster, placed where its first matching film
+  // would sit in the current sort. A collection with only one film left after filtering shows as that film.
+  const grouping = section.type === 'movie' && ctx.prefs.ui.groupCollections;
+  const [folders, setFolders] = useState<Folders>();
+  useEffect(() => {
+    setFolders(undefined);
+    if (grouping) collectionFolders(section.key, ctx.refresh).then(setFolders, () => {});
+  }, [section.key, grouping, ctx.refresh]);
+  const tiles = useMemo((): { item: Item; folder?: Folder }[] | undefined => {
+    if (!shown) return undefined;
+    if (!grouping || !folders) return shown.map((item) => ({ item }));
+    const hits = new Map<Folder, number>();
+    for (const i of shown) {
+      const fo = folders.byFilm[i.ratingKey];
+      if (fo) hits.set(fo, (hits.get(fo) || 0) + 1);
+    }
+    const placed = new Set<Folder>();
+    const out: { item: Item; folder?: Folder }[] = [];
+    for (const i of shown) {
+      const fo = folders.byFilm[i.ratingKey];
+      if (!fo || hits.get(fo)! < 2) out.push({ item: i });
+      else if (!placed.has(fo)) {
+        placed.add(fo);
+        out.push({ item: fo.col, folder: fo });
+      }
+    }
+    return out;
+  }, [shown, folders, grouping]);
+  const folded = tiles?.filter((t) => t.folder).length ?? 0;
   const filtered = f.genre || f.decade || f.unwatched || text;
   useAutoFocus(!!shown);
 
@@ -152,18 +187,28 @@ export function Library({ section, initial, pinId }: { section: Section; initial
             ✕ Clear filters
           </button>
         )}
-        <span className="count">{shown ? `${shown.length} items` : ''}</span>
+        <span className="count">
+          {shown
+            ? `${shown.length} items${
+                grouping && !folders ? ' · finding series...' : folded ? ` · ${folded} collection${folded === 1 ? '' : 's'}` : ''
+              }`
+            : ''}
+        </span>
       </header>
       {!filtered && <DeckRow items={deck} />}
-      {!shown ? (
+      {!tiles ? (
         <p className="muted">Loading...</p>
-      ) : !shown.length ? (
+      ) : !tiles.length ? (
         <p className="muted">Nothing matches these filters.</p>
       ) : (
         <div className="grid">
-          {shown.map((i) => (
-            <Poster key={i.ratingKey} item={i} res={i.type === 'show' ? showRes[i.ratingKey] : resolutionOf(i.Media)} />
-          ))}
+          {tiles.map(({ item: i, folder }) =>
+            folder ? (
+              <Poster key={i.ratingKey} item={i} folder={folder} />
+            ) : (
+              <Poster key={i.ratingKey} item={i} res={i.type === 'show' ? showRes[i.ratingKey] : resolutionOf(i.Media)} />
+            ),
+          )}
         </div>
       )}
       {pick && <RandomPick item={pick} onAnother={randomPick} onClose={() => setPick(null)} />}
@@ -232,6 +277,95 @@ export function Collections({ section }: { section: Section }) {
   );
 }
 
+// Optional TMDB key for finding series Plex hasn't grouped. The key is checked with TMDB, then kept encrypted
+// by the main process; the UI only ever learns whether one is set.
+function TmdbKey() {
+  const ctx = useApp();
+  const [status, setStatus] = useState<TmdbStatus>();
+  const [draft, setDraft] = useState('');
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    window.plex.tmdbStatus().then(setStatus);
+  }, []);
+  const save = async (key: string) => {
+    setMsg(key ? 'Checking the key with TMDB...' : '');
+    const r = await window.plex.tmdbSetKey(key);
+    if ('error' in r) return setMsg(r.error);
+    setStatus(r);
+    setDraft('');
+    setMsg(key ? 'Key saved. Movie libraries will look up their series the next time they open.' : 'Key removed.');
+    ctx.bump();
+  };
+  return (
+    <div className="field" style={{ marginTop: 12 }}>
+      <span>
+        Find series with TMDB (optional): {status?.hasKey ? '✓ key saved' : 'no key'}
+        {status?.cached ? ` · ${status.cached} films checked` : ''}
+      </span>
+      <div className="pin-row">
+        <input
+          data-nav
+          type="password"
+          placeholder={status?.hasKey ? 'Paste a new key to replace it' : 'Paste your TMDB API key or read access token'}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <button className="tool" data-nav disabled={!draft.trim()} onClick={() => save(draft)}>
+          Save key
+        </button>
+        {status?.hasKey && (
+          <button className="tool" data-nav onClick={() => save('')}>
+            ✕ Remove
+          </button>
+        )}
+      </div>
+      <p className="muted small">
+        {msg ||
+          'Free from themoviedb.org (Settings → API). Vanta sends TMDB only each film’s TMDB or IMDb id and saves the answers on this PC. Nothing is written to Plex or your files.'}
+      </p>
+    </div>
+  );
+}
+
+// A movie-grid folder opened: the series' films in release order, the first film's poster as the cover.
+export function FolderView({ folder }: { folder: Folder }) {
+  const ctx = useApp();
+  const { col, films } = folder;
+  const first = films[0];
+  const years = [first.year, films[films.length - 1].year].filter(Boolean);
+  useAutoFocus(true);
+  return (
+    <div className="detail">
+      {first.art && <div className="backdrop" style={{ backgroundImage: `url("${img(first.art, 1600, 900)}")` }} />}
+      <div className="top">
+        {first.thumb && <img className="cover" src={img(first.thumb, 300, 450)} />}
+        <div className="info">
+          <h1>{col.title}</h1>
+          <div className="meta">
+            {[`${films.length} films`, years.length && [...new Set(years)].join('–'), folder.source === 'tmdb' && 'Series info from TMDB']
+              .filter(Boolean)
+              .join(' · ')}
+          </div>
+          <div className="actions">
+            <button className="play" data-nav onClick={() => playFolder(ctx, folder)}>
+              ▶ Play all
+            </button>
+            <button className="tool" data-nav onClick={() => playFolder(ctx, folder, true)}>
+              🔀 Shuffle
+            </button>
+          </div>
+          {col.summary && <p className="summary">{col.summary}</p>}
+        </div>
+      </div>
+      <div className="grid">
+        {films.map((f) => (
+          <Poster key={f.ratingKey} item={f} res={resolutionOf(f.Media)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Detail({ ratingKey }: { ratingKey: string }) {
   const ctx = useApp();
   const [item, setItem] = useState<Item>();
@@ -249,7 +383,7 @@ export function Detail({ ratingKey }: { ratingKey: string }) {
           setNext(null);
         }
         if (m.type === 'collection') {
-          items(`/library/collections/${ratingKey}/children`).then(setChildren);
+          items(`/library/collections/${ratingKey}/children`).then((c) => setChildren(releaseOrder(c)));
         }
       })
       .catch((e) => ctx.error(e.message));
@@ -265,6 +399,8 @@ export function Detail({ ratingKey }: { ratingKey: string }) {
         : item.title;
   const watched = isWatched(item);
   const group = item.type === 'show' || item.type === 'season';
+  // A collection's cover is its first film's poster, matching its folder in the movie grid.
+  const cover = (item.type === 'collection' && children[0]?.thumb) || item.thumb || item.composite;
 
   return (
     <div className="detail">
@@ -272,9 +408,7 @@ export function Detail({ ratingKey }: { ratingKey: string }) {
         <div className="backdrop" style={{ backgroundImage: `url("${img(item.art || item.grandparentArt, 1600, 900)}")` }} />
       )}
       <div className="top">
-        {(item.thumb || item.composite) && (
-          <img className={`cover ${item.type === 'episode' ? 'wide' : ''}`} src={img(item.thumb || item.composite, 300, 450)} />
-        )}
+        {cover && <img className={`cover ${item.type === 'episode' ? 'wide' : ''}`} src={img(cover, 300, 450)} />}
         <div className="info">
           <h1>{heading}</h1>
           {item.type === 'episode' && <h3>{item.title}</h3>}
@@ -596,6 +730,19 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
         <textarea data-nav rows={3} defaultValue={p.extraArgs} onBlur={(e) => setP({ extraArgs: e.target.value })} />
       </label>
       <p className="muted small">Changes apply the next time something starts playing.</p>
+
+      <h2>Library</h2>
+      <Switch
+        label="Group collections in movie libraries"
+        hint={
+          ui.groupCollections
+            ? 'On: a series and its sequels (a Plex collection, or a TMDB series below) share one folder poster, with the first film as the cover.'
+            : 'Off: every film gets its own poster. Collections are still under 🗂 Collections.'
+        }
+        value={ui.groupCollections}
+        onChange={(groupCollections) => setUi({ groupCollections })}
+      />
+      <TmdbKey />
 
       <h2>Sidebar</h2>
       <div className="setting-grid">

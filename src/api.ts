@@ -37,6 +37,10 @@ export interface Item {
   leafCount?: number;
   viewedLeafCount?: number;
   childCount?: number;
+  smart?: boolean | string | number;
+  guid?: string;
+  Guid?: { id: string }[];
+  originallyAvailableAt?: string;
   contentRating?: string;
   audienceRating?: number;
   rating?: number;
@@ -95,6 +99,100 @@ export function showResolutions(sectionKey: string): Promise<Record<string, ResT
   return showResCache.get(sectionKey)!;
 }
 
+// Release order (oldest first), for a collection's films: the first film's poster becomes the folder cover.
+const released = (i: Item) => i.originallyAvailableAt || (i.year ? String(i.year) : '9999');
+export const releaseOrder = (list: Item[]) => [...list].sort((a, b) => released(a).localeCompare(released(b)));
+
+// A movie's TMDB or IMDb id as Plex knows it: the new Plex agent lists them in Guid (with includeGuids=1),
+// the legacy agents put one in guid ('com.plexapp.agents.themoviedb://603?lang=en', '...imdb://tt0133093?...').
+export function movieRef(i: Item): string | undefined {
+  const ids = [...(i.Guid || []).map((g) => g.id), i.guid || ''];
+  for (const id of ids) {
+    const m = id.match(/^(?:tmdb|com\.plexapp\.agents\.themoviedb):\/\/(\d+)/);
+    if (m) return `tmdb:${m[1]}`;
+  }
+  for (const id of ids) {
+    const m = id.match(/^(?:imdb|com\.plexapp\.agents\.imdb):\/\/(tt\d+)/);
+    if (m) return `imdb:${m[1]}`;
+  }
+}
+
+export interface TmdbStatus {
+  hasKey: boolean;
+  cached: number;
+}
+
+// Movie grid folders, built from two read-only sources (nothing is written to Plex):
+//  - the collections Plex already has (smart collections are saved filters, not franchises, so they're skipped)
+//  - TMDB's franchise collections, when a TMDB key is set (looked up by the main process, cached on this PC)
+// A film in several collections goes into the smallest one (the most specific, e.g. a trilogy over a 30-film
+// universe). Collections that end up with fewer than 2 films stay as plain posters. Cached per library and refresh.
+export interface Folder {
+  col: Item; // a Plex collection, or a stand-in for a TMDB one (ratingKey 'tmdb-<id>')
+  films: Item[]; // release order
+  source: 'plex' | 'tmdb';
+}
+export interface Folders {
+  byFilm: Record<string, Folder>;
+  list: Folder[];
+  tmdb?: { looked: number; failed: number; error?: string };
+}
+const folderCache = new Map<string, { refresh: number; p: Promise<Folders> }>();
+export function collectionFolders(sectionKey: string, refresh: number): Promise<Folders> {
+  const hit = folderCache.get(sectionKey);
+  if (hit && hit.refresh === refresh) return hit.p;
+  const p = (async () => {
+    const cols = (await items(`/library/sections/${sectionKey}/collections`)).filter((c) => !Number(c.smart) && c.smart !== true);
+    const all: { col: Item; films: Item[]; source: Folder['source'] }[] = await Promise.all(
+      cols.map(async (col) => ({
+        col,
+        films: (await items(`/library/collections/${col.ratingKey}/children`)).filter((i) => i.type === 'movie'),
+        source: 'plex' as const,
+      })),
+    );
+    // Always asked: without a key, the main process answers from its cache only.
+    let tmdb: Folders['tmdb'];
+    {
+      const movies = await items(`/library/sections/${sectionKey}/all?type=1&includeGuids=1`);
+      const refs: Record<string, string> = {};
+      for (const m of movies) {
+        const r = movieRef(m);
+        if (r) refs[m.ratingKey] = r;
+      }
+      const r = await window.plex.tmdbCollections(refs);
+      if ('error' in r) tmdb = { looked: 0, failed: 0, error: r.error };
+      else {
+        tmdb = { looked: r.looked, failed: r.failed };
+        const groups = new Map<number, { name: string; films: Item[] }>();
+        for (const m of movies) {
+          const c = r.byFilm[m.ratingKey];
+          if (!c) continue;
+          if (!groups.has(c.id)) groups.set(c.id, { name: c.name, films: [] });
+          groups.get(c.id)!.films.push(m);
+        }
+        for (const [id, g] of groups)
+          all.push({ col: { ratingKey: `tmdb-${id}`, key: '', type: 'collection', title: g.name }, films: g.films, source: 'tmdb' });
+      }
+    }
+    const home: Record<string, (typeof all)[number]> = {};
+    for (const c of all)
+      for (const f of c.films) if (!home[f.ratingKey] || c.films.length < home[f.ratingKey].films.length) home[f.ratingKey] = c;
+    const list: Folder[] = [];
+    const byFilm: Record<string, Folder> = {};
+    for (const c of all) {
+      const films = releaseOrder(c.films.filter((f) => home[f.ratingKey] === c));
+      if (films.length < 2) continue;
+      const folder = { col: c.col, films, source: c.source };
+      list.push(folder);
+      for (const f of films) byFilm[f.ratingKey] = folder;
+    }
+    return { byFilm, list, tmdb };
+  })();
+  p.catch(() => folderCache.delete(sectionKey));
+  folderCache.set(sectionKey, { refresh, p });
+  return p;
+}
+
 export interface PlayerPrefs {
   fullscreen: boolean;
   autoplay: boolean;
@@ -126,6 +224,7 @@ export interface UiPrefs {
   badgesDuringPlayback: boolean;
   hiddenLibs: string[];
   showPlaylists: boolean;
+  groupCollections: boolean;
   pins: Pin[];
 }
 
@@ -199,6 +298,11 @@ declare global {
       takeBadges(): Promise<string[]>;
       setFavoriteBadges(ids: string[]): Promise<import('./badges').BadgeState>;
       avatar(): Promise<string | null | { error: string }>;
+      tmdbStatus(): Promise<TmdbStatus>;
+      tmdbSetKey(key: string): Promise<TmdbStatus | { error: string }>;
+      tmdbCollections(
+        refs: Record<string, string>,
+      ): Promise<{ byFilm: Record<string, { id: number; name: string }>; looked: number; failed: number } | { error: string }>;
       devGrantBadge?(id: string): Promise<void>;
       devPatronLapse?(): Promise<boolean>;
       onBadgesEarned(cb: () => void): () => void;
