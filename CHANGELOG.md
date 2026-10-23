@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0 (2026-10-23)
+
+- **Series folders.** In movie libraries, a series and its sequels fold into one folder poster with the first film's cover, stacked cards and a film count. A folder sits where its first film would in your current sort and filters.
+- Open a folder for every film in release order, with **Play all** and **Shuffle** (also in the right-click / Y menu).
+- Series come from your Plex collections and, optionally, The Movie Database: add a free TMDB key in **Settings → Library**. Answers are cached on your PC, and nothing is written to Plex or your files.
+- **Settings → Library** has a switch to turn folders off.
+- Plex collections now open and play in release order, with the first film's poster as the cover.
+
 ## 1.0.1 (2026-10-15)
 
 - **Vanta now updates itself.** It checks this repository's releases and installs new versions silently, keeping your sign-in, settings and progress. Choose *Install automatically*, *Ask me first* (default) or *Only when I check* in Settings → Updates.

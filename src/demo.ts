@@ -257,9 +257,9 @@ export function install() {
       return () => {};
     },
     onBadgeShown: () => () => {},
-    updateState: () => later({ state: 'none', current: '1.5.0', mode: prefs.ui.updates, packaged: true }),
-    checkUpdate: () => later({ state: 'none', current: '1.5.0', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
-    downloadUpdate: () => later({ state: 'none', current: '1.5.0', mode: prefs.ui.updates, packaged: true }),
+    updateState: () => later({ state: 'none', current: '1.6.0', mode: prefs.ui.updates, packaged: true }),
+    checkUpdate: () => later({ state: 'none', current: '1.6.0', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
+    downloadUpdate: () => later({ state: 'none', current: '1.6.0', mode: prefs.ui.updates, packaged: true }),
     installUpdate: () => later({ ok: true }),
     onUpdate: () => () => {},
   };
