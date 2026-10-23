@@ -1,6 +1,6 @@
 // Vanta by soybean_alien
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Filters, Item, PlayOpts, Prefs, ResTier, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState } from './api';
+import { Filters, Folder, Item, PlayOpts, Prefs, ResTier, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState } from './api';
 import { focusEl, focusFirst, focusLost } from './nav';
 
 // When a view finishes loading and nothing useful has focus (keyboard/controller just opened it),
@@ -15,6 +15,7 @@ export type View =
   | { kind: 'library'; section: Section; filters?: Filters; pinId?: string }
   | { kind: 'collections'; section: Section }
   | { kind: 'item'; ratingKey: string }
+  | { kind: 'folder'; folder: Folder }
   | { kind: 'playlist'; ratingKey: string; title: string }
   | { kind: 'search' }
   | { kind: 'badges' }
@@ -51,6 +52,15 @@ export function useUpdate() {
   return [u, setU] as const;
 }
 export const useApp = () => useContext(AppCtx);
+
+// A movie-grid folder (a Plex or TMDB collection): its films play in release order.
+export const playFolder = (ctx: Ctx, f: Folder, shuffle?: boolean) =>
+  ctx.play(f.films[0].ratingKey, { queue: f.films.map((i) => i.ratingKey), shuffle });
+export const folderMenu = (ctx: Ctx, f: Folder): MenuEntry[] => [
+  { label: '▶ Play all', action: () => playFolder(ctx, f) },
+  { label: '🔀 Shuffle', action: () => playFolder(ctx, f, true) },
+  { label: '🗂 Open', action: () => ctx.open({ kind: 'folder', folder: f }) },
+];
 
 // Right-click / Y-button menu entries for any library item.
 export function itemMenu(ctx: Ctx, item: Item): MenuEntry[] {
@@ -104,6 +114,7 @@ export function Poster({
   title,
   sub,
   res,
+  folder,
 }: {
   item: Item;
   wide?: boolean;
@@ -111,30 +122,34 @@ export function Poster({
   title?: string;
   sub?: string;
   res?: ResTier | null; // file resolution tag (library grid only)
+  folder?: Folder; // a collection folded into the movie grid: stacked first-film poster
 }) {
   const ctx = useApp();
   const watched = isWatched(item);
   const group = item.type === 'show' || item.type === 'season';
   const unwatchedEps = group && item.leafCount ? item.leafCount - (item.viewedLeafCount || 0) : 0;
   const progress = item.viewOffset && item.duration ? item.viewOffset / item.duration : 0;
-  const thumb = wide
+  const thumb = folder
+    ? folder.films[0].thumb || item.thumb
+    : wide
     ? item.type === 'movie'
       ? item.art || item.thumb
       : item.thumb
     : item.type === 'episode'
       ? item.grandparentThumb || item.thumb
       : item.thumb || item.composite;
-  const click = onClick || (() => ctx.open({ kind: 'item', ratingKey: item.ratingKey }));
+  const click =
+    onClick || (() => ctx.open(folder ? { kind: 'folder', folder } : { kind: 'item', ratingKey: item.ratingKey }));
   return (
     <div
-      className={`poster ${wide ? 'wide' : ''}`}
+      className={`poster ${wide ? 'wide' : ''} ${folder ? 'folder' : ''}`}
       tabIndex={0}
       data-nav
       data-rk={item.ratingKey}
       onClick={click}
       onContextMenu={(e) => {
         e.preventDefault();
-        ctx.menu(e.clientX, e.clientY, itemMenu(ctx, item));
+        ctx.menu(e.clientX, e.clientY, folder ? folderMenu(ctx, folder) : itemMenu(ctx, item));
       }}
     >
       <div className="art">
@@ -143,6 +158,7 @@ export function Poster({
         {unwatchedEps > 0 && <span className="badge">{unwatchedEps}</span>}
         {group && watched && <span className="check">✓</span>}
         {res && <span className={`res res-${res.tier}`}>{res.label}</span>}
+        {folder && <span className="stack-count">🗂 {folder.films.length}</span>}
         {progress > 0 && (
           <div className="bar">
             <div style={{ width: `${progress * 100}%` }} />
@@ -156,7 +172,9 @@ export function Poster({
             ? episodeLabel(item)
             : wide
               ? minutes(item.duration)
-              : item.type === 'collection'
+              : folder
+                ? `${folder.films.length} films`
+                : item.type === 'collection'
                 ? `${item.childCount ?? ''} items`
                 : (item.year ?? ''))}
       </div>

@@ -1,12 +1,12 @@
 // Vanta by soybean_alien
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, User, items, nextEpisode, playable, sections } from './api';
+import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, User, items, nextEpisode, playable, releaseOrder, sections } from './api';
 import { AppCtx, Ctx, Menu, MenuEntry, Modal, View, useUpdate } from './components';
 import { focusEl, focusFirst, installGamepad, installKeys } from './nav';
 import mark from './assets/vanta-mark.svg';
 import { BadgeShowcase, BadgeState, BadgeToasts, setTicketAvatar, setTicketHolder } from './badges';
 import { BadgeCategoryPage, BadgesPage } from './badges-page';
-import { Collections, Detail, Library, Playlist, Search, Settings } from './views';
+import { Collections, Detail, FolderView, Library, Playlist, Search, Settings } from './views';
 
 export default function App() {
   const [auth, setAuth] = useState<ConnectResult | 'loading' | 'signingIn'>('loading');
@@ -329,7 +329,9 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
           return ep ? play(ep.ratingKey, opts) : setError('No episodes found.');
         }
         if (item.type === 'collection') {
-          const queue = (await items(`/library/collections/${item.ratingKey}/children`)).filter(playable).map((i) => i.ratingKey);
+          const queue = releaseOrder(await items(`/library/collections/${item.ratingKey}/children`))
+            .filter(playable)
+            .map((i) => i.ratingKey);
           return queue.length ? play(queue[0], { ...opts, queue }) : setError('Nothing playable in this collection.');
         }
       } catch (e: any) {
@@ -560,6 +562,7 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
                 {v.kind === 'library' && <Library section={v.section} initial={v.filters} pinId={v.pinId} />}
                 {v.kind === 'collections' && <Collections section={v.section} />}
                 {v.kind === 'item' && <Detail ratingKey={v.ratingKey} />}
+                {v.kind === 'folder' && <FolderView folder={v.folder} />}
                 {v.kind === 'playlist' && <Playlist ratingKey={v.ratingKey} title={v.title} />}
                 {v.kind === 'search' && <Search query={query} setQuery={setQuery} />}
                 {v.kind === 'settings' && <Settings onSignOut={onSignOut} />}

@@ -7,6 +7,7 @@ const player = require('./player.cjs');
 const health = require('./health.cjs');
 const updater = require('./updater.cjs');
 const badges = require('./badges.cjs');
+const tmdb = require('./tmdb.cjs');
 
 const overlay = require('./badge-overlay.cjs');
 const CATALOG = require('./badge-catalog.json');
@@ -153,6 +154,9 @@ app.whenReady().then(() => {
     updater.configure(); // the update mode may have changed
     return prefs;
   });
+  handle('tmdb:status', () => tmdb.status());
+  handle('tmdb:setKey', (k) => tmdb.setKey(k));
+  handle('tmdb:collections', (refs) => tmdb.collections(refs || {}));
   handle('badges:get', () => badges.state());
   handle('badges:take', () => (player.isPlaying() ? [] : pendingBadges.splice(0)));
   handle('badges:setFavorites', (ids) => badges.setFavorites(ids));
