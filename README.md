@@ -10,6 +10,8 @@ stays out of the way. And now, watching earns you something.
 
 - **🏅 Badges.** Every film and episode you finish counts toward collectible badges in five rarities, each one announced
   with its own movie ticket. [More below](#badges).
+- **🗂 Series folders.** Sequels and prequels fold into one folder poster with the first film as the cover, so a
+  franchise takes one spot in your library instead of eight. [More below](#series-folders).
 - **A viewer, not a manager.** Vanta doesn't scan, rename, tag or reorganise anything. Your Plex Media Server keeps doing
   that job; Vanta is the screen you watch it on. The only things it writes back are what any Plex player does: resume
   points and watched status.
@@ -17,13 +19,14 @@ stays out of the way. And now, watching earns you something.
 - **Plays everything, untouched.** Files play directly in mpv, so 4K HDR, HEVC, lossless audio and image subtitles reach your screen as they are, with no transcoding.
 - **Built for the couch.** Every screen works with the keyboard or an Xbox controller, and you sign in once.
 
-> Release: **1.5.0**, a major release and the first feature-complete version of Vanta. For Windows 10 and 11, with Plex
+> Release: **1.6.0**, adding series folders to the movie library. For Windows 10 and 11, with Plex
 > Media Server on the same PC or on another PC in your home network.
 
 ---
 
 ## Contents
 - [Badges](#badges)
+- [Series folders](#series-folders)
 - [Made for the collection you own](#made-for-the-collection-you-own)
 - [What it does](#what-it-does)
 - [Screenshots](#screenshots)
@@ -94,6 +97,26 @@ so everyone starts fresh.
 
 ---
 
+## Series folders
+
+A franchise takes one spot in your movie library. Every film in a series (*Alien*, *Aliens*, *Alien³*...) folds into
+one folder poster: the first film's cover, with cards stacked behind it and the number of films in the corner.
+
+- **Open a folder** to see every cover inside in release order, with **Play all** (in order) and **Shuffle**. Right-click
+  a folder (or press Y) for the same.
+- **Folders follow your view.** A folder sits where its first film would in the current sort. If a filter leaves only one
+  film of a series, that film shows on its own.
+- **Where the series come from:** your Plex collections, plus, if you add a free [TMDB](https://www.themoviedb.org) key
+  in **Settings → Library**, the series The Movie Database knows about. TMDB decides what counts as a series (it keeps
+  *Prometheus* apart from the *Alien* films, for example).
+- **Nothing on your server changes.** Folders exist only in Vanta. No collections are created in Plex, and no files or
+  folders are touched. Turn them off in **Settings → Library**.
+
+Getting a TMDB key: create a free account at [themoviedb.org](https://www.themoviedb.org), then go to your profile's
+**Settings → API**. Paste either the *API Key* or the *API Read Access Token* into Vanta.
+
+---
+
 ## Made for the collection you own
 
 Vanta plays what's already on **your** Plex Media Server: the films and box sets you've bought, the discs you've
@@ -110,6 +133,7 @@ quality, and without anything competing for your attention.
 | Feature | Details |
 |---|---|
 | **Badges** | Earn collectible badges by watching, each announced with a movie ticket. A Badges page with progress on every locked badge, and a showcase of your six favorites. See [Badges](#badges). |
+| **Series folders** | Sequels and prequels share one folder poster with the first film's cover. Open it for every film in release order, Play all or Shuffle. See [Series folders](#series-folders). |
 | **Libraries at a glance** | Your movie and TV libraries in the sidebar, opening straight into a fast poster wall. Unwatched corners, episode counts and progress bars show where you are. |
 | **Resolution tags** | Every poster in the library grid shows its file resolution: **4K** purple, **1080p** blue, **720p** green, lower in red. TV shows use the resolution most of their episodes have. |
 | **Continue Watching** | In-progress films and the next episode of the shows you're following, at the top of each library. |
@@ -229,6 +253,7 @@ Open **⚙ Settings** at the bottom of the sidebar (or press Menu ☰ on the con
 | Audio & subtitles | Preferred audio language · subtitles off, smart or always · subtitle language. *Smart* shows only forced subtitles when the audio is already in your language, and full subtitles when it isn't. |
 | Video | Hardware decoding · upscaling (default, high quality, high quality + sharp) · smooth motion · your own GLSL shaders · extra mpv options |
 | Badges | Show badges during playback (off by default) · unlock sound (Ember, Temple, Dusk, Hearth, Lantern, Harbor or off) with a preview · show a test ticket |
+| Library | Group series into folders in movie libraries (on by default) · optional TMDB key to find series Plex hasn't grouped |
 | Sidebar | Show or hide each library and playlists · rename, reorder or remove pinned views |
 | Account | Logo layout · name in the sidebar (username or full name) · sign out |
 
@@ -278,6 +303,7 @@ Choose how in **Settings → Updates → When an update is out**:
 - **Sign-in happens on Plex's own page.** Vanta receives a sign-in token, never your password.
 - **The token is encrypted** with Windows' own data protection (DPAPI) and stored in `%APPDATA%\vanta\auth.bin`. Only your Windows user can decrypt it.
 - **Vanta talks to three places:** plex.tv (sign-in and finding your server), your own Plex Media Server, and GitHub (to check this repository for updates, unless you choose *Only when I check*).
+- **A fourth, only if you add a TMDB key:** The Movie Database, to find series. Vanta sends it only each film's TMDB or IMDb id. The answers are saved in `%APPDATA%\vanta\tmdb-cache.json`, so each film is looked up once, and the key is encrypted like your sign-in (`%APPDATA%\vanta\tmdb.bin`).
 - **No telemetry, analytics or ads.** Vanta doesn't collect or send anything about you or what you watch.
 - **Badges stay on your PC.** Your badges and the watch history behind them live in `%APPDATA%\vanta\badges.json` and are never uploaded. The unlock ticket shows your Plex profile picture, which Vanta loads from plex.tv.
 - The settings file (`%APPDATA%\vanta\settings.json`) holds your preferences and a random device ID that Plex uses to recognise this install.
@@ -337,7 +363,8 @@ No Plex code or copyrighted media is included in this repository. The only artwo
 - [Electron](https://github.com/electron/electron), [React](https://github.com/facebook/react) and [mpv](https://github.com/mpv-player/mpv). Vanta is an Electron app that plays video through mpv; the installer bundles the [shinchiro mpv build](https://github.com/shinchiro/mpv-winbuild-cmake). See [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md).
 - [Jost](https://github.com/indestructible-type/Jost) typeface by Indestructible Type (SIL OFL 1.1), via Fontsource.
 - Plex © Plex, Inc. Vanta is an unofficial client and isn't affiliated with or endorsed by Plex, Inc.
-- **AI disclosure:** Vanta was designed with and written by **Claude Code (Anthropic, Claude Opus 5.5)**, directed and tested by the author on a real two-PC home setup (Plex Media Server on one PC, Vanta on another) before release. For 1.5, badges were tested end to end on that setup: a real episode streamed from the server and finished, and its unlock ticket appeared inside the player with the account's own profile picture.
+- Series information from [The Movie Database (TMDB)](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB.
+- **AI disclosure:** Vanta was designed with and written by **Claude Code (Anthropic, Claude Opus 5.5)**, directed and tested by the author on a real two-PC home setup (Plex Media Server on one PC, Vanta on another) before release. For 1.5, badges were tested end to end on that setup: a real episode streamed from the server and finished, and its unlock ticket appeared inside the player with the account's own profile picture. For 1.6, series folders were checked against the author's real library: 227 of its 605 films grouped into 61 series folders through TMDB, and a folder opened with its films in release order.
 
 ## Feedback
 Your reports shape what comes next. Please open an issue and include:

@@ -323,6 +323,7 @@ function TmdbKey() {
         {msg ||
           'Free from themoviedb.org (Settings → API). Vanta sends TMDB only each film’s TMDB or IMDb id and saves the answers on this PC. Nothing is written to Plex or your files.'}
       </p>
+      <p className="muted small">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
     </div>
   );
 }
