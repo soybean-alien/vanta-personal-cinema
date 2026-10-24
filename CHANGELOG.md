@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.2 (2026-10-24)
+
+- The details page no longer shows the file name. The file's video, audio and subtitle details stay.
+
 ## 2.1.1 (2026-10-24)
 
 - **More cast birthdays.** When TMDB has no birthday for someone, Vanta now asks Wikidata, then Trakt, then TVmaze (by exact, single name match only). Wikidata also fills in deaths TMDB hasn't recorded for anyone born before 1965. Hover a person to see where their birthday came from.

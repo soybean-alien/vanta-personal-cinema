@@ -337,7 +337,6 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .tracks > span:not(:last-child)::after { content: '\00B7'; color: var(--muted); margin: 0 9px; }
 .tracks .main { color: #fff; font-weight: 600; }
 .tracks .more { color: var(--accent); cursor: help; }
-.file-name { color: #aab0bc; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .cast { position: relative; margin-top: 34px; }
 .cast-head { display: flex; align-items: baseline; gap: 16px; margin: 0 4px 6px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); }

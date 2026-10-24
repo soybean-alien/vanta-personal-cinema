@@ -173,7 +173,6 @@ export function FileInfo({ item }: { item: Item }) {
     m.bitrate && { t: mbps(m.bitrate) },
   ].filter(Boolean) as { t: string; cls?: string }[];
   const trackName = (s: Stream) => s.extendedDisplayTitle || s.displayTitle || s.language || 'Unknown';
-  const fileName = part?.file?.split(/[\\/]/).pop();
 
   return (
     <div className="file-info">
@@ -208,14 +207,6 @@ export function FileInfo({ item }: { item: Item }) {
             <span className="muted">None</span>
           )}
         </dd>
-        {fileName && (
-          <>
-            <dt>File</dt>
-            <dd className="file-name" title={fileName}>
-              {fileName}
-            </dd>
-          </>
-        )}
       </dl>}
     </div>
   );
