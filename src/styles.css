@@ -471,3 +471,4 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .add-col-name { flex: 1; }
 .splash-restore { margin-top: 26px; max-width: 460px; padding-top: 18px; border-top: 1px solid var(--line); }
 .backup .pin-row input { width: 340px; }
+.trakt-code { align-self: flex-start; margin: 8px 0 4px; padding: 10px 22px; border-radius: 10px; background: var(--raised); border: 1px solid #ed1c24; color: #fff; font-family: 'Jost Variable', 'Jost', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: 0.24em; cursor: copy; box-shadow: 0 0 24px rgba(237, 28, 36, 0.25); }

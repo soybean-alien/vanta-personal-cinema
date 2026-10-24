@@ -57,6 +57,7 @@ const DEFAULT_PREFS = {
     hiddenLibs: [],
     showPlaylists: true,
     groupCollections: true, // fold each Plex collection's films into one folder poster in the movie grid
+    traktAutoSync: true, // when Trakt is connected, send each watch to Trakt as it happens (trakt.cjs)
     pins: [],
   },
 };

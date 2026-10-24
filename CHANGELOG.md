@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0 (2026-10-24)
+
+- **Trakt sync.** Settings → Trakt → Connect Trakt shows a short code to enter at trakt.tv/activate; there are no keys to paste and no secret built into Vanta (device sign-in with PKCE).
+- Everything Vanta marks watched (80% in the player, or Mark watched) is added to your Trakt history right away; Mark unwatched removes it. A switch turns this off.
+- **Sync now** sends your Plex watch history (movies and episodes, with Plex's dates) to Trakt and copies Trakt's watch dates into Vanta's watch log. Plex's watched status is never changed.
+- Trakt scores on the details page now work for everyone, with no key.
+- Backups carry the Trakt sign-in (inside the password-protected part).
 ## 2.0.1 (2026-10-24)
 
 - Fixed: on the details page, the separator between audio and subtitle tracks showed as "Â·" instead of a dot.

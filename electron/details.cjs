@@ -9,6 +9,7 @@ const { app, safeStorage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const tmdb = require('./tmdb.cjs');
+const traktApp = require('./trakt.cjs');
 
 const file = (name) => path.join(app.getPath('userData'), name);
 const SCORES_TTL = 12 * 3600 * 1000;
@@ -30,7 +31,7 @@ function loadKey(service) {
   return keys[service];
 }
 
-const status = () => ({ tmdb: tmdb.hasKey(), trakt: !!loadKey('trakt'), omdb: !!loadKey('omdb') });
+const status = () => ({ tmdb: tmdb.hasKey(), trakt: !!loadKey('trakt'), traktBuiltIn: traktApp.available(), omdb: !!loadKey('omdb') });
 
 // Checks a key against its service before saving it. An empty key removes it.
 async function setKey(service, k) {
@@ -83,7 +84,7 @@ let scores = {}; // in memory: { [key]: { v, at } }
 
 async function trakt(p, k = loadKey('trakt')) {
   const res = await fetch('https://api.trakt.tv' + p, {
-    headers: { 'Content-Type': 'application/json', 'trakt-api-version': '2', 'trakt-api-key': k },
+    headers: { 'Content-Type': 'application/json', 'User-Agent': `Vanta/${app.getVersion()}`, 'trakt-api-version': '2', 'trakt-api-key': k },
     signal: AbortSignal.timeout(12000),
   });
   if (res.status === 401 || res.status === 403) throw new Error('Trakt rejected the client ID.');
@@ -127,7 +128,14 @@ async function liveScores(ids) {
       }),
     );
   // Trakt takes an IMDb id in place of its own slug.
-  if (ids.imdb && loadKey('trakt'))
+  // Vanta's built-in Trakt app id needs no key; an older pasted Client ID still works when it isn't set.
+  if (ids.imdb && traktApp.available())
+    jobs.push(
+      traktApp.rating(ids.kind, ids.imdb).then((r) => {
+        if (r) out.trakt = r;
+      }),
+    );
+  else if (ids.imdb && loadKey('trakt'))
     jobs.push(
       trakt(`/${ids.kind === 'show' ? 'shows' : 'movies'}/${encodeURIComponent(ids.imdb)}/ratings`).then((r) => {
         if (r?.votes) out.trakt = { value: r.rating, votes: r.votes };

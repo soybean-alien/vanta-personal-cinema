@@ -14,6 +14,8 @@ stays out of the way. And now, watching earns you something.
   the date they passed if they're no longer with us. [More below](#details-page).
 - **💬 English subtitles that find themselves.** A film with no English subtitles gets the best match for your exact
   file in the background. No account, no setup. [More below](#subtitles).
+- **🔁 Trakt sync, new in 2.1.** Connect Trakt with a short code (no keys to paste) and everything you watch lands in
+  your Trakt history, while one Sync now brings your whole Plex history across. [More below](#trakt).
 - **🎵 Spotify, built in.** Your playlists and albums on a Music page, played on your Spotify devices, with a
   full-screen-worthy now-playing view. [More below](#music-spotify).
 - **🛟 Your data is safe.** Last-watched dates, badges, collections and every setting are saved crash-safe on your PC,
@@ -31,15 +33,16 @@ stays out of the way. And now, watching earns you something.
 - **Plays everything, untouched.** Files play directly in mpv, so 4K HDR, HEVC, lossless audio and image subtitles reach your screen as they are, with no transcoding.
 - **Built for the couch.** Every screen works with the keyboard or an Xbox controller, and you sign in once.
 
-> Release: **2.0.0**, the biggest update yet: the new details page, automatic subtitles, Spotify, full backups,
-> themes and much more. For Windows 10 and 11, with Plex Media Server on the same PC or on another PC in your home
-> network.
+> Release: **2.1.0**, adding Trakt sync to 2.0, the biggest update yet (the new details page, automatic subtitles,
+> Spotify, full backups, themes and much more). For Windows 10 and 11, with Plex Media Server on the same PC or on
+> another PC in your home network.
 ---
 
 ## Contents
 - [What's new in 2.0](#whats-new-in-20)
 - [Details page](#details-page)
 - [Subtitles](#subtitles)
+- [Trakt](#trakt)
 - [Music (Spotify)](#music-spotify)
 - [Your data: backup and restore](#your-data-backup-and-restore)
 - [Badges](#badges)
@@ -94,8 +97,9 @@ library you already have.
 Open any film or episode for a page that puts everything in one place, laid directly over the film's own backdrop.
 
 - **Scores.** IMDb, Rotten Tomatoes Tomatometer (critics) and Popcornmeter (audience), and TMDB come from your Plex
-  server's metadata with no setup. Add free keys in **Settings → Scores and cast** to make them live and to add
-  **Trakt** and **Metacritic**. Hover any score to see where it came from and how fresh it is; a green dot means live.
+  server's metadata, and the **Trakt** score is live, all with no setup. A free OMDb key in **Settings → Scores and
+  cast** makes IMDb and Rotten Tomatoes live too and adds **Metacritic**. Hover any score to see where it came from and
+  how fresh it is; a green dot means live.
 - **The file itself.** Tags for resolution, HDR10 / Dolby Vision / HLG, codec and bit depth, frame rate, audio format
   and channels (Atmos and DTS:X are called out), container, size and bitrate, then every audio and subtitle track.
 - **People.** Directed by and Written by under the title, and a Cast & Crew row with photos, characters, birthdays,
@@ -113,10 +117,25 @@ English subtitles for files that have none, found and loaded for you. No account
   WEB-DL...), release group, codec and frame rate. Movies also check YTS-Subs.
 - **In the background.** Opening a movie library queues its films; one is checked every few seconds, and anything
   without a match is tried again a week later. Anything still missing is fetched the moment you press Play.
-- **Clean.** The ad lines subtitle sites insert are removed. Subtitles are kept on your PC (%APPDATA%\vanta\subs),
+- **Clean.** The ad lines subtitle sites insert are removed. Subtitles are kept on your PC (`%APPDATA%\vanta\subs`),
   never written to your server, and show up in the player as *English (Vanta)*.
 - **Your own file.** Right-click a title → 💬 Add subtitle file to use any .srt you have.
 - Turn it off in **Settings → Audio & subtitles**. If a subtitle drifts, Z and X in the player nudge it.
+
+## Trakt
+
+Keep your [Trakt](https://trakt.tv) history in step with what you watch in Vanta. **Settings → Trakt → Connect Trakt**
+shows a short code; enter it at trakt.tv/activate and approve Vanta. That's all: no developer app, no keys to paste,
+and Vanta never sees your password.
+
+- **As you watch.** Everything Vanta marks watched (80% in the player, or Mark watched) is added to your Trakt history
+  right away, and Mark unwatched removes it. Turn it off with **Send what I watch to Trakt**.
+- **Sync now.** Sends every movie and episode Plex says you've watched (with Plex's own dates) that Trakt doesn't have
+  yet, and copies Trakt's watch dates into Vanta's watch log. It never changes watched status in Plex.
+- **Safe sign-in.** Vanta uses Trakt's device sign-in with PKCE, so there's no secret built into the app. The only
+  thing kept on your PC is the sign-in Trakt hands back, encrypted with Windows' protection. **Disconnect** cancels it
+  with Trakt and deletes it.
+- **More than one Trakt account?** Enter the code in a private browser window, so the account you want approves Vanta.
 
 ## Music (Spotify)
 
@@ -126,7 +145,7 @@ view with large cover art, the song, artist, album and release year, and the pla
 it is).
 
 Setup takes two minutes, once: create a free app at [developer.spotify.com](https://developer.spotify.com/dashboard),
-add the redirect URI http://127.0.0.1:43821/callback, tick **Web API**, and paste its Client ID into **Settings →
+add the redirect URI `http://127.0.0.1:43821/callback`, tick **Web API**, and paste its Client ID into **Settings →
 Music**. Then click **Connect Spotify** and approve Vanta on Spotify's own page. Vanta never sees your password.
 Browsing works on any account; playing on your devices needs Spotify Premium (Spotify's rule for every app).
 
@@ -140,8 +159,8 @@ Media collectors keep their history for years, so Vanta treats your data as prec
   history), so the dates survive a Plex database reset, a library rebuild or a server move.
 - **One file, everything.** **Settings → Your data → Export backup** saves badges and the watch sessions behind them,
   last-watched dates, your collections, every setting, each library's sort and filters, and the TMDB and cast caches.
-- **Zero setup on a new PC.** Set a backup password and the file also carries your Plex sign-in and your TMDB, Trakt,
-  OMDb and Spotify keys, encrypted with AES-256 (the password is stretched with scrypt). On a fresh install, choose
+- **Zero setup on a new PC.** Set a backup password and the file also carries your Plex, Trakt and Spotify sign-ins
+  and your TMDB and OMDb keys, encrypted with AES-256 (the password is stretched with scrypt). On a fresh install, choose
   **Restore from backup** on the sign-in screen and Vanta comes back exactly as it was. Without a password, everything
   except the sign-ins and keys is saved.
 - **Restoring never loses anything.** It adds to what's there: badges, dates and collections are combined, never replaced.
@@ -243,6 +262,7 @@ quality, and without anything competing for your attention.
 | **Continue Watching** | Its own page in the sidebar: everything you started and didn't finish (under 80%), across every library, plus the next episode of each show you're following. |
 | **Details page** | Live scores, the file's real video and audio data, and Cast & Crew with birthdays, ages and lifetimes. See [Details page](#details-page). |
 | **Automatic subtitles** | English subtitles matched to your exact file, fetched in the background, plus your own .srt files. See [Subtitles](#subtitles). |
+| **Trakt sync** | Connect with a short code; what you watch goes to your Trakt history, and Sync now brings your Plex history across. See [Trakt](#trakt). |
 | **Music** | Spotify playlists and albums with a now-playing view, played on your Spotify devices. See [Music (Spotify)](#music-spotify). |
 | **Last watched** | A neon-green date on watched posters and pages, kept by Vanta's own crash-safe watch log. |
 | **Add to collection** | Put any film into a series folder (or a new one) from its menu; the Collections page summarises every series. |
@@ -324,7 +344,7 @@ Plex music libraries and photo libraries. Vanta shows your video libraries, plus
 
 ## Install
 
-1. Download **`Vanta-Setup-2.0.0.exe`** (or newer) from the [Releases](../../releases) page.
+1. Download **`Vanta-Setup-2.1.0.exe`** (or newer) from the [Releases](../../releases) page.
 2. Run it. Windows SmartScreen may say *"Windows protected your PC"* because the installer isn't code-signed.
    Click **More info → Run anyway**.
 3. Pick an install folder (or keep the default) and finish. Vanta adds shortcuts to the **Start Menu** and the **Desktop**.
@@ -391,7 +411,8 @@ Open **⚙ Settings** at the bottom of the sidebar (or press Menu ☰ on the con
 | Video | Hardware decoding · upscaling (default, high quality, high quality + sharp) · smooth motion · your own GLSL shaders · extra mpv options |
 | Badges | Show badges during playback (off by default) · unlock sound (Ember, Temple, Dusk, Hearth, Lantern, Harbor or off) with a preview · show a test ticket |
 | Library | Group series into folders in movie libraries (on by default) · optional TMDB key to find series Plex hasn't grouped (it also powers cast birthdays and ages) |
-| Scores and cast | Optional Trakt Client ID and OMDb key for live IMDb, Rotten Tomatoes, Metacritic and Trakt scores |
+| Scores and cast | Optional OMDb key for live IMDb and Rotten Tomatoes scores plus Metacritic (Trakt scores need no key) |
+| Trakt | Connect Trakt (a short code at trakt.tv/activate) · Sync now · send what I watch to Trakt · Disconnect |
 | Theme | Nine color themes, applied instantly |
 | Music | Spotify Client ID, Connect and Disconnect |
 | Your data | Export backup (with an optional password for sign-ins and keys) · Restore from backup |
@@ -445,7 +466,9 @@ Choose how in **Settings → Updates → When an update is out**:
 - **The token is encrypted** with Windows' own data protection (DPAPI) and stored in `%APPDATA%\vanta\auth.bin`. Only your Windows user can decrypt it.
 - **Vanta talks to three places:** plex.tv (sign-in and finding your server), your own Plex Media Server, and GitHub (to check this repository for updates, unless you choose *Only when I check*).
 - **Only if you add a TMDB key:** The Movie Database, to find series and the cast's birthdays. Vanta sends it only each title's TMDB or IMDb id and TMDB person ids. Answers are cached on your PC (`tmdb-cache.json`, `credits-cache.json`, `people-cache.json`), and the key is encrypted like your sign-in (`tmdb.bin`).
-- **Only if you add their keys:** Trakt and OMDb, for live scores. Each gets only a title's IMDb id. Keys are encrypted (`trakt.bin`, `omdb.bin`).
+- **Trakt, for scores:** each details page asks Trakt for that title's score, sending only its IMDb id.
+- **Trakt, only if you connect it:** your watch history goes to your Trakt account: the IMDb/TMDB/TVDB ids and dates of what you've watched, nothing else (no file names, no server details). The sign-in is encrypted in `trakt-auth.bin`; Disconnect deletes it.
+- **OMDb, only if you add its key:** for live scores. It gets only a title's IMDb id. The key is encrypted (`omdb.bin`).
 - **Only if you connect it:** Spotify, for the Music page. Sign-in happens on Spotify's own page (OAuth with PKCE, so no secret ships in Vanta); the sign-in is encrypted in `spotify.bin`.
 - **Subtitles (on by default):** OpenSubtitles' public search and YTS-Subs, for files with no English subtitles. They receive the title's IMDb id or the file's fingerprint (a hash of its first and last 64 KB and its size), never the file or its name. Turn it off in Settings → Audio & subtitles.
 - **Backups stay where you put them.** A backup file is written only where you choose. Sign-ins and keys go into it only if you set a password, and then only encrypted (AES-256-GCM, scrypt).
@@ -509,9 +532,9 @@ No Plex code or copyrighted media is included in this repository. The only artwo
 - [Jost](https://github.com/indestructible-type/Jost) typeface by Indestructible Type (SIL OFL 1.1), via Fontsource.
 - Plex © Plex, Inc. Vanta is an unofficial client and isn't affiliated with or endorsed by Plex, Inc.
 - Series, cast and score information from [The Movie Database (TMDB)](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB.
-- Optional scores from [Trakt](https://trakt.tv) and [OMDb](https://www.omdbapi.com); music from [Spotify](https://www.spotify.com) through its Web API. Vanta isn't affiliated with or endorsed by any of them.
+- Scores and watch-history sync with [Trakt](https://trakt.tv), optional scores from [OMDb](https://www.omdbapi.com); music from [Spotify](https://www.spotify.com) through its Web API. Vanta isn't affiliated with or endorsed by any of them.
 - Subtitles found through [OpenSubtitles](https://www.opensubtitles.org) and [YTS-Subs](https://yts-subs.com), written and shared by their communities.
-- **AI disclosure:** Vanta was designed with and written by **Claude Code (Anthropic, Claude Opus 5.5)**, directed and tested by the author on a real two-PC home setup (Plex Media Server on one PC, Vanta on another) before release. For 1.5, badges were tested end to end on that setup: a real episode streamed from the server and finished, and its unlock ticket appeared inside the player with the account's own profile picture. For 1.6, series folders were checked against the author's real library: 227 of its 605 films grouped into 61 series folders through TMDB, and a folder opened with its films in release order. For 2.0, the details page, cast lifetimes, automatic subtitles, Add to collection, the watch log, backup and restore, themes and the cover slider were each exercised against the author's real library on that setup; the Music page was checked with sample data only, since no Spotify account was connected during testing.
+- **AI disclosure:** Vanta was designed with and written by **Claude Code (Anthropic, Claude Opus 5.5)**, directed and tested by the author on a real two-PC home setup (Plex Media Server on one PC, Vanta on another) before release. For 1.5, badges were tested end to end on that setup: a real episode streamed from the server and finished, and its unlock ticket appeared inside the player with the account's own profile picture. For 1.6, series folders were checked against the author's real library: 227 of its 605 films grouped into 61 series folders through TMDB, and a folder opened with its films in release order. For 2.0, the details page, cast lifetimes, automatic subtitles, Add to collection, the watch log, backup and restore, themes and the cover slider were each exercised against the author's real library on that setup; the Music page was checked with sample data only, since no Spotify account was connected during testing. For 2.1, Trakt sync was tested on the author's own Trakt account: device sign-in, a full sync of 109 watched titles, and a live add and remove of one film.
 
 ## Feedback
 Your reports shape what comes next. Please open an issue and include:

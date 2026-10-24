@@ -181,7 +181,17 @@ export interface TmdbStatus {
 export interface DetailsStatus {
   tmdb: boolean;
   trakt: boolean;
+  traktBuiltIn?: boolean; // Vanta's own Trakt app id is set, so no Trakt key is needed
   omdb: boolean;
+}
+
+// Trakt sign-in and sync (electron/trakt.cjs).
+export interface TraktStatus {
+  available: boolean;
+  connected: boolean;
+  user: { username: string; name?: string } | null;
+  autoSync: boolean;
+  lastSync: { pulled: number; pushed: number; notFound: number; at: number } | null;
 }
 type Score = { value: number; votes?: number };
 export interface LiveScores {
@@ -348,6 +358,7 @@ export interface UiPrefs {
   pins: Pin[];
   navOrder?: string[]; // sidebar order: 'continue', 'music', 'lib:<key>' (components.tsx navEntries)
   theme?: string; // color theme id (components.tsx THEMES); unset = Vanta Gold
+  traktAutoSync?: boolean; // send each watch to Trakt as it happens (default on once connected)
   posterSize?: number; // poster grid cover width in px (the library header's slider)
   title?: string; // the chosen sidebar title; unset = the first one unlocked, 'none' = no title
 }
@@ -468,6 +479,13 @@ declare global {
         error?: string;
       }>;
       restartApp(): Promise<void>;
+      traktStatus(): Promise<TraktStatus>;
+      traktConnect(): Promise<{ userCode: string; url: string; expiresIn: number } | { error: string }>;
+      traktConnectWait(): Promise<TraktStatus | { error: string }>;
+      traktConnectCancel(): Promise<TraktStatus>;
+      traktDisconnect(): Promise<TraktStatus>;
+      traktSync(): Promise<{ pulled: number; pushed: number; notFound: number; at: number } | { error: string }>;
+      traktMark(ratingKey: string, watched: boolean): Promise<void>;
       subsEnqueue(ratingKeys: string[]): Promise<{ queued: number } | { error: string }>;
       subsStatus(): Promise<{ found: number; none: number; queued: number; enabled: boolean }>;
       subsImport(meta: { guid?: string; title: string }): Promise<{ ok?: boolean; canceled?: boolean; name?: string; error?: string }>;
@@ -563,6 +581,7 @@ export function libraryQuery(section: Section, f: Filters) {
 // Also updates Vanta's watch log: marking watched stamps today's date, marking unwatched removes the date.
 export const markWatched = async (rk: string, watched: boolean, item?: Item) => {
   const r = await get(`/:/${watched ? 'scrobble' : 'unscrobble'}?key=${rk}&identifier=com.plexapp.plugins.library`);
+  window.plex.traktMark(rk, watched).catch?.(() => {}); // Trakt history too, when connected (best effort)
   if (item?.guid && (item.type === 'movie' || item.type === 'episode' || item.type === 'show')) {
     if (watched) {
       watchLog[item.guid] = Date.now();
