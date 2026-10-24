@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1 (2026-10-24)
+
+- Fixed: on the details page, the separator between audio and subtitle tracks showed as "Â·" instead of a dot.
+
 ## 2.0.0 (2026-10-23)
 
 The biggest update yet.
