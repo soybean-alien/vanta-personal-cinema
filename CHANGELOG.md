@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.5 (2026-10-24)
+
+- **Watch times:** details pages show when you last watched, with the time in New York time (for example "✓ Watched 10/22/2026 11:52 PM"), for movies, shows, seasons and episodes. Shows and seasons you're part-way through say when you last watched an episode. The poster grid keeps the date only.
+- TV show tiles in the grid show the title centered, without the year, like movies.
+- **Complete backups:** Export backup now also carries every subtitle (including ones you added), the box office and file-details caches and your Trakt sync summary, so a restore on another PC comes back exactly as it was. Older backups still restore.
+
 ## 2.1.4 (2026-10-24)
 
 - **Box office numbers** under every movie cover in the library grid: budget - US opening weekend - worldwide gross, from Box Office Mojo, with TMDB filling gaps. Unknown numbers are left out; series folders show their films' combined worldwide gross. Hover for exact amounts and the source.

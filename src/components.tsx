@@ -129,6 +129,7 @@ export function Poster({
   res,
   folder,
   money,
+  noYear,
 }: {
   item: Item;
   wide?: boolean;
@@ -138,6 +139,7 @@ export function Poster({
   res?: ResTier | null; // file resolution tag (library grid only)
   folder?: Folder; // a collection folded into the movie grid: stacked first-film poster
   money?: boolean; // movie library grid: box office line under the cover, centered title, no year
+  noYear?: boolean; // TV library grid: centered title, no year (no box office)
 }) {
   const ctx = useApp();
   const watched = isWatched(item);
@@ -157,7 +159,7 @@ export function Poster({
     onClick || (() => ctx.open(folder ? { kind: 'folder', folder } : { kind: 'item', ratingKey: item.ratingKey }));
   return (
     <div
-      className={`poster ${wide ? 'wide' : ''} ${folder ? 'folder' : ''} ${money ? 'money' : ''}`}
+      className={`poster ${wide ? 'wide' : ''} ${folder ? 'folder' : ''} ${money ? 'money' : ''} ${noYear ? 'centered' : ''}`}
       tabIndex={0}
       data-nav
       data-rk={item.ratingKey}
@@ -181,10 +183,10 @@ export function Poster({
         )}
       </div>
       {money && <BoxOfficeLine films={folder ? folder.films : [item]} total={!!folder} />}
-      <div className="title" title={money ? item.title : undefined}>{title ?? item.title}</div>
+      <div className="title" title={money || noYear ? item.title : undefined}>{title ?? item.title}</div>
       {money && folder ? (
         <div className="sub">{folder.films.length} films</div>
-      ) : money ? (
+      ) : money || noYear ? (
         watchedOn(item) && (
           <div className="sub">
             <span className="watched-on" title="Last watched">
@@ -560,7 +562,7 @@ export function BackupPanel({ firstRun }: { firstRun?: boolean }) {
     if (r.error) return setMsg(r.error);
     if (r.canceled) return setMsg('');
     setMsg(
-      `Saved ${r.badges} badges, ${r.watched} last-watched dates and ${r.collections} collection choices, plus every setting, to ${r.file}. ` +
+      `Saved ${r.badges} badges, ${r.watched} last-watched dates, ${r.collections} collection choices and ${r.subtitles ?? 0} subtitles, plus every setting and cache, to ${r.file}. ` +
         (r.secrets ? 'Sign-ins and keys are inside, locked with your password.' : 'No password was set, so sign-ins and keys were left out.'),
     );
   };
@@ -580,7 +582,7 @@ export function BackupPanel({ firstRun }: { firstRun?: boolean }) {
     } catch {}
     setNeeds('');
     setMsg(
-      `Restored the backup from ${r.from ? new Date(r.from).toLocaleString() : 'file'}: ${r.badgesAdded} badges, ${r.watchedAdded} last-watched dates and ${r.collectionsAdded} collection choices added` +
+      `Restored the backup from ${r.from ? new Date(r.from).toLocaleString() : 'file'}: ${r.badgesAdded} badges, ${r.watchedAdded} last-watched dates, ${r.collectionsAdded} collection choices and ${r.subtitlesAdded ?? 0} subtitles added` +
         `${r.secrets ? ', sign-ins and keys restored' : ''}. Vanta is restarting...`,
     );
     setTimeout(() => window.plex.restartApp(), 2500);

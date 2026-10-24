@@ -3,9 +3,10 @@
 // with no setup at all. Restore is offered in Settings → Your data and on the sign-in screen of a fresh install.
 //
 // What's in it:
-//   badges (and the watch sessions behind them), the watch log (last-watched dates), your own collections,
-//   every preference, each library's saved sort and filters (the UI's local storage), the TMDB / cast caches,
-//   and, protected by a password you choose, the secrets: Plex sign-in, TMDB, Trakt and OMDb keys, Spotify sign-in.
+//   badges (and the watch sessions behind them), the watch log (last-watched dates and times), your own
+//   collections, every preference, each library's saved sort and filters (the UI's local storage), every stored
+//   subtitle (found or added by you), the TMDB / cast / box office / file-details caches, and, protected by a
+//   password you choose, the secrets: Plex sign-in, TMDB, Trakt and OMDb keys, Trakt and Spotify sign-ins.
 // Secrets are encrypted with AES-256-GCM under a key derived from the password with scrypt; without a password
 // the backup holds everything else and the secrets are left out. Restoring never deletes anything: badges, dates
 // and collections are combined with what's already here.
@@ -20,9 +21,12 @@ const details = require('./details.cjs');
 const spotify = require('./spotify.cjs');
 const trakt = require('./trakt.cjs');
 const myCollections = require('./my-collections.cjs');
+const subtitles = require('./subtitles.cjs');
+const probe = require('./probe.cjs');
+const boxoffice = require('./boxoffice.cjs');
 
 const KIND = 'vanta-backup';
-const VERSION = 2;
+const VERSION = 3; // 3 adds subtitles and the box office / file-details caches; older backups still restore
 
 function seal(obj, password) {
   const salt = crypto.randomBytes(16);
@@ -62,8 +66,11 @@ async function exportTo(win, opts = {}) {
     watchHistory: history.entries(),
     myCollections: myCollections.get(),
     prefs: plex.getPrefs(),
+    // App state worth keeping (the rest of meta is this install's updater state, which stays per PC).
+    meta: { traktLastSync: plex.getMeta('traktLastSync') || null },
     uiStorage: opts.uiStorage && typeof opts.uiStorage === 'object' ? opts.uiStorage : {},
-    caches: { tmdb: tmdb.backupCache(), ...details.backupCaches() },
+    caches: { tmdb: tmdb.backupCache(), ...details.backupCaches(), boxOffice: boxoffice.backupCache(), fileProbe: probe.backupCache() },
+    subtitles: subtitles.backupState(),
     secrets: opts.password ? seal(secrets, opts.password) : null,
   };
   // Written next to the target first, then renamed, so a full disk never leaves a half-written backup.
@@ -74,6 +81,7 @@ async function exportTo(win, opts = {}) {
     badges: Object.keys(data.badges.earned || {}).length,
     watched: Object.keys(data.watchHistory).length,
     collections: Object.keys(data.myCollections.assign || {}).length,
+    subtitles: Object.keys(data.subtitles.files).length,
     secrets: !!data.secrets,
   };
 }
@@ -111,6 +119,12 @@ async function importFrom(win, opts = {}) {
   const collections = myCollections.merge(data.myCollections);
   tmdb.restore(secrets?.tmdb, data.caches?.tmdb);
   details.restoreCaches(data.caches);
+  boxoffice.restoreCache(data.caches?.boxOffice);
+  probe.restoreCache(data.caches?.fileProbe);
+  const subsAdded = subtitles.restoreState(data.subtitles);
+  // The newer Trakt sync summary ({ pulled, pushed, notFound, at }) wins.
+  const lastSync = data.meta?.traktLastSync;
+  if (lastSync?.at && (plex.getMeta('traktLastSync')?.at || 0) < lastSync.at) plex.setMeta('traktLastSync', lastSync);
   if (secrets) {
     details.restoreKeys(secrets);
     spotify.restoreState(secrets.spotify);
@@ -130,6 +144,7 @@ async function importFrom(win, opts = {}) {
     badgesAdded: added,
     watchedAdded: watched,
     collectionsAdded: collections,
+    subtitlesAdded: subsAdded,
     secrets: !!secrets,
     uiStorage: data.uiStorage || {},
     from: data.exportedAt,

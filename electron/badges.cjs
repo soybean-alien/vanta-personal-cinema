@@ -198,11 +198,12 @@ module.exports = {
     return [id];
   },
   // The whole store, for a backup file.
-  snapshot: () => JSON.parse(JSON.stringify(store)),
+  snapshot: () => JSON.parse(JSON.stringify(store || (load(), store))),
   // Restore from a backup without losing anything earned since: badges are combined (earliest unlock date wins),
   // watch sessions are combined without duplicates, and totals keep the larger value.
   restore(b) {
     if (!b || typeof b !== 'object') return 0;
+    if (!store) load();
     let added = 0;
     for (const [id, e] of Object.entries(b.earned || {})) {
       if (!CATALOG.some((x) => x.id === id) || !Number.isFinite(e?.at)) continue;
