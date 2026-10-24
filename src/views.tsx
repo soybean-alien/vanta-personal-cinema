@@ -25,9 +25,15 @@ import {
   minutes,
   nextEpisode,
   playable,
+  shownTitle,
+  titlesFor,
+  watchedOn,
+  loadWatchLog,
 } from './api';
-import { Choice, DeckRow, Modal, Poster, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
+import { BackupPanel, Choice, Modal, Poster, PosterSize, THEMES, applyTheme, navEntries, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
 import { CHIMES, playChime, previewBadgeToast } from './badges';
+import { CastAndCrew, FileInfo, Scores, useTitleIds } from './details';
+import { SpotifySettings } from './music';
 
 const loadFilters = (key: string): Filters => {
   try {
@@ -46,7 +52,6 @@ export function Library({ section, initial, pinId }: { section: Section; initial
   const ctx = useApp();
   const [f, setF] = useState<Filters>(initial ?? loadFilters(section.key));
   const [list, setList] = useState<Item[]>();
-  const [deck, setDeck] = useState<Item[]>([]);
   const [genres, setGenres] = useState<{ key: string; title: string }[]>([]);
   const [decades, setDecades] = useState<{ key: string; title: string }[]>([]);
   const [text, setText] = useState('');
@@ -61,16 +66,17 @@ export function Library({ section, initial, pinId }: { section: Section; initial
   useEffect(() => {
     let live = true;
     items(libraryQuery(section, f))
-      .then((l) => live && setList(l))
+      .then((l) => {
+        if (!live) return;
+        setList(l);
+        // Background subtitle check for the films shown (the main process skips ones already handled).
+        if (section.type === 'movie') window.plex.subsEnqueue(l.filter((i) => i.type === 'movie').map((i) => i.ratingKey));
+      })
       .catch((e) => ctx.error(e.message));
     return () => {
       live = false;
     };
   }, [section.key, f, ctx.refresh]);
-
-  useEffect(() => {
-    items(`/library/sections/${section.key}/onDeck`).then(setDeck, () => setDeck([]));
-  }, [section.key, ctx.refresh]);
 
   // Show libraries: each show's resolution tag comes from its episodes (one cached request per library).
   const [showRes, setShowRes] = useState<Record<string, ResTier>>({});
@@ -194,8 +200,8 @@ export function Library({ section, initial, pinId }: { section: Section; initial
               }`
             : ''}
         </span>
+        <PosterSize />
       </header>
-      {!filtered && <DeckRow items={deck} />}
       {!tiles ? (
         <p className="muted">Loading...</p>
       ) : !tiles.length ? (
@@ -249,7 +255,67 @@ function RandomPick({ item, onAnother, onClose }: { item: Item; onAnother: () =>
   );
 }
 
+const SOURCE_LABEL: Record<Folder['source'], string> = { plex: 'Plex', tmdb: 'TMDB', mine: 'Yours' };
+
+// A movie library's Collections page: a summary of every series folder (Plex's, TMDB's and the ones you made with
+// "Add to collection"), A to Z, filterable by where it came from. TV libraries list their Plex collections.
 export function Collections({ section }: { section: Section }) {
+  if (section.type === 'movie') return <FolderSummary section={section} />;
+  return <PlexCollections section={section} />;
+}
+
+function FolderSummary({ section }: { section: Section }) {
+  const ctx = useApp();
+  const [folders, setFolders] = useState<Folder[]>();
+  const [only, setOnly] = useState<'' | Folder['source']>('');
+  useEffect(() => {
+    collectionFolders(section.key, ctx.refresh).then((f) => setFolders(f.all), (e) => ctx.error(e.message));
+  }, [section.key, ctx.refresh]);
+  useAutoFocus(!!folders);
+  const shown = (folders || []).filter((f) => !only || f.source === only);
+  const films = shown.reduce((n, f) => n + f.films.length, 0);
+  const count = (s: Folder['source']) => (folders || []).filter((f) => f.source === s).length;
+  return (
+    <>
+      <header className="libhead">
+        <h1>{section.title} · Collections</h1>
+        <Choice
+          label="From"
+          value={only}
+          options={[
+            ['', `All (${folders?.length ?? 0})`],
+            ['mine', `Yours (${count('mine')})`],
+            ['tmdb', `TMDB (${count('tmdb')})`],
+            ['plex', `Plex (${count('plex')})`],
+          ]}
+          onChange={setOnly}
+        />
+        <span className="count">{folders ? `${shown.length} collections · ${films} films` : 'Finding series...'}</span>
+      </header>
+      <p className="muted small" style={{ marginTop: -8 }}>
+        Missing a film from a series? Right-click it (or press Y) and choose 🗂 Add to collection.
+      </p>
+      {!folders ? (
+        <p className="muted">Loading...</p>
+      ) : !shown.length ? (
+        <p className="muted">No collections here yet.</p>
+      ) : (
+        <div className="grid">
+          {shown.map((f) => (
+            <Poster
+              key={f.key}
+              item={f.col}
+              folder={f}
+              sub={`${f.films.length} ${f.films.length === 1 ? 'film' : 'films'} · ${SOURCE_LABEL[f.source]}`}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function PlexCollections({ section }: { section: Section }) {
   const ctx = useApp();
   const [list, setList] = useState<Item[]>();
   useEffect(() => {
@@ -328,6 +394,44 @@ function TmdbKey() {
   );
 }
 
+// An optional key for the details page's live scores (Trakt, OMDb): checked with the service, then kept encrypted
+// by the main process, like the TMDB key.
+function ServiceKey({ service, label, placeholder, hint }: { service: 'trakt' | 'omdb'; label: string; placeholder: string; hint: string }) {
+  const [has, setHas] = useState<boolean>();
+  const [draft, setDraft] = useState('');
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    window.plex.detailsStatus().then((s) => setHas(s[service]));
+  }, []);
+  const save = async (key: string) => {
+    setMsg(key ? 'Checking the key...' : '');
+    const r = await window.plex.detailsSetKey(service, key);
+    if ('error' in r) return setMsg(r.error);
+    setHas(r[service]);
+    setDraft('');
+    setMsg(key ? 'Key saved. Scores update the next time a details page opens.' : 'Key removed.');
+  };
+  return (
+    <div className="field" style={{ marginTop: 12 }}>
+      <span>
+        {label}: {has ? '✓ key saved' : 'no key'}
+      </span>
+      <div className="pin-row">
+        <input data-nav type="password" placeholder={has ? 'Paste a new key to replace it' : placeholder} value={draft} onChange={(e) => setDraft(e.target.value)} />
+        <button className="tool" data-nav disabled={!draft.trim()} onClick={() => save(draft)}>
+          Save key
+        </button>
+        {has && (
+          <button className="tool" data-nav onClick={() => save('')}>
+            ✕ Remove
+          </button>
+        )}
+      </div>
+      <p className="muted small">{msg || hint}</p>
+    </div>
+  );
+}
+
 // A movie-grid folder opened: the series' films in release order, the first film's poster as the cover.
 export function FolderView({ folder }: { folder: Folder }) {
   const ctx = useApp();
@@ -343,7 +447,7 @@ export function FolderView({ folder }: { folder: Folder }) {
         <div className="info">
           <h1>{col.title}</h1>
           <div className="meta">
-            {[`${films.length} films`, years.length && [...new Set(years)].join('–'), folder.source === 'tmdb' && 'Series info from TMDB']
+            {[`${films.length} films`, years.length && [...new Set(years)].join('–'), folder.source === 'tmdb' && 'Series info from TMDB', folder.source === 'mine' && 'Your collection']
               .filter(Boolean)
               .join(' · ')}
           </div>
@@ -374,7 +478,7 @@ export function Detail({ ratingKey }: { ratingKey: string }) {
   const [next, setNext] = useState<Item | null>();
 
   useEffect(() => {
-    items(`/library/metadata/${ratingKey}`)
+    items(`/library/metadata/${ratingKey}?includeGuids=1`)
       .then(([m]) => {
         setItem(m);
         if (m.type === 'show' || m.type === 'season') {
@@ -392,6 +496,22 @@ export function Detail({ ratingKey }: { ratingKey: string }) {
 
   useAutoFocus(!!item && next !== undefined); // wait for the show's next-episode button
   if (!item) return <p className="muted">Loading...</p>;
+  return <DetailBody item={item} kids={children} next={next} />;
+}
+
+// "1 h 31 min", and the clock time it would end if started (or resumed) now.
+const runtime = (ms?: number) => {
+  if (!ms) return '';
+  const m = Math.round(ms / 60000);
+  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+};
+const endsAt = (i: Item) =>
+  i.duration ? `Ends at ${new Date(Date.now() + i.duration - (i.viewOffset || 0)).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : '';
+
+function DetailBody({ item, kids: children, next }: { item: Item; kids: Item[]; next: Item | null | undefined }) {
+  const ctx = useApp();
+  const ids = useTitleIds(item);
+  const names = (l?: { tag: string }[]) => l?.map((p) => p.tag).join(', ');
   const heading =
     item.type === 'season'
       ? `${item.parentTitle} · ${item.title}`
@@ -413,17 +533,28 @@ export function Detail({ ratingKey }: { ratingKey: string }) {
         <div className="info">
           <h1>{heading}</h1>
           {item.type === 'episode' && <h3>{item.title}</h3>}
+          {(item.Director?.length || item.Writer?.length) && (
+            <div className="credits-line">
+              {item.Director?.length ? <span>Directed by <b>{names(item.Director)}</b></span> : null}
+              {item.Writer?.length ? <span>Written by <b>{names(item.Writer.slice(0, 3))}</b></span> : null}
+            </div>
+          )}
           <div className="meta">
-            {[
-              item.year,
-              item.contentRating,
-              minutes(item.duration),
-              item.audienceRating && `★ ${item.audienceRating.toFixed(1)}`,
-              item.Genre?.map((g) => g.tag).join(', '),
-            ]
-              .filter(Boolean)
-              .join(' · ')}
+            {item.contentRating && <span className="cert">{item.contentRating.replace(/^[a-z]{2}\//i, '')}</span>}
+            <span>
+              {[
+                item.year,
+                runtime(item.duration),
+                !item.Rating?.length && item.audienceRating && `★ ${item.audienceRating.toFixed(1)}`,
+                item.Genre?.map((g) => g.tag).join(', '),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+            {playable(item) && item.duration ? <span className="ends">{endsAt(item)}</span> : null}
+            {watchedOn(item) && <span className="watched-on">✓ Watched {watchedOn(item)}</span>}
           </div>
+          <Scores item={item} ids={ids} />
           <div className="actions">
             {playable(item) && (
               <button className="play" data-nav onClick={() => ctx.playItem(item)}>
@@ -455,7 +586,7 @@ export function Detail({ ratingKey }: { ratingKey: string }) {
                 className="tool"
                 data-nav
                 onClick={async () => {
-                  await markWatched(item.ratingKey, !watched);
+                  await markWatched(item.ratingKey, !watched, item);
                   ctx.bump();
                 }}
               >
@@ -468,9 +599,12 @@ export function Detail({ ratingKey }: { ratingKey: string }) {
               </button>
             )}
           </div>
+          {item.tagline && <p className="tagline">{item.tagline}</p>}
           <p className="summary">{item.summary}</p>
+          {playable(item) && <FileInfo item={item} />}
         </div>
       </div>
+      {item.type !== 'collection' && <CastAndCrew item={item} ids={ids} />}
       {children.length > 0 && (
         <div className={item.type === 'season' ? 'episodes' : 'grid'}>
           {children.map((c) =>
@@ -642,7 +776,158 @@ const LANG_OPTIONS: [string, string][] = [
   ['hindi', 'Hindi'],
 ];
 
-export function Settings({ onSignOut }: { onSignOut: () => void }) {
+// Settings → Audio & subtitles: English subtitles found automatically for files that have none.
+function AutoSubs({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  const [s, setS] = useState<{ found: number; none: number; queued: number }>();
+  useEffect(() => {
+    const load = () => window.plex.subsStatus().then(setS, () => {});
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <>
+      <div style={{ marginTop: 12 }}>
+        <Switch
+          label="Find English subtitles automatically"
+          hint={
+            on
+              ? 'On: films and episodes with no English subtitles get the best match for your exact file, kept on this PC. No account needed.'
+              : 'Off: only the subtitles inside your files (or next to them on the server) are used.'
+          }
+          value={on}
+          onChange={onChange}
+        />
+      </div>
+      <p className="muted small">
+        {s ? `${s.found} found so far${s.queued ? `, ${s.queued} waiting to be checked` : ''}${s.none ? `, ${s.none} with no match yet (tried again weekly)` : ''}. ` : ''}
+        Exact matches use the file’s fingerprint, so they’re in sync. Otherwise the closest release wins; if one drifts, press Z / X in the
+        player to nudge it. Your own .srt: right-click a title → 💬 Add subtitle file.
+      </p>
+    </>
+  );
+}
+
+// Settings → Sidebar → Order: move Continue Watching, the libraries and Music up or down. Saved as you go.
+function NavOrder() {
+  const ctx = useApp();
+  const list = navEntries(ctx.sections, ctx.prefs.ui.hiddenLibs, ctx.prefs.ui.navOrder);
+  const move = (i: number, d: number) => {
+    const ids = list.map((e) => e.id);
+    [ids[i], ids[i + d]] = [ids[i + d], ids[i]];
+    ctx.setPrefs({ ui: { navOrder: ids } });
+  };
+  return (
+    <div className="nav-order">
+      {list.map((e, i) => (
+        <div key={e.id} className="nav-order-row">
+          <span className="nav-order-n">{i + 1}</span>
+          <span className="icon">{e.icon}</span>
+          <span className="nav-order-label">{e.label}</span>
+          <button className="tool" data-nav disabled={i === 0} aria-label={`Move ${e.label} up`} onClick={() => move(i, -1)}>
+            ↑
+          </button>
+          <button className="tool" data-nav disabled={i === list.length - 1} aria-label={`Move ${e.label} down`} onClick={() => move(i, 1)}>
+            ↓
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Continue Watching, its own page: everything started but not finished (under 80%, see player.cjs) across every
+// video library, most recently watched first, plus the next episode of each show you're part-way through.
+export function ContinueWatching() {
+  const ctx = useApp();
+  const [list, setList] = useState<Item[]>();
+  useEffect(() => {
+    const libs = ctx.sections.filter((s) => !ctx.prefs.ui.hiddenLibs.includes(s.key));
+    Promise.all(
+      libs.flatMap((s) => [
+        items(`/library/sections/${s.key}/all?type=${s.type === 'show' ? 4 : 1}&inProgress=1`).catch(() => [] as Item[]),
+        s.type === 'show' ? items(`/library/sections/${s.key}/onDeck`).catch(() => [] as Item[]) : Promise.resolve([] as Item[]),
+      ]),
+    ).then((all) => {
+      const seen = new Set<string>();
+      const out = all.flat().filter((i) => !seen.has(i.ratingKey) && seen.add(i.ratingKey));
+      setList(out.sort((a, b) => (b.lastViewedAt || 0) - (a.lastViewedAt || 0)));
+    });
+  }, [ctx.refresh]);
+  useAutoFocus(!!list);
+  return (
+    <div>
+      <header className="libhead">
+        <h1>Continue Watching</h1>
+        <span className="count">{list ? `${list.length} unfinished` : ''}</span>
+      </header>
+      {!list ? (
+        <p className="muted">Loading...</p>
+      ) : !list.length ? (
+        <p className="muted">Nothing unfinished. Anything you stop before 80% shows up here.</p>
+      ) : (
+        <div className="episodes">
+          {list.map((i) => (
+            <Poster
+              key={i.ratingKey}
+              item={i}
+              wide
+              title={i.type === 'episode' ? i.grandparentTitle : i.title}
+              sub={
+                i.type === 'episode'
+                  ? `${episodeLabel(i)} · ${i.viewOffset ? `${Math.round(((i.duration || 0) - i.viewOffset) / 60000)} min left` : 'Up next'}`
+                  : i.viewOffset && i.duration
+                    ? `${Math.round((i.duration - i.viewOffset) / 60000)} min left · ${Math.round((i.viewOffset / i.duration) * 100)}%`
+                    : minutes(i.duration)
+              }
+              onClick={() => ctx.playItem(i)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The sidebar title picker, for accounts that have unlocked titles: pick one (or none), then Save.
+function TitlePicker({ username }: { username: string }) {
+  const ctx = useApp();
+  const titles = titlesFor(username);
+  const saved = shownTitle(username, ctx.prefs.ui.title) || 'none';
+  const [draft, setDraft] = useState(saved);
+  const [msg, setMsg] = useState('');
+  if (!titles.length) return null;
+  return (
+    <>
+      <h2>Title</h2>
+      <div className="pin-row">
+        <Choice
+          label="Shown under your name"
+          value={draft}
+          options={[...titles.map((t) => [t, t] as [string, string]), ['none', 'No title']]}
+          onChange={(v) => {
+            setDraft(v);
+            setMsg('');
+          }}
+        />
+        <button
+          className="tool"
+          data-nav
+          disabled={draft === saved}
+          onClick={() => {
+            ctx.setPrefs({ ui: { title: draft } });
+            setMsg(draft === 'none' ? 'Title hidden.' : `Saved. Your title is now ${draft}.`);
+          }}
+        >
+          Save title
+        </button>
+      </div>
+      <p className="muted small">{msg || `${titles.length} ${titles.length === 1 ? 'title' : 'titles'} unlocked. More titles are coming.`}</p>
+    </>
+  );
+}
+
+export function Settings({ onSignOut, username }: { onSignOut: () => void; username: string }) {
   const ctx = useApp();
   const p = ctx.prefs.player;
   const ui = ctx.prefs.ui;
@@ -706,6 +991,7 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
           onChange={(subLang) => setP({ subLang })}
         />
       </div>
+      <AutoSubs on={p.autoSubs !== false} onChange={(autoSubs) => setP({ autoSubs })} />
 
       <h2>Video</h2>
       <div className="setting-grid">
@@ -745,6 +1031,25 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
       />
       <TmdbKey />
 
+      <h2>Scores and cast</h2>
+      <p className="muted small">
+        The details page shows the IMDb, Rotten Tomatoes and TMDB scores Plex already has, and each cast member’s
+        birthday and age once a TMDB key is set (above). These optional keys make the scores live and add Trakt and
+        Metacritic.
+      </p>
+      <ServiceKey
+        service="trakt"
+        label="Trakt scores (optional)"
+        placeholder="Paste your Trakt client ID"
+        hint="Free from trakt.tv (Settings → Your API Apps → New Application; any redirect URI). Vanta sends Trakt only each title’s IMDb id."
+      />
+      <ServiceKey
+        service="omdb"
+        label="Live IMDb, Rotten Tomatoes and Metacritic (optional)"
+        placeholder="Paste your OMDb API key"
+        hint="Free from omdbapi.com (1,000 lookups a day). Vanta sends OMDb only each title’s IMDb id; scores are kept for 12 hours."
+      />
+
       <h2>Sidebar</h2>
       <div className="setting-grid">
         {ctx.sections.map((s) => (
@@ -761,6 +1066,8 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
           onChange={(showPlaylists) => setUi({ showPlaylists })}
         />
       </div>
+      <h3>Order</h3>
+      <NavOrder />
       <h3>Pinned views</h3>
       {!ui.pins.length && <p className="muted small">Use “📌 Pin view” in any library to save its sort and filters here.</p>}
       {ui.pins.map((pin, i) => (
@@ -822,8 +1129,39 @@ export function Settings({ onSignOut }: { onSignOut: () => void }) {
       </div>
       <p className="muted small">Badges are earned by watching in Vanta. The unlock sound is original to Vanta and plays softly.</p>
 
+      <h2>Music</h2>
+      <SpotifySettings />
+
+      <h2>Your data</h2>
+      <BackupPanel />
+
       <h2>Updates</h2>
       <UpdatesSection />
+
+      <h2>Theme</h2>
+      <div className="theme-swatches">
+        {THEMES.map((t) => (
+          <button
+            key={t.id}
+            className={`theme-swatch ${(ui.theme || 'vanta') === t.id ? 'on' : ''}`}
+            data-nav
+            onClick={() => {
+              applyTheme(t.id);
+              setUi({ theme: t.id });
+            }}
+          >
+            <span className="chips">
+              {t.swatch.map((c) => (
+                <span key={c} style={{ background: c }} />
+              ))}
+            </span>
+            {t.name}
+          </button>
+        ))}
+      </div>
+      <p className="muted small">Changes colors only. Applies right away and is remembered.</p>
+
+      <TitlePicker username={username} />
 
       <h2>Account</h2>
       <div className="setting-grid">

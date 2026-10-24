@@ -533,7 +533,7 @@ export function BadgeShowcase({ state }: { state?: BadgeState }) {
   const [tip, setTip] = useState<{ id: string; x: number; y: number } | null>(null);
   if (!state) return null;
   const earned = Object.entries(state.earned).sort((a, b) => b[1].at - a[1].at).map(([id]) => id);
-  const ids = (state.favorites.length ? state.favorites : earned.slice(0, 3)).filter((id) => state.catalog.some((b) => b.id === id) || CATALOG_BY_ID[id]).slice(0, 6);
+  const ids = (state.favorites.length ? state.favorites : earned.slice(0, 9)).filter((id) => state.catalog.some((b) => b.id === id) || CATALOG_BY_ID[id]).slice(0, 9);
   if (!ids.length) return null;
   const show = (id: string, el: HTMLElement) => {
     const r = el.getBoundingClientRect();

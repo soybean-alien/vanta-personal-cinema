@@ -1,12 +1,14 @@
 // Vanta by soybean_alien
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, User, items, nextEpisode, playable, releaseOrder, sections } from './api';
-import { AppCtx, Ctx, Menu, MenuEntry, Modal, View, useUpdate } from './components';
+import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, User, items, nextEpisode, playable, releaseOrder, sections, shownTitle, loadWatchLog, goldName } from './api';
+import { AddToCollection, AppCtx, BackupPanel, Ctx, Menu, MenuEntry, Modal, POSTER_DEFAULT, View, applyPosterSize, applyTheme, navEntries, useUpdate } from './components';
 import { focusEl, focusFirst, installGamepad, installKeys } from './nav';
 import mark from './assets/vanta-mark.svg';
 import { BadgeShowcase, BadgeState, BadgeToasts, setTicketAvatar, setTicketHolder } from './badges';
 import { BadgeCategoryPage, BadgesPage } from './badges-page';
-import { Collections, Detail, FolderView, Library, Playlist, Search, Settings } from './views';
+import { Collections, ContinueWatching, Detail, FolderView, Library, Playlist, Search, Settings } from './views';
+import { PersonView } from './details';
+import { MusicPage } from './music';
 
 export default function App() {
   const [auth, setAuth] = useState<ConnectResult | 'loading' | 'signingIn'>('loading');
@@ -43,6 +45,9 @@ export default function App() {
         >
           Sign in with Plex
         </button>
+        <div className="splash-restore">
+          <BackupPanel firstRun />
+        </div>
       </Splash>
     );
 
@@ -273,21 +278,36 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
   const top = history[history.length - 1];
 
   useEffect(() => {
-    window.plex.getPrefs().then(setPrefsState);
+    // The watch log loads before prefs, so the first grid already shows last-watched dates.
+    loadWatchLog()
+      .catch(() => {})
+      .then(() => window.plex.getPrefs())
+      .then((p) => {
+        applyPosterSize(p.ui.posterSize ?? POSTER_DEFAULT);
+        applyTheme(p.ui.theme);
+        setPrefsState(p);
+      });
     sections()
       .then(setLibs)
       .catch((e) => setError(e.message));
     items('/playlists?playlistType=video').then(setPlaylists, () => {});
   }, []);
 
-  const visibleLibs = useMemo(() => libs.filter((s) => !prefs?.ui.hiddenLibs.includes(s.key)), [libs, prefs]);
+  const mainNav = useMemo(() => navEntries(libs, prefs?.ui.hiddenLibs || [], prefs?.ui.navOrder), [libs, prefs]);
 
-  // Land on the first visible library once everything is loaded.
+  // Land on the first sidebar entry once the libraries are loaded.
   useEffect(() => {
-    if (!history.length && visibleLibs.length) setHistory([{ id: nextId++, view: { kind: 'library', section: visibleLibs[0] } }]);
-  }, [visibleLibs]);
+    if (!history.length && libs.length && prefs) setHistory([{ id: nextId++, view: mainNav[0].view }]);
+  }, [mainNav]);
 
   const go = useCallback((view: View) => setHistory([{ id: nextId++, view }]), []);
+  // "Add to collection" from any item menu opens its picker here.
+  const [addTo, setAddTo] = useState<Item | null>(null);
+  useEffect(() => {
+    const onAdd = (e: Event) => setAddTo((e as CustomEvent<Item>).detail);
+    window.addEventListener('vanta:add-to-collection', onAdd);
+    return () => window.removeEventListener('vanta:add-to-collection', onAdd);
+  }, []);
   useEffect(() => {
     const openBadges = () => go({ kind: 'badges' });
     window.addEventListener('vanta:open-badges', openBadges);
@@ -347,28 +367,31 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
         playingRef.current = s.playing;
         setPlayer(s);
         if (s.error) setError(s.error);
-        if (s.refresh) setRefresh((n) => n + 1);
+        // The player may have logged a watch; reload the log before the views refresh.
+        if (s.refresh) loadWatchLog().finally(() => setRefresh((n) => n + 1));
       }),
     [],
   );
 
   const sidebarTargets = useMemo<View[]>(
     () => [
-      ...visibleLibs.map((section) => ({ kind: 'library', section }) as View),
+      ...mainNav.map((e) => e.view),
       ...(prefs?.ui.pins || []).flatMap((pin) => {
         const section = libs.find((s) => s.key === pin.sectionKey);
         return section ? [{ kind: 'library', section, filters: pin.filters, pinId: pin.id } as View] : [];
       }),
     ],
-    [visibleLibs, libs, prefs],
+    [mainNav, libs, prefs],
   );
 
   const sameTarget = (a: View | undefined, b: View) =>
-    !!a &&
+    (a?.kind === 'continue' && b.kind === 'continue') ||
+    (a?.kind === 'music' && b.kind === 'music') ||
+    (!!a &&
     a.kind === 'library' &&
     b.kind === 'library' &&
     a.section.key === b.section.key &&
-    (a.pinId ?? '') === (b.pinId ?? '');
+    (a.pinId ?? '') === (b.pinId ?? ''));
 
   // Keyboard + controller wiring; handlers read the latest state through a ref.
   const actions = useRef({ back, search: (_pad: boolean) => {}, settings: () => {}, libStep: (_d: number) => {} });
@@ -376,7 +399,7 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
     back: () => {
       if (top?.view.kind === 'search' && history.length === 1) {
         setQuery('');
-        if (visibleLibs[0]) go({ kind: 'library', section: visibleLibs[0] });
+        if (mainNav[0]) go(mainNav[0].view);
       } else back();
     },
     search: (pad) => {
@@ -449,7 +472,8 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
           <StatusLine />
           <UpdatePill />
           <div className="who">
-            <div className="user">{prefs.ui.displayName === 'username' ? user.username : user.name}</div>
+            <div className={`user ${goldName(user.username) ? 'gold-name' : ''}`}>{prefs.ui.displayName === 'username' ? user.username : user.name}</div>
+            {shownTitle(user.username, prefs.ui.title) && <div className="user-title">{shownTitle(user.username, prefs.ui.title)}</div>}
             <div className="server">{server}</div>
           </div>
           <input
@@ -467,20 +491,22 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
             }}
           />
           <nav>
-            {visibleLibs.map((s) =>
+            {mainNav.map((e) =>
               navButton(
-                s.key,
+                e.id,
                 <>
-                  <span className="icon">{s.type === 'movie' ? '🎬' : '📺'}</span>
-                  {s.title}
+                  <span className="icon">{e.icon}</span>
+                  {e.label}
                 </>,
-                { kind: 'library', section: s },
-                [
-                  {
-                    label: 'Hide from sidebar',
-                    action: () => ctx.setPrefs({ ui: { hiddenLibs: [...prefs.ui.hiddenLibs, s.key] } }),
-                  },
-                ],
+                e.view,
+                e.section
+                  ? [
+                      {
+                        label: 'Hide from sidebar',
+                        action: () => ctx.setPrefs({ ui: { hiddenLibs: [...prefs.ui.hiddenLibs, e.section!.key] } }),
+                      },
+                    ]
+                  : undefined,
               ),
             )}
             {prefs.ui.pins.length > 0 && <div className="nav-head">Pinned</div>}
@@ -565,15 +591,19 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
                 {v.kind === 'folder' && <FolderView folder={v.folder} />}
                 {v.kind === 'playlist' && <Playlist ratingKey={v.ratingKey} title={v.title} />}
                 {v.kind === 'search' && <Search query={query} setQuery={setQuery} />}
-                {v.kind === 'settings' && <Settings onSignOut={onSignOut} />}
+                {v.kind === 'settings' && <Settings onSignOut={onSignOut} username={user.username} />}
                 {v.kind === 'badges' && <BadgesPage />}
                 {v.kind === 'badgeCategory' && <BadgeCategoryPage category={v.category} />}
+                {v.kind === 'person' && <PersonView person={v.person} job={v.job} life={v.life} />}
+                {v.kind === 'continue' && <ContinueWatching />}
+                {v.kind === 'music' && <MusicPage />}
               </div>
             );
           })}
         </main>
       </div>
       {menu && <Menu {...menu} onClose={() => setMenu(null)} />}
+      {addTo && <AddToCollection item={addTo} onClose={() => setAddTo(null)} />}
       <BadgeToasts sound={prefs.ui.badgeSound} onEarned={refreshBadges} />
     </AppCtx.Provider>
   );

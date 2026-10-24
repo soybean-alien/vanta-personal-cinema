@@ -65,6 +65,7 @@ const addFilms = (films: Film[], section: '1' | '2') =>
     items.set(rk, {
       ratingKey: rk,
       key: `/library/metadata/${rk}`,
+      guid: `plex://movie/demo-${rk}`,
       type: 'movie',
       title,
       year,
@@ -121,7 +122,8 @@ function get(path: string): any {
         (i) =>
           (!q.get('genre') || i.Genre?.some((g) => g.tag === q.get('genre'))) &&
           (!q.get('decade') || Math.floor((i.year || 0) / 10) * 10 === Number(q.get('decade'))) &&
-          (!q.get('unwatched') || !i.viewCount),
+          (!q.get('unwatched') || !i.viewCount) &&
+          (!q.get('inProgress') || !!i.viewOffset),
       );
       const sortKey = q.get('sort') || 'titleSort';
       const by: Record<string, (a: Item & { addedAt?: number }, b: Item & { addedAt?: number }) => number> = {
@@ -196,6 +198,47 @@ const DEMO_BADGES = {
 for (const [k, v] of Object.entries(DEMO_BADGES.progress)) if (!v) delete DEMO_BADGES.progress[k];
 
 const demoUnlocks: string[] = [];
+const demoMine: { assign: Record<string, { key: string; name: string }>; mine: Record<string, { name: string }> } = { assign: {}, mine: {} };
+
+// ── Demo music (fictional) ─────────────────────────────────────────────
+// URL-encoded rather than base64: btoa can't take the symbols used as cover marks.
+const cover = (a: string, b: string, mark: string) =>
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient><radialGradient id="r" cx="0.7" cy="0.3" r="0.8"><stop offset="0" stop-color="#fff" stop-opacity="0.35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><rect width="300" height="300" fill="url(#g)"/><rect width="300" height="300" fill="url(#r)"/><circle cx="150" cy="150" r="78" fill="none" stroke="#fff" stroke-opacity="0.55" stroke-width="3"/><text x="150" y="168" text-anchor="middle" font-family="Georgia,serif" font-size="54" fill="#fff" fill-opacity="0.9">${mark}</text></svg>`,
+  );
+const DEMO_MUSIC = {
+  playlists: [
+    { uri: 'spotify:playlist:demo1', name: 'Late Night Drive', by: 'demo_viewer', count: 48, image: cover('#1b1464', '#e0388c', '☾') },
+    { uri: 'spotify:playlist:demo2', name: 'Sunday Coffee', by: 'demo_viewer', count: 31, image: cover('#7a4b1e', '#f2c46d', '☕') },
+    { uri: 'spotify:playlist:demo3', name: 'Workout Fuel', by: 'demo_viewer', count: 62, image: cover('#0f5132', '#29e07b', '⚡') },
+    { uri: 'spotify:playlist:demo4', name: 'Rainy Day', by: 'demo_viewer', count: 27, image: cover('#1d3557', '#8ecae6', '☂') },
+    { uri: 'spotify:playlist:demo5', name: 'Movie Scores', by: 'demo_viewer', count: 54, image: cover('#2b2d42', '#e5a00d', '♫') },
+  ],
+  albums: [
+    { uri: 'spotify:album:demo1', name: 'Neon Harbor', by: 'The Paper Lanterns', year: '2019', image: cover('#3a0ca3', '#4cc9f0', 'N') },
+    { uri: 'spotify:album:demo2', name: 'Copper Skies', by: 'Mara Vell', year: '2021', image: cover('#9d0208', '#ffba08', 'C') },
+    { uri: 'spotify:album:demo3', name: 'Glass Orchard', by: 'Northbound Echo', year: '2016', image: cover('#386641', '#a7c957', 'G') },
+    { uri: 'spotify:album:demo4', name: 'Afterglow Motel', by: 'Juniper & Smoke', year: '2023', image: cover('#5f0f40', '#fb8b24', 'A') },
+  ],
+  recent: [
+    { uri: 'spotify:track:demo1', name: 'Static Bloom', by: 'The Paper Lanterns', image: cover('#3a0ca3', '#4cc9f0', 'N') },
+    { uri: 'spotify:track:demo2', name: 'Low Tide Lights', by: 'Mara Vell', image: cover('#9d0208', '#ffba08', 'C') },
+    { uri: 'spotify:track:demo3', name: 'Paper Planes at Dusk', by: 'Juniper & Smoke', image: cover('#5f0f40', '#fb8b24', 'A') },
+  ],
+};
+const demoNow = {
+  playing: true,
+  device: 'Living Room Speaker',
+  name: 'Static Bloom',
+  by: 'The Paper Lanterns',
+  album: 'Neon Harbor',
+  year: '2019',
+  image: cover('#3a0ca3', '#4cc9f0', 'N'),
+  playlist: 'Late Night Drive' as string | null,
+  progress: 83000,
+  duration: 224000,
+};
 
 export function install() {
   let prefs: Prefs = {
@@ -245,10 +288,56 @@ export function install() {
     tmdbStatus: () => later({ hasKey: false, cached: 0 }),
     tmdbSetKey: () => later({ error: 'TMDB lookups are off in demo mode.' }),
     tmdbCollections: () => later({ byFilm: {}, looked: 0, failed: 0 }),
+    detailsStatus: () => later({ tmdb: false, trakt: false, omdb: false }),
+    detailsSetKey: () => later({ error: 'Live scores are off in demo mode.' }),
+    liveScores: () => later({ errors: [], at: Date.now() }),
+    castLives: () => later({ people: {}, noKey: true }),
+    watchLog: () => later({}),
+    watchLogRecord: () => later(undefined),
+    watchLogForget: () => later(undefined),
+    watchLogMerge: () => later(undefined),
+    exportBackup: () => later({ error: 'Backups are off in demo mode.' }),
+    importBackup: () => later({ error: 'Backups are off in demo mode.' }),
+    restartApp: () => later(undefined),
+    subsEnqueue: () => later({ queued: 0 }),
+    subsStatus: () => later({ found: 0, none: 0, queued: 0, enabled: true }),
+    subsImport: () => later({ error: 'Subtitles are off in demo mode.' }),
+    myCollections: () => later(demoMine),
+    myCollectionAssign: (guid: string, key: string | null, name: string) => {
+      if (!key) {
+        key = `mine:${Date.now().toString(36)}`;
+        demoMine.mine[key.slice(5)] = { name };
+      }
+      demoMine.assign[guid] = { key, name };
+      return later(demoMine);
+    },
+    myCollectionUnassign: (guid: string) => {
+      delete demoMine.assign[guid];
+      return later(demoMine);
+    },
+    // A pretend connected Spotify: fictional artists and albums with generated cover art, so the Music page can be
+    // shown and recorded without anyone's real account or copyrighted artwork.
+    spotifyStatus: () => later({ hasClientId: true, connected: true, user: { name: 'demo_viewer', product: 'premium' }, redirect: 'http://127.0.0.1:43821/callback' }),
+    spotifySetClientId: () => later({ error: 'Spotify is simulated in demo mode.' }),
+    spotifyConnect: () => later({ error: 'Spotify is simulated in demo mode.' }),
+    spotifyDisconnect: () => later({ hasClientId: true, connected: true, user: { name: 'demo_viewer' }, redirect: 'http://127.0.0.1:43821/callback' }),
+    spotifyLibrary: () => later(DEMO_MUSIC),
+    spotifyNowPlaying: () => later({ ...demoNow, at: Date.now() }),
+    spotifyDevices: () => later([{ id: 'demo', name: 'Living Room Speaker', type: 'Speaker', active: true }]),
+    spotifyPlay: (uri: string) => {
+      const c = [...DEMO_MUSIC.playlists, ...DEMO_MUSIC.albums].find((x) => x.uri === uri);
+      if (c) Object.assign(demoNow, { playlist: uri.includes(':playlist:') ? c.name : null, progress: 0, playing: true });
+      return later({ ok: true });
+    },
+    spotifyControl: (a: string) => {
+      if (a === 'pause') demoNow.playing = false;
+      if (a === 'resume') demoNow.playing = true;
+      return later({ ok: true });
+    },
     badges: () => later({ ...DEMO_BADGES }),
     takeBadges: () => later(demoUnlocks.splice(0)),
     setFavoriteBadges: (ids: string[]) => {
-      DEMO_BADGES.favorites = ids.slice(0, 6);
+      DEMO_BADGES.favorites = ids.slice(0, 9);
       return later({ ...DEMO_BADGES });
     },
     // Recording hook: window.__vantaDemoUnlock(['six-pack']) shows a real (non-preview) unlock ticket.

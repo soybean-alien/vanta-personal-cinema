@@ -1,14 +1,14 @@
 // Vanta by soybean_alien
 // The Badges page: a pinned header, then one row per category ("2 of 4 unlocked", View all) whose badges scroll
 // sideways (arrow buttons, Shift+wheel / trackpad, keyboard or controller), with page dots. Earned badges show their
-// art, name and date and can be favorited (up to 6) for the sidebar showcase; unearned ones are silhouettes with
+// art, name and date and can be favorited (up to 9) for the sidebar showcase; unearned ones are silhouettes with
 // progress, and secret ones stay "???" with a hint.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BadgeArt, BadgeDef, BadgeState, rarityLabel } from './badges';
-import { useApp, useAutoFocus } from './components';
+import { ScrollRow, useApp, useAutoFocus } from './components';
 
 const CATEGORY_ORDER = ['Getting Started', 'Movie Nights', 'Series', 'Dedication', 'Supporters'];
-export const SHOWCASE_MAX = 6;
+export const SHOWCASE_MAX = 9;
 
 // Anything that changes badges (favorites, grants) announces it so the sidebar and the page both refresh.
 export const announceBadgesChanged = () => window.dispatchEvent(new Event('vanta:badges-changed'));
@@ -84,34 +84,6 @@ export function BadgeCategoryPage({ category }: { category: string }) {
 }
 
 function CategoryRow({ name, list, state, onViewAll }: { name: string; list: BadgeDef[]; state: BadgeState; onViewAll: () => void }) {
-  const track = useRef<HTMLDivElement>(null);
-  const [page, setPage] = useState(0);
-  const [pages, setPages] = useState(1);
-  const update = () => {
-    const el = track.current;
-    if (!el) return;
-    setPages(Math.max(1, Math.ceil(el.scrollWidth / el.clientWidth - 0.02)));
-    setPage(Math.round(el.scrollLeft / el.clientWidth));
-  };
-  useEffect(() => {
-    const el = track.current!;
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    // Sideways scrolling: trackpads (deltaX) and Shift+wheel move the row; a plain wheel keeps scrolling the page.
-    const wheel = (e: WheelEvent) => {
-      const dx = e.shiftKey ? e.deltaY : e.deltaX;
-      if (!dx || el.scrollWidth <= el.clientWidth) return;
-      e.preventDefault();
-      el.scrollLeft += dx;
-    };
-    el.addEventListener('wheel', wheel, { passive: false });
-    return () => {
-      ro.disconnect();
-      el.removeEventListener('wheel', wheel);
-    };
-  }, [list.length]);
-  const step = (dir: number) => track.current!.scrollBy({ left: dir * track.current!.clientWidth * 0.9, behavior: 'smooth' });
   const earned = list.filter((b) => state.earned[b.id]).length;
 
   return (
@@ -127,30 +99,11 @@ function CategoryRow({ name, list, state, onViewAll }: { name: string; list: Bad
           View all
         </button>
       </div>
-      <div className="badge-row">
-        {page > 0 && (
-          <button className="row-arrow left" data-nav aria-label="Previous" onClick={() => step(-1)}>
-            ‹
-          </button>
-        )}
-        <div className="badge-track" ref={track} onScroll={update}>
-          {list.map((b) => (
-            <BadgeCard key={b.id} badge={b} state={state} />
-          ))}
-        </div>
-        {page < pages - 1 && (
-          <button className="row-arrow right" data-nav aria-label="Next" onClick={() => step(1)}>
-            ›
-          </button>
-        )}
-      </div>
-      {pages > 1 && (
-        <div className="row-dots" aria-hidden>
-          {Array.from({ length: pages }, (_, i) => (
-            <span key={i} className={i === page ? 'on' : ''} />
-          ))}
-        </div>
-      )}
+      <ScrollRow className="badge-row" trackClass="badge-track" count={list.length}>
+        {list.map((b) => (
+          <BadgeCard key={b.id} badge={b} state={state} />
+        ))}
+      </ScrollRow>
     </section>
   );
 }

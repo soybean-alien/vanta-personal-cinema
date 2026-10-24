@@ -7,6 +7,8 @@ const net = require('net');
 const path = require('path');
 const plex = require('./plex.cjs');
 const overlay = require('./badge-overlay.cjs');
+const history = require('./history.cjs');
+const subtitles = require('./subtitles.cjs');
 
 const PIPE = '\\\\.\\pipe\\vanta-mpv';
 const REPORT_EVERY_MS = 10000;
@@ -87,7 +89,7 @@ function buildArgs(prefs) {
 }
 
 async function resolve(ratingKey) {
-  const meta = await plex.pms(`/library/metadata/${ratingKey}?includeMarkers=1`);
+  const meta = await plex.pms(`/library/metadata/${ratingKey}?includeMarkers=1&includeGuids=1`);
   const m = meta.MediaContainer.Metadata[0];
   const part = m.Media?.[0]?.Part?.[0];
   if (!part) throw new Error(`"${m.title}" has no playable file.`);
@@ -100,13 +102,15 @@ async function resolve(ratingKey) {
     const x = (m.Marker || []).find((k) => k.type === type);
     return x ? { start: x.startTimeOffset / 1000, end: x.endTimeOffset / 1000 } : null;
   };
+  // English subtitles Vanta found or you added (subtitles.cjs), fetched now if the file has none yet.
+  const ownSub = await subtitles.ensure(m).catch(() => null);
   return {
     ratingKey: String(m.ratingKey),
     m,
     title,
     url: uri + part.key,
-    // Sidecar subtitle files (.srt etc.) stored next to the media on the server.
-    subs: (part.Stream || []).filter((s) => s.streamType === 3 && s.key).map((s) => uri + s.key),
+    // Sidecar subtitle files (.srt etc.) stored next to the media on the server, then Vanta's own.
+    subs: [...(part.Stream || []).filter((s) => s.streamType === 3 && s.key).map((s) => uri + s.key), ...(ownSub ? [ownSub] : [])],
     intro: marker('intro'),
     credits: marker('credits'),
   };
@@ -160,6 +164,16 @@ async function runOverlays(c) {
   c.overlayBusy = false;
 }
 
+// Adds the item's extra subtitle files. Vanta's own (a local path) is labelled English so mpv's language choice
+// (Settings → Audio & subtitles) treats it like any English track.
+function addSubs(c) {
+  for (const s of c.pendingSubs || []) {
+    if (/^https?:/i.test(s)) send(c, 'sub-add', s, 'auto');
+    else send(c, 'sub-add', s, 'auto', 'English (Vanta)', 'eng');
+  }
+  c.pendingSubs = null;
+}
+
 async function timeline(state, c, it = c.item) {
   const q = new URLSearchParams({
     ratingKey: it.ratingKey,
@@ -175,7 +189,11 @@ async function timeline(state, c, it = c.item) {
   }
 }
 
-// Report the finished/stopped item, marking it watched when 90%+ was seen.
+// Stopping at or past this share of the runtime marks the item watched in Plex (which also stamps its last-viewed
+// date); stopping earlier keeps the resume point, so it stays in Continue Watching.
+const WATCHED_AT = 0.8;
+
+// Report the finished/stopped item, marking it watched when 80%+ was seen.
 async function finishItem(c) {
   const it = c.item;
   // One badge session per item: finished means past 90% AND at least half of it actually watched.
@@ -185,7 +203,8 @@ async function finishItem(c) {
     c.events.onSession({ meta: it.m, watchedSec: watched, done: !!c.duration && c.time / c.duration >= 0.9 && watched >= c.duration * 0.5 });
   }
   await timeline('stopped', c, it);
-  if (c.duration && c.time / c.duration >= 0.9) {
+  if (c.duration && c.time / c.duration >= WATCHED_AT) {
+    history.record(it.m); // Vanta's own copy of the date, in case Plex ever loses it
     try {
       await plex.pms(`/:/scrobble?key=${it.ratingKey}&identifier=com.plexapp.plugins.library`);
     } catch {}
@@ -333,8 +352,7 @@ function handle(c, msg) {
     return;
   }
   if (msg.event === 'file-loaded') {
-    for (const s of c.pendingSubs || []) send(c, 'sub-add', s, 'auto');
-    c.pendingSubs = null;
+    addSubs(c);
     return;
   }
   if (msg.event === 'client-message' && msg.args?.[0] === 'vanta') {
@@ -352,8 +370,7 @@ function handle(c, msg) {
   } else if (msg.name === 'duration') {
     c.duration = msg.data;
     // duration only becomes known once a file is loaded, which covers loads that beat the IPC connection
-    for (const s of c.pendingSubs || []) send(c, 'sub-add', s, 'auto');
-    c.pendingSubs = null;
+    addSubs(c);
   }
   else if (msg.name === 'pause' && msg.data !== c.paused) {
     c.paused = msg.data;

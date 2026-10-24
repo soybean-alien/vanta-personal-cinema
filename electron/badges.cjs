@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
+const { readJson, writeJson } = require('./safefile.cjs');
 
 // The catalog is plain data shared with the UI (electron/badge-catalog.json).
 // rarity is DESIGNED (not rolled): it states how much effort a badge takes. Guide when adding badges:
@@ -25,11 +26,7 @@ const FILE = () => path.join(app.getPath('userData'), 'badges.json');
 let store = null;
 
 function load() {
-  try {
-    store = JSON.parse(fs.readFileSync(FILE(), 'utf8'));
-  } catch {
-    store = {};
-  }
+  store = readJson(FILE()) || {}; // falls back to badges.json.bak if the main file is damaged
   store.earned ??= {}; // id -> { at }
   store.favorites ??= []; // ids shown in the sidebar showcase, in order
   store.sessions ??= []; // finished/partial watch sessions recorded by Vanta
@@ -42,7 +39,7 @@ function load() {
 
 function save() {
   fs.mkdirSync(path.dirname(FILE()), { recursive: true });
-  fs.writeFileSync(FILE(), JSON.stringify(store));
+  writeJson(FILE(), store); // crash-safe, keeps the previous version as badges.json.bak
 }
 
 const localDay = (ms) => {
@@ -180,7 +177,7 @@ module.exports = {
     };
   },
   setFavorites(ids) {
-    store.favorites = ids.filter((id) => store.earned[id]).slice(0, 6);
+    store.favorites = ids.filter((id) => store.earned[id]).slice(0, 9);
     save();
     return this.state();
   },
@@ -199,6 +196,29 @@ module.exports = {
     if (id === 'patron') store.patron = { status: 'active', at: Date.now() };
     save();
     return [id];
+  },
+  // The whole store, for a backup file.
+  snapshot: () => JSON.parse(JSON.stringify(store)),
+  // Restore from a backup without losing anything earned since: badges are combined (earliest unlock date wins),
+  // watch sessions are combined without duplicates, and totals keep the larger value.
+  restore(b) {
+    if (!b || typeof b !== 'object') return 0;
+    let added = 0;
+    for (const [id, e] of Object.entries(b.earned || {})) {
+      if (!CATALOG.some((x) => x.id === id) || !Number.isFinite(e?.at)) continue;
+      if (!store.earned[id]) added++;
+      if (!store.earned[id] || e.at < store.earned[id].at) store.earned[id] = { at: e.at };
+    }
+    const seen = new Set(store.sessions.map((s) => `${s.rk}:${s.at}`));
+    for (const s of Array.isArray(b.sessions) ? b.sessions : []) if (s && !seen.has(`${s.rk}:${s.at}`)) store.sessions.push(s);
+    store.sessions.sort((x, y) => x.at - y.at);
+    store.minutes = Math.max(store.minutes, Number(b.minutes) || 0);
+    for (const [k, v] of Object.entries(b.kindMinutes || {})) store.kindMinutes[k] = Math.max(store.kindMinutes[k] || 0, Number(v) || 0);
+    store.seasonSizes = { ...(b.seasonSizes || {}), ...store.seasonSizes };
+    if (!store.favorites.length && Array.isArray(b.favorites)) store.favorites = b.favorites.filter((id) => store.earned[id]).slice(0, 9);
+    if (!store.patron && b.patron && store.earned.patron) store.patron = b.patron;
+    save();
+    return added;
   },
   // A pledge that isn't renewed: Patron stays earned (and favoritable) but shows as Epic 'Previous Patron'.
   // Silent on purpose: no toast for lapsing.
