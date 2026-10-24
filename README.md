@@ -33,7 +33,7 @@ stays out of the way. And now, watching earns you something.
 - **Plays everything, untouched.** Files play directly in mpv, so 4K HDR, HEVC, lossless audio and image subtitles reach your screen as they are, with no transcoding.
 - **Built for the couch.** Every screen works with the keyboard or an Xbox controller, and you sign in once.
 
-> Release: **2.1.1**, with more cast birthdays, on top of 2.1's Trakt sync and 2.0, the biggest update yet (the new
+> Release: **2.1.2**, with more cast birthdays, on top of 2.1's Trakt sync and 2.0, the biggest update yet (the new
 > details page, automatic subtitles, Spotify, full backups, themes and much more). For Windows 10 and 11, with Plex Media Server on the same PC or on
 > another PC in your home network.
 ---
@@ -347,7 +347,7 @@ Plex music libraries and photo libraries. Vanta shows your video libraries, plus
 
 ## Install
 
-1. Download **`Vanta-Setup-2.1.1.exe`** (or newer) from the [Releases](../../releases) page.
+1. Download **`Vanta-Setup-2.1.2.exe`** (or newer) from the [Releases](../../releases) page.
 2. Run it. Windows SmartScreen may say *"Windows protected your PC"* because the installer isn't code-signed.
    Click **More info → Run anyway**.
 3. Pick an install folder (or keep the default) and finish. Vanta adds shortcuts to the **Start Menu** and the **Desktop**.
