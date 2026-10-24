@@ -4,6 +4,7 @@
 // demo/posters/CREDITS.md. Start it with `npm run demo` (electron . --demo).
 import type { Health, Item, Prefs } from './api';
 import CATALOG from '../electron/badge-catalog.json';
+import { version as VERSION } from '../package.json';
 
 const POSTERS = import.meta.glob('../demo/posters/*.{jpg,png}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -49,6 +50,87 @@ const SILENTS: Film[] = [
   ['The Thief of Bagdad', 1924, 149, ['Adventure', 'Fantasy'], 'A thief falls for a princess and sets out on a quest of magic carpets and winged horses.'],
 ];
 
+// ── 2.0 details-page sample data ───────────────────────────────────────
+// Two films get their real credits so the details page, Cast & Crew and person pages can be shown. Only public facts
+// are used (names, characters, birth and death dates); no photos of people are bundled, so cards show initials.
+// Scores are sample values for the demo, not live data.
+type Person = { id: number; name: string; birthday: string; deathday?: string; place: string };
+const PEOPLE: Record<string, Person> = Object.fromEntries(
+  (
+    [
+      [1, 'Cary Grant', '1904-01-18', '1986-11-29', 'Bristol, England, UK'],
+      [2, 'Audrey Hepburn', '1929-05-04', '1993-01-20', 'Ixelles, Brussels, Belgium'],
+      [3, 'Walter Matthau', '1920-10-01', '2000-07-01', 'New York City, New York, USA'],
+      [4, 'James Coburn', '1928-08-31', '2002-11-18', 'Laurel, Nebraska, USA'],
+      [5, 'George Kennedy', '1925-02-18', '2016-02-28', 'New York City, New York, USA'],
+      [6, 'Stanley Donen', '1924-04-13', '2019-02-21', 'Columbia, South Carolina, USA'],
+      [7, 'Peter Stone', '1930-02-27', '2003-04-26', 'Los Angeles, California, USA'],
+      [8, 'Rosalind Russell', '1907-06-04', '1976-11-28', 'Waterbury, Connecticut, USA'],
+      [9, 'Ralph Bellamy', '1904-06-17', '1991-11-29', 'Chicago, Illinois, USA'],
+      [10, 'Howard Hawks', '1896-05-30', '1977-12-26', 'Goshen, Indiana, USA'],
+    ] as [number, string, string, string, string][]
+  ).map(([id, name, birthday, deathday, place]) => [name, { id, name, birthday, deathday, place }]),
+);
+const role = (name: string, character?: string) => ({ id: PEOPLE[name].id, tag: name, role: character });
+const DETAILS: Record<string, Partial<Item>> = {
+  Charade: {
+    originallyAvailableAt: '1963-12-05',
+    tagline: 'You can expect the unexpected.',
+    Guid: [{ id: 'imdb://tt0056923' }, { id: 'tmdb://4808' }],
+    Rating: [
+      { image: 'imdb://image.rating', value: 7.8, type: 'audience' },
+      { image: 'rottentomatoes://image.rating.ripe', value: 9.2, type: 'critic' },
+      { image: 'rottentomatoes://image.rating.upright', value: 8.9, type: 'audience' },
+      { image: 'themoviedb://image.rating', value: 7.7, type: 'audience' },
+    ],
+    Director: [role('Stanley Donen')],
+    Writer: [role('Peter Stone')],
+    Role: [role('Cary Grant', 'Peter Joshua'), role('Audrey Hepburn', 'Regina Lampert'), role('Walter Matthau', 'Hamilton Bartholomew'), role('James Coburn', 'Tex Panthollow'), role('George Kennedy', 'Herman Scobie')],
+  },
+  'His Girl Friday': {
+    originallyAvailableAt: '1940-01-18',
+    tagline: 'He was her boss. And her ex-husband.',
+    Guid: [{ id: 'imdb://tt0032599' }, { id: 'tmdb://3085' }],
+    Rating: [
+      { image: 'imdb://image.rating', value: 7.8, type: 'audience' },
+      { image: 'rottentomatoes://image.rating.ripe', value: 9.9, type: 'critic' },
+      { image: 'rottentomatoes://image.rating.upright', value: 8.9, type: 'audience' },
+      { image: 'themoviedb://image.rating', value: 7.5, type: 'audience' },
+    ],
+    Director: [role('Howard Hawks')],
+    Role: [role('Cary Grant', 'Walter Burns'), role('Rosalind Russell', 'Hildy Johnson'), role('Ralph Bellamy', 'Bruce Baldwin')],
+  },
+};
+// Sample file data for every demo film, so the File section has something to show.
+const sampleMedia = (title: string, year: number, minutes: number, res: string) => {
+  const h = res === '4k' ? 2160 : res === '720' ? 720 : res === '480' ? 480 : 1080;
+  const w = Math.round((h * 4) / 3 / 2) * 2;
+  const bitrate = res === '4k' ? 42000 : res === '720' ? 4200 : res === '480' ? 1800 : 9800;
+  return [
+    {
+      videoResolution: res,
+      width: w,
+      height: h,
+      bitrate,
+      container: 'mkv',
+      videoCodec: res === '4k' ? 'hevc' : 'h264',
+      Part: [
+        {
+          file: `${title} (${year}).mkv`,
+          size: Math.round(bitrate * 125 * minutes * 60),
+          container: 'mkv',
+          Stream: [
+            { streamType: 1, codec: res === '4k' ? 'hevc' : 'h264', bitDepth: res === '4k' ? 10 : 8, frameRate: 23.976, extendedDisplayTitle: `${res === '4k' ? '4K' : `${h}p`} (${res === '4k' ? 'HEVC Main 10' : 'H.264'})` },
+            { streamType: 2, codec: 'flac', channels: 1, selected: true, language: 'English', extendedDisplayTitle: 'English (FLAC Mono)' },
+            { streamType: 2, codec: 'ac3', channels: 2, language: 'English', extendedDisplayTitle: 'English Commentary (AC3 Stereo)' },
+            { streamType: 3, codec: 'srt', language: 'English', extendedDisplayTitle: 'English (SRT)' },
+          ],
+        },
+      ],
+    },
+  ];
+};
+
 const hash = (s: string) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
 
 // ── Library ────────────────────────────────────────────────────────────
@@ -79,9 +161,12 @@ const addFilms = (films: Film[], section: '1' | '2') =>
       contentRating: 'NR',
       Genre: genres.map((tag) => ({ tag })),
       // Sample file resolutions so every tag color shows up.
-      Media: [{ videoResolution: ['4k', '1080', '1080', '720', '480'][hash(title + 'res') % 5] }],
+      Media: sampleMedia(title, year, minutes, ['4k', '1080', '1080', '720', '480'][hash(title + 'res') % 5]),
       librarySectionID: Number(section),
       addedAt: 1700000000 + (hash(title + 'added') % 400) * 86400,
+      // Watched films get a last-watched date this autumn (neon green on the poster).
+      lastViewedAt: WATCHED.has(title) ? Date.UTC(2026, 8, 1 + (hash(title + 'seen') % 50), 21) / 1000 : undefined,
+      ...(DETAILS[title] || {}),
     });
     sectionKeys[section].push(rk);
   });
@@ -123,7 +208,10 @@ function get(path: string): any {
           (!q.get('genre') || i.Genre?.some((g) => g.tag === q.get('genre'))) &&
           (!q.get('decade') || Math.floor((i.year || 0) / 10) * 10 === Number(q.get('decade'))) &&
           (!q.get('unwatched') || !i.viewCount) &&
-          (!q.get('inProgress') || !!i.viewOffset),
+          (!q.get('inProgress') || !!i.viewOffset) &&
+          (!q.get('actor') || !!i.Role?.some((r) => String(r.id) === q.get('actor'))) &&
+          (!q.get('director') || !!i.Director?.some((r) => String(r.id) === q.get('director'))) &&
+          (!q.get('writer') || !!i.Writer?.some((r) => String(r.id) === q.get('writer'))),
       );
       const sortKey = q.get('sort') || 'titleSort';
       const by: Record<string, (a: Item & { addedAt?: number }, b: Item & { addedAt?: number }) => number> = {
@@ -243,7 +331,7 @@ const demoNow = {
 export function install() {
   let prefs: Prefs = {
     player: { fullscreen: true, autoplay: true, countdown: 5, skipIntro: 'button', audioLang: 'default', subLang: 'english', subMode: 'smart', hwdec: true, quality: 'default', smoothMotion: false, shaders: '', extraArgs: '' },
-    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'ember', badgesDuringPlayback: false, hiddenLibs: [], showPlaylists: true, groupCollections: true, pins: [] },
+    ui: { displayName: 'username', brandLayout: 'tagline', updates: 'ask', badgeSound: 'ember', badgesDuringPlayback: false, hiddenLibs: [], showPlaylists: true, groupCollections: true, pins: [], navOrder: ['lib:1', 'continue', 'lib:2', 'music'] },
   };
   const stateListeners = new Set<(s: any) => void>();
   const later = <T>(v: T, ms = 40) => new Promise<T>((r) => setTimeout(() => r(v), ms));
@@ -288,10 +376,16 @@ export function install() {
     tmdbStatus: () => later({ hasKey: false, cached: 0 }),
     tmdbSetKey: () => later({ error: 'TMDB lookups are off in demo mode.' }),
     tmdbCollections: () => later({ byFilm: {}, looked: 0, failed: 0 }),
-    detailsStatus: () => later({ tmdb: false, trakt: false, omdb: false }),
+    detailsStatus: () => later({ tmdb: true, trakt: false, omdb: false }),
     detailsSetKey: () => later({ error: 'Live scores are off in demo mode.' }),
-    liveScores: () => later({ errors: [], at: Date.now() }),
-    castLives: () => later({ people: {}, noKey: true }),
+    // A sample "live" Trakt score, so the green live dot shows on the films with credits.
+    liveScores: (ids: { tmdb?: string }) => later(ids.tmdb ? { trakt: { value: 8.1, votes: 2140 }, errors: [], at: Date.now() } : { errors: [], at: Date.now() }),
+    castLives: (req: { names: string[] }) =>
+      later({
+        people: Object.fromEntries(
+          req.names.filter((n) => PEOPLE[n]).map((n) => [n, { id: PEOPLE[n].id, birthday: PEOPLE[n].birthday, deathday: PEOPLE[n].deathday || null, place: PEOPLE[n].place }]),
+        ),
+      }),
     watchLog: () => later({}),
     watchLogRecord: () => later(undefined),
     watchLogForget: () => later(undefined),
@@ -346,9 +440,9 @@ export function install() {
       return () => {};
     },
     onBadgeShown: () => () => {},
-    updateState: () => later({ state: 'none', current: '1.6.0', mode: prefs.ui.updates, packaged: true }),
-    checkUpdate: () => later({ state: 'none', current: '1.6.0', mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
-    downloadUpdate: () => later({ state: 'none', current: '1.6.0', mode: prefs.ui.updates, packaged: true }),
+    updateState: () => later({ state: 'none', current: VERSION, mode: prefs.ui.updates, packaged: true }),
+    checkUpdate: () => later({ state: 'none', current: VERSION, mode: prefs.ui.updates, packaged: true, checkedAt: Date.now() }, 600),
+    downloadUpdate: () => later({ state: 'none', current: VERSION, mode: prefs.ui.updates, packaged: true }),
     installUpdate: () => later({ ok: true }),
     onUpdate: () => () => {},
   };
