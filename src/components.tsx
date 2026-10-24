@@ -1,6 +1,6 @@
 // Vanta by soybean_alien
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { collectionFolders, Filters, Folder, Item, items, MyCollections, PlayOpts, Prefs, ResTier, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState, watchedOn } from './api';
+import { BoxOffice, collectionFolders, Filters, Folder, Item, items, MyCollections, PlayOpts, Prefs, ResTier, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState, watchedOn } from './api';
 import { focusEl, focusFirst, focusLost } from './nav';
 
 // When a view finishes loading and nothing useful has focus (keyboard/controller just opened it),
@@ -128,6 +128,7 @@ export function Poster({
   sub,
   res,
   folder,
+  money,
 }: {
   item: Item;
   wide?: boolean;
@@ -136,6 +137,7 @@ export function Poster({
   sub?: string;
   res?: ResTier | null; // file resolution tag (library grid only)
   folder?: Folder; // a collection folded into the movie grid: stacked first-film poster
+  money?: boolean; // movie library grid: box office line under the cover, centered title, no year
 }) {
   const ctx = useApp();
   const watched = isWatched(item);
@@ -155,7 +157,7 @@ export function Poster({
     onClick || (() => ctx.open(folder ? { kind: 'folder', folder } : { kind: 'item', ratingKey: item.ratingKey }));
   return (
     <div
-      className={`poster ${wide ? 'wide' : ''} ${folder ? 'folder' : ''}`}
+      className={`poster ${wide ? 'wide' : ''} ${folder ? 'folder' : ''} ${money ? 'money' : ''}`}
       tabIndex={0}
       data-nav
       data-rk={item.ratingKey}
@@ -178,7 +180,19 @@ export function Poster({
           </div>
         )}
       </div>
-      <div className="title">{title ?? item.title}</div>
+      {money && <BoxOfficeLine films={folder ? folder.films : [item]} total={!!folder} />}
+      <div className="title" title={money ? item.title : undefined}>{title ?? item.title}</div>
+      {money && folder ? (
+        <div className="sub">{folder.films.length} films</div>
+      ) : money ? (
+        watchedOn(item) && (
+          <div className="sub">
+            <span className="watched-on" title="Last watched">
+              ✓ {watchedOn(item)}
+            </span>
+          </div>
+        )
+      ) : (
       <div className={`sub ${!folder && watchedOn(item) ? 'with-date' : ''}`}>
         <span className="sub-text">
         {sub ??
@@ -198,6 +212,65 @@ export function Poster({
           </span>
         )}
       </div>
+      )}
+    </div>
+  );
+}
+
+// The box office box under a movie cover: "13M - 21M - 64M" = budget - US opening weekend - worldwide gross, with
+// unknown numbers left out (the box keeps its full width either way). A collection folder's box shows the worldwide
+// gross of all its films together. Looked up once the poster scrolls near the screen.
+// Under $1,000 is a placeholder some databases store, not a real figure.
+const known = (n: number | null): n is number => !!n && n >= 1000;
+const money = (n: number) => (n >= 1e9 ? `${+(n / 1e9).toFixed(1)}B` : n >= 1e7 ? `${Math.round(n / 1e6)}M` : n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : `${Math.round(n / 1e3)}K`);
+const dollarsLong = (n: number | null) => (known(n) ? `$${n.toLocaleString()}` : 'unknown');
+
+function BoxOfficeLine({ films, total }: { films: Item[]; total: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [bo, setBo] = useState<(BoxOffice | null)[]>();
+  const keys = films.map((f) => f.ratingKey).join(',');
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !window.plex.boxOffice) return;
+    let alive = true;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        Promise.all(
+          keys.split(',').map((k) =>
+            window.plex.boxOffice!(k).then(
+              (r) => (r && !('error' in r) ? r : null),
+              () => null,
+            ),
+          ),
+        ).then((r) => alive && setBo(r));
+      },
+      { rootMargin: '400px' },
+    );
+    io.observe(el);
+    return () => {
+      alive = false;
+      io.disconnect();
+    };
+  }, [keys]);
+  if (!window.plex.boxOffice) return null;
+
+  let text = '';
+  let tip = total ? 'Worldwide gross of the whole collection' : 'Budget - opening weekend (US) - worldwide gross';
+  if (bo && total) {
+    const each = films.map((f, i) => ({ title: f.title, n: bo[i]?.worldwide ?? null }));
+    const sum = each.reduce((a, x) => a + (known(x.n) ? x.n : 0), 0);
+    text = known(sum) ? money(sum) : '';
+    tip = `Worldwide gross of the collection: ${dollarsLong(sum)}\n${each.map((x) => `${x.title}: ${dollarsLong(x.n)}`).join('\n')}`;
+  } else if (bo?.[0]) {
+    const b = bo[0];
+    text = [b.budget, b.opening, b.worldwide].filter(known).map(money).join(' - ');
+    tip = `Budget: ${dollarsLong(b.budget)}\nOpening weekend (US): ${dollarsLong(b.opening)}\nWorldwide gross: ${dollarsLong(b.worldwide)}${b.src.length ? `\nFrom ${b.src.join(' and ')}` : ''}`;
+  }
+  return (
+    <div ref={ref} className={`box-office ${bo === undefined ? 'loading' : ''}`} title={tip}>
+      {bo === undefined ? '· · ·' : text || ' '}
     </div>
   );
 }

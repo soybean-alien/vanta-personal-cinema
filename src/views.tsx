@@ -211,9 +211,9 @@ export function Library({ section, initial, pinId }: { section: Section; initial
         <div className="grid">
           {tiles.map(({ item: i, folder }) =>
             folder ? (
-              <Poster key={i.ratingKey} item={i} folder={folder} />
+              <Poster key={i.ratingKey} item={i} folder={folder} money={section.type === 'movie'} />
             ) : (
-              <Poster key={i.ratingKey} item={i} res={i.type === 'show' ? showRes[i.ratingKey] : resolutionOf(i.Media)} />
+              <Poster key={i.ratingKey} item={i} res={i.type === 'show' ? showRes[i.ratingKey] : resolutionOf(i.Media)} money={i.type === 'movie'} />
             ),
           )}
         </div>
