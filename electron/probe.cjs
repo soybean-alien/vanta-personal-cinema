@@ -186,4 +186,12 @@ async function fileDetails(ratingKey) {
   return out;
 }
 
-module.exports = { fileDetails };
+// For backups: the cache travels as is (it's per server file, so it stays valid on another PC with the same server).
+const backupCache = () => load();
+function restoreCache(c) {
+  if (!c || typeof c !== 'object') return;
+  cache = { ...c, ...load() };
+  fs.writeFileSync(CACHE, JSON.stringify(cache));
+}
+
+module.exports = { fileDetails, backupCache, restoreCache };

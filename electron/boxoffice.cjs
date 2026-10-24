@@ -108,6 +108,13 @@ function boxOffice(ratingKey) {
   return running.get(k);
 }
 
+// For backups. On restore, the newer answer for each film wins.
 const backupCache = () => load();
+function restoreCache(c) {
+  if (!c || typeof c !== 'object') return;
+  const cur = load();
+  for (const [k, v] of Object.entries(c)) if (!cur[k] || (v?.at || 0) > (cur[k].at || 0)) cur[k] = v;
+  fs.writeFileSync(CACHE, JSON.stringify(cur));
+}
 
-module.exports = { boxOffice, backupCache };
+module.exports = { boxOffice, backupCache, restoreCache };

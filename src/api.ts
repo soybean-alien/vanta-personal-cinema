@@ -473,6 +473,7 @@ declare global {
         badges?: number;
         watched?: number;
         collections?: number;
+        subtitles?: number;
         secrets?: boolean;
         error?: string;
       }>;
@@ -483,6 +484,7 @@ declare global {
         badgesAdded?: number;
         watchedAdded?: number;
         collectionsAdded?: number;
+        subtitlesAdded?: number;
         secrets?: boolean;
         uiStorage?: Record<string, string>;
         from?: string;
@@ -613,14 +615,40 @@ export const isWatched = (i: Item) =>
 
 // When a title was last watched, as MM/DD/YYYY: the newer of Plex's date and Vanta's log. Vanta's log alone is
 // enough (Plex may have lost its record); an item part-way through a rewatch shows no date ('' = nothing to show).
-export const watchedOn = (i: Item) => {
+const watchedAt = (i: Item) => {
   const logged = (i.guid && watchLog[i.guid]) || 0;
   const plexAt = isWatched(i) && i.lastViewedAt ? i.lastViewedAt * 1000 : 0;
   const at = Math.max(logged, plexAt);
-  if (!at || i.viewOffset || (!isWatched(i) && !logged)) return '';
+  return !at || i.viewOffset || (!isWatched(i) && !logged) ? 0 : at;
+};
+export const watchedOn = (i: Item) => {
+  const at = watchedAt(i);
+  if (!at) return '';
   const d = new Date(at);
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
 };
+
+// The same moment with the time, in New York time (12-hour, no seconds), for the details page: "10/22/2026 9:41 PM".
+const NY = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  month: '2-digit',
+  day: '2-digit',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+});
+const nyTime = (at: number) => {
+  const p = Object.fromEntries(NY.formatToParts(new Date(at)).map((x) => [x.type, x.value]));
+  return `${p.month}/${p.day}/${p.year} ${p.hour}:${p.minute} ${p.dayPeriod}`;
+};
+export const watchedOnWithTime = (i: Item) => {
+  const at = watchedAt(i);
+  return at ? nyTime(at) : '';
+};
+// A show or season you're part-way through: when you last watched any of its episodes (Plex's lastViewedAt).
+export const lastEpisodeWatchedWithTime = (i: Item) =>
+  (i.type === 'show' || i.type === 'season') && !isWatched(i) && i.lastViewedAt ? nyTime(i.lastViewedAt * 1000) : '';
 
 export const playable = (i: Item) => i.type === 'movie' || i.type === 'episode';
 

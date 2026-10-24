@@ -302,4 +302,36 @@ function forget(guid) {
   save();
 }
 
-module.exports = { ensure, localFor, enqueue, importFor, info, status, forget, hasEnglish };
+// For backups: the index and every stored subtitle (gzipped, base64), including ones you added yourself.
+function backupState() {
+  const files = {};
+  for (const e of Object.values(load())) {
+    if (!e?.file) continue;
+    try {
+      files[e.file] = zlib.gzipSync(fs.readFileSync(path.join(DIR(), e.file))).toString('base64');
+    } catch {}
+  }
+  return { index: load(), files };
+}
+// Adds what this PC doesn't have yet; a subtitle already here is kept. Returns how many were added.
+function restoreState(s) {
+  if (!s?.index) return 0;
+  load();
+  fs.mkdirSync(DIR(), { recursive: true });
+  let added = 0;
+  for (const [guid, e] of Object.entries(s.index)) {
+    const cur = index[guid];
+    if (cur?.file) continue;
+    if (e?.file) {
+      const data = s.files?.[e.file];
+      if (!data) continue;
+      fs.writeFileSync(path.join(DIR(), path.basename(e.file)), zlib.gunzipSync(Buffer.from(data, 'base64')));
+      index[guid] = { ...e, file: path.basename(e.file) };
+      added++;
+    } else if (!cur) index[guid] = e;
+  }
+  save();
+  return added;
+}
+
+module.exports = { ensure, localFor, enqueue, importFor, info, status, forget, hasEnglish, backupState, restoreState };

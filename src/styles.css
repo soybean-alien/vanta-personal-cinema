@@ -137,7 +137,10 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .poster .sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Movie library grid: the box office line under the cover, then the title, both centered and sized by the tile's own
    width (cqi), so they grow and shrink with the poster size slider and always fit on one line. */
-.poster.money { container-type: inline-size; }
+.poster.money, .poster.centered { container-type: inline-size; }
+/* TV library grid: the same centered, slider-sized title without the year. */
+.poster.centered .title { text-align: center; font-size: clamp(10px, 7.4cqi, 22px); }
+.poster.centered .sub { text-align: center; font-size: clamp(9px, 6.2cqi, 17px); }
 .poster.money .box-office { margin-top: 6px; padding: 0.35em 0.3em; text-align: center; font-weight: 800; font-size: clamp(8px, 8.6cqi, 26px); letter-spacing: 0.01em; color: #fff; background: #000; border: 1.5px solid #e5c228; border-radius: 4px; white-space: nowrap; overflow: hidden; line-height: 1.15; }
 .poster.money .box-office.loading { color: #6d6340; }
 .poster.money .title { text-align: center; font-size: clamp(10px, 7.4cqi, 22px); }

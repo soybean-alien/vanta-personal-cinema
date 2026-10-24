@@ -28,6 +28,8 @@ import {
   shownTitle,
   titlesFor,
   watchedOn,
+  watchedOnWithTime,
+  lastEpisodeWatchedWithTime,
   loadWatchLog,
   TraktStatus,
 } from './api';
@@ -213,7 +215,7 @@ export function Library({ section, initial, pinId }: { section: Section; initial
             folder ? (
               <Poster key={i.ratingKey} item={i} folder={folder} money={section.type === 'movie'} />
             ) : (
-              <Poster key={i.ratingKey} item={i} res={i.type === 'show' ? showRes[i.ratingKey] : resolutionOf(i.Media)} money={i.type === 'movie'} />
+              <Poster key={i.ratingKey} item={i} res={i.type === 'show' ? showRes[i.ratingKey] : resolutionOf(i.Media)} money={i.type === 'movie'} noYear={i.type === 'show'} />
             ),
           )}
         </div>
@@ -553,7 +555,16 @@ function DetailBody({ item, kids: children, next }: { item: Item; kids: Item[]; 
                 .join(' · ')}
             </span>
             {playable(item) && item.duration ? <span className="ends">{endsAt(item)}</span> : null}
-            {watchedOn(item) && <span className="watched-on">✓ Watched {watchedOn(item)}</span>}
+            {watchedOn(item) && (
+              <span className="watched-on" title="Last watched (New York time)">
+                ✓ Watched {watchedOnWithTime(item)}
+              </span>
+            )}
+            {lastEpisodeWatchedWithTime(item) && (
+              <span className="watched-on" title="When you last watched an episode (New York time)">
+                Last watched {lastEpisodeWatchedWithTime(item)}
+              </span>
+            )}
           </div>
           <Scores item={item} ids={ids} />
           <div className="actions">

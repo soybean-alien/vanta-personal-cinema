@@ -33,7 +33,7 @@ stays out of the way. And now, watching earns you something.
 - **Plays everything, untouched.** Files play directly in mpv, so 4K HDR, HEVC, lossless audio and image subtitles reach your screen as they are, with no transcoding.
 - **Built for the couch.** Every screen works with the keyboard or an Xbox controller, and you sign in once.
 
-> Release: **2.1.4**, with box office numbers under every movie, a restyled details page and more cast birthdays, on
+> Release: **2.1.5**, with watch times, complete backups, box office numbers under every movie, a restyled details page and more cast birthdays, on
 > top of 2.1's Trakt sync and 2.0, the biggest update yet (the new details page, automatic subtitles, Spotify, full
 > backups, themes and much more). For Windows 10 and 11, with Plex Media Server on the same PC or on
 > another PC in your home network.
@@ -82,7 +82,7 @@ library you already have.
 | **Music (Spotify)** | Your Spotify playlists, saved albums and recently played, played on your Spotify devices, with a large now-playing view: cover art, song, artist, album, year and the playlist it's from. |
 | **Backup and restore** | One file with everything Vanta knows about you. A new PC restores from it on the sign-in screen and needs no setup at all. |
 | **Crash-safe data** | Badges, last-watched dates, collections and settings are written so a crash or power cut can never leave a half-saved file, with the last good copy always kept. |
-| **Last watched** | A neon-green date on every watched poster and details page, kept by Vanta even if Plex loses its history. |
+| **Last watched** | A neon-green date on every watched poster, and the date and time (New York time) on details pages, kept by Vanta even if Plex loses its history. |
 | **Watched at 80%** | Stop at 80% or later and it counts as watched. Anything earlier stays in Continue Watching. |
 | **Continue Watching page** | Its own sidebar page with everything you started and didn't finish, across every library, plus each show's next episode. The library pages stay clear. |
 | **Add to collection** | Right-click any film, choose 🗂 Add to collection, and put it with its series (for the sequel TMDB missed) or start a new collection. The Collections page summarises them all. |
@@ -164,7 +164,8 @@ Media collectors keep their history for years, so Vanta treats your data as prec
 - **Your own watch log.** Vanta keeps its own record of when you last watched each title (seeded from Plex's
   history), so the dates survive a Plex database reset, a library rebuild or a server move.
 - **One file, everything.** **Settings → Your data → Export backup** saves badges and the watch sessions behind them,
-  last-watched dates, your collections, every setting, each library's sort and filters, and the TMDB and cast caches.
+  last-watched dates and times, your collections, every setting, each library's sort and filters, every subtitle Vanta
+  found or you added, and the TMDB, cast, box office and file-details caches.
 - **Zero setup on a new PC.** Set a backup password and the file also carries your Plex, Trakt and Spotify sign-ins
   and your TMDB and OMDb keys, encrypted with AES-256 (the password is stretched with scrypt). On a fresh install, choose
   **Restore from backup** on the sign-in screen and Vanta comes back exactly as it was. Without a password, everything
@@ -351,7 +352,7 @@ Plex music libraries and photo libraries. Vanta shows your video libraries, plus
 
 ## Install
 
-1. Download **`Vanta-Setup-2.1.4.exe`** (or newer) from the [Releases](../../releases) page.
+1. Download **`Vanta-Setup-2.1.5.exe`** (or newer) from the [Releases](../../releases) page.
 2. Run it. Windows SmartScreen may say *"Windows protected your PC"* because the installer isn't code-signed.
    Click **More info → Run anyway**.
 3. Pick an install folder (or keep the default) and finish. Vanta adds shortcuts to the **Start Menu** and the **Desktop**.
