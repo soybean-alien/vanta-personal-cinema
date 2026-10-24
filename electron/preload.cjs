@@ -23,6 +23,7 @@ if (!new URLSearchParams(location.search).has('demo')) contextBridge.exposeInMai
   detailsSetKey: (service, key) => ipcRenderer.invoke('details:setKey', service, key),
   liveScores: (ids) => ipcRenderer.invoke('details:scores', ids),
   castLives: (req) => ipcRenderer.invoke('details:cast', req),
+  fileDetails: (ratingKey) => ipcRenderer.invoke('details:file', ratingKey),
   watchLog: () => ipcRenderer.invoke('history:all'),
   watchLogRecord: (meta) => ipcRenderer.invoke('history:record', meta),
   watchLogForget: (guid) => ipcRenderer.invoke('history:forget', guid),

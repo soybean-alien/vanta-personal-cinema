@@ -103,6 +103,8 @@ export interface Media {
   videoFrameRate?: string;
   videoProfile?: string;
   Part?: { file?: string; size?: number; container?: string; Stream?: Stream[] }[];
+  probed?: boolean; // details read from the file by Vanta, because Plex never analyzed it
+  unreadable?: boolean; // neither Plex nor Vanta could open the file (damaged or incomplete)
 }
 
 // File resolution as a tier for the library grid's corner tag. Plex reports videoResolution as '4k', '1080',
@@ -504,6 +506,8 @@ declare global {
       spotifyPlay(uri: string, deviceId?: string): Promise<{ ok?: boolean; error?: string }>;
       spotifyControl(action: 'pause' | 'resume' | 'next' | 'previous'): Promise<{ ok?: boolean; error?: string }>;
       castLives(req: { kind: 'movie' | 'show'; tmdb?: string; names: string[] }): Promise<{ people: Record<string, Life>; noKey?: boolean } | { error: string }>;
+      // File details read from the file itself when Plex never analyzed it (null when Plex already has them).
+      fileDetails?(ratingKey: string): Promise<Media[] | null | { error: string }>;
       devGrantBadge?(id: string): Promise<void>;
       devPatronLapse?(): Promise<boolean>;
       onBadgesEarned(cb: () => void): () => void;

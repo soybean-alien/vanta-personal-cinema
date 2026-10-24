@@ -330,6 +330,29 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .tech.res-720 { background: #2a9a4b; border-color: #2a9a4b; color: #fff; }
 .tech.res-low { background: #d63a3a; border-color: #d63a3a; color: #fff; }
 .tech.hdr { color: var(--accent); border-color: rgba(229, 160, 13, 0.55); }
+.tech.vcodec { background: #e07a12; border-color: #e07a12; color: #fff; }
+.tech.acodec { background: #e0408f; border-color: #e0408f; color: #fff; }
+.tech.container { background: #8e3be6; border-color: #8e3be6; color: #fff; }
+.tech.size { background: #2a9a4b; border-color: #2a9a4b; color: #fff; }
+/* Movie and show details page only: bright yellow track info, a red Play button, and a glowing gold frame on the
+   cover's right and bottom edges. */
+.item-detail .specs dd, .item-detail .tracks .main { color: #ffe14a; }
+.item-detail .play { background: #d62828; color: #fff; }
+.item-detail .play:hover { background: #e63b3b; }
+/* Titles in shiny gold with a black edge on the top and left (drop-shadow, since the gradient fill is clipped). */
+.item-detail .info h1, .item-detail .info h3 {
+  background: linear-gradient(180deg, #fff6c2 0%, #ffd84d 30%, #e5a00d 52%, #ffe17a 72%, #b97c06 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(-1.5px -1.5px 0 #000) drop-shadow(-0.5px -0.5px 1px rgba(0, 0, 0, 0.7));
+}
+.item-detail .credits-line b.director { color: #3fe0f0; }
+/* Video / Audio / Subtitles labels: bold black on a thin white glow, tight enough not to blur into the next letter. */
+.item-detail .specs dt { color: #000; font-weight: 700; letter-spacing: 1px; text-shadow: 0 0 1px #fff, 0 0 1px #fff, 0 0 2.5px rgba(255, 255, 255, 0.7); }
+.item-detail .file-reading { align-self: center; }
+.item-detail .cover { box-shadow: 3px 3px 0 0 #ffd23f, 7px 7px 12px -3px rgba(255, 196, 40, 0.85); }
 .specs { display: grid; grid-template-columns: 92px 1fr; gap: 7px 14px; margin: 0; font-size: 14px; }
 .specs dt { color: var(--muted); }
 .specs dd { margin: 0; min-width: 0; }

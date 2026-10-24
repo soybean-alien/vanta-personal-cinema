@@ -2,7 +2,7 @@
 // The richer parts of the details page:
 //  - Scores: IMDb, Rotten Tomatoes (critics and audience), Metacritic, TMDB and Trakt. Live from OMDb/TMDB/Trakt
 //    when their keys are set, else the scores Plex's agent saved. Each chip says where its number came from.
-//  - File: what's actually in the file (resolution, HDR, codecs, every audio and subtitle track, size, bitrate).
+//  - File: what's actually in the file (resolution, HDR, codecs, container, size, every audio and subtitle track).
 //  - Cast & Crew: Plex's cast with TMDB birthdays, today's age (or the date they died, and at what age), and how old
 //    they were when this film came out. Clicking someone lists everything with them in your library.
 import { useEffect, useMemo, useState } from 'react';
@@ -131,7 +131,6 @@ export function Scores({ item, ids }: { item: Item; ids: ReturnType<typeof useTi
 // --- file -------------------------------------------------------------------------------------------------------
 
 const gb = (bytes?: number) => (!bytes ? '' : bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`);
-const mbps = (kbps?: number) => (kbps ? `${(kbps / 1000).toFixed(1)} Mbps` : '');
 const hdrOf = (v?: Stream) =>
   !v ? '' : v.DOVIPresent ? `Dolby Vision${v.DOVIProfile ? ` ${v.DOVIProfile}` : ''}` : v.colorTrc === 'smpte2084' ? 'HDR10' : v.colorTrc === 'arib-std-b67' ? 'HLG' : '';
 const CODEC: Record<string, string> = { hevc: 'HEVC', h264: 'H.264', av1: 'AV1', vp9: 'VP9', mpeg2video: 'MPEG-2', vc1: 'VC-1', mpeg4: 'MPEG-4' };
@@ -145,13 +144,29 @@ const dtsx = (s: Stream) => /dts:?x/i.test(`${s.title || ''} ${s.extendedDisplay
 const audioName = (s: Stream) => (s.codec === 'dca' && /ma/i.test(s.profile || '') ? 'DTS-HD MA' : AUDIO[s.codec || ''] || (s.codec || '').toUpperCase());
 
 // The version that plays: the best-resolution one (same pick as the grid's corner tag).
-function bestMedia(item: Item): Media | undefined {
-  const res = resolutionOf(item.Media);
-  return item.Media?.find((m) => resolutionOf([m])?.label === res?.label) ?? item.Media?.[0];
+function bestMedia(media?: Media[]): Media | undefined {
+  const res = resolutionOf(media);
+  return media?.find((m) => resolutionOf([m])?.label === res?.label) ?? media?.[0];
 }
 
 export function FileInfo({ item }: { item: Item }) {
-  const m = bestMedia(item);
+  // Files Plex never analyzed have no tracks in its metadata: Vanta reads them from the file itself (probe.cjs).
+  const missing = !!item.Media?.length && item.Media.some((x) => !x.Part?.[0]?.Stream?.length);
+  const [probed, setProbed] = useState<Media[] | null>();
+  useEffect(() => {
+    setProbed(undefined);
+    if (!missing || !window.plex.fileDetails) return;
+    let alive = true;
+    window.plex.fileDetails(item.ratingKey).then(
+      (r) => alive && setProbed(Array.isArray(r) ? r : null),
+      () => alive && setProbed(null),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [item.ratingKey, missing]);
+  const reading = missing && !!window.plex.fileDetails && probed === undefined;
+  const m = bestMedia(probed || item.Media);
   const part = m?.Part?.[0];
   const streams = part?.Stream || [];
   if (!m) return null;
@@ -163,14 +178,12 @@ export function FileInfo({ item }: { item: Item }) {
   const tags = [
     res && { t: res.label, cls: `res-${res.tier}` },
     hdrOf(v) && { t: hdrOf(v), cls: 'hdr' },
-    (v?.codec || m.videoCodec) && { t: `${CODEC[v?.codec || m.videoCodec!] || (v?.codec || m.videoCodec!).toUpperCase()}${v?.bitDepth && v.bitDepth > 8 ? ` ${v.bitDepth}-bit` : ''}` },
-    v?.frameRate && { t: `${+v.frameRate.toFixed(3)} fps` },
-    mainAudio && { t: `${audioName(mainAudio)} ${channels(mainAudio)}`.trim() },
+    (v?.codec || m.videoCodec) && { t: `${CODEC[v?.codec || m.videoCodec!] || (v?.codec || m.videoCodec!).toUpperCase()}${v?.bitDepth && v.bitDepth > 8 ? ` ${v.bitDepth}-bit` : ''}`, cls: 'vcodec' },
+    mainAudio && { t: `${audioName(mainAudio)} ${channels(mainAudio)}`.trim(), cls: 'acodec' },
     mainAudio && atmos(mainAudio) && { t: 'Atmos', cls: 'hdr' },
     mainAudio && dtsx(mainAudio) && { t: 'DTS:X', cls: 'hdr' },
-    (part?.container || m.container) && { t: (part?.container || m.container)!.toUpperCase() },
-    part?.size && { t: gb(part.size) },
-    m.bitrate && { t: mbps(m.bitrate) },
+    (part?.container || m.container) && { t: (part?.container || m.container)!.toUpperCase(), cls: 'container' },
+    part?.size && { t: gb(part.size), cls: 'size' },
   ].filter(Boolean) as { t: string; cls?: string }[];
   const trackName = (s: Stream) => s.extendedDisplayTitle || s.displayTitle || s.language || 'Unknown';
 
@@ -183,8 +196,12 @@ export function FileInfo({ item }: { item: Item }) {
           </span>
         ))}
         {item.Media!.length > 1 && <span className="tech">{item.Media!.length} versions</span>}
+        {reading && <span className="muted small file-reading">Reading the file's details…</span>}
       </div>
-      {streams.length > 0 && <dl className="specs">
+      {m.unreadable && (
+        <p className="muted small file-unreadable">Plex and Vanta couldn't read this file's tracks. It may be damaged or incomplete on the server.</p>
+      )}
+      {streams.length > 0 && <dl className="specs" title={m.probed ? "Read from the file by Vanta (Plex hasn't analyzed it)" : undefined}>
         {v && (
           <>
             <dt>Video</dt>

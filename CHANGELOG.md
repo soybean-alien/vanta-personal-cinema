@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.3 (2026-10-24)
+
+- **Restyled details page** for movies and TV shows: gold titles, the director in cyan, a red Play button and a glowing gold edge on the cover.
+- File tags are color-coded: video codec orange, audio pink, container purple, size green. The frame rate and bitrate tags are gone.
+- The Video, Audio and Subtitles details are bright yellow, under bold glowing labels.
+- **Missing file details filled in:** when Plex never analyzed a file, Vanta reads its tracks itself (nothing changes on the server) and remembers them. A file nothing can read is marked as possibly damaged.
+
 ## 2.1.2 (2026-10-24)
 
 - The details page no longer shows the file name. The file's video, audio and subtitle details stay.

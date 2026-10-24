@@ -455,6 +455,7 @@ async function play(ratingKey, opts, events) {
 }
 
 module.exports = {
+  findMpv,
   play,
   stop,
   isPlaying: () => !!current,
