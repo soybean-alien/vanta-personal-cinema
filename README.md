@@ -33,7 +33,7 @@ stays out of the way. And now, watching earns you something.
 - **Plays everything, untouched.** Files play directly in mpv, so 4K HDR, HEVC, lossless audio and image subtitles reach your screen as they are, with no transcoding.
 - **Built for the couch.** Every screen works with the keyboard or an Xbox controller, and you sign in once.
 
-> Release: **2.1.2**, with more cast birthdays, on top of 2.1's Trakt sync and 2.0, the biggest update yet (the new
+> Release: **2.1.3**, with a restyled details page and more cast birthdays, on top of 2.1's Trakt sync and 2.0, the biggest update yet (the new
 > details page, automatic subtitles, Spotify, full backups, themes and much more). For Windows 10 and 11, with Plex Media Server on the same PC or on
 > another PC in your home network.
 ---
@@ -100,8 +100,10 @@ Open any film or episode for a page that puts everything in one place, laid dire
   server's metadata, and the **Trakt** score is live, all with no setup. A free OMDb key in **Settings → Scores and
   cast** makes IMDb and Rotten Tomatoes live too and adds **Metacritic**. Hover any score to see where it came from and
   how fresh it is; a green dot means live.
-- **The file itself.** Tags for resolution, HDR10 / Dolby Vision / HLG, codec and bit depth, frame rate, audio format
-  and channels (Atmos and DTS:X are called out), container, size and bitrate, then every audio and subtitle track.
+- **The file itself.** Color-coded tags for resolution, HDR10 / Dolby Vision / HLG, codec and bit depth, audio format
+  and channels (Atmos and DTS:X are called out), container and size, then every audio and subtitle track. If Plex never
+  analyzed a file, Vanta reads its tracks itself (from your server, nothing is changed) and says so if the file is
+  damaged.
 - **People.** Directed by and Written by under the title, and a Cast & Crew row with photos, characters, birthdays,
   age today or the day they died, a gold badge with their age in this film, and a 🎂 on their birthday. Birthdays and
   deaths come from [TMDB](https://www.themoviedb.org) (the free key from Settings → Library) and are re-checked monthly.
@@ -347,7 +349,7 @@ Plex music libraries and photo libraries. Vanta shows your video libraries, plus
 
 ## Install
 
-1. Download **`Vanta-Setup-2.1.2.exe`** (or newer) from the [Releases](../../releases) page.
+1. Download **`Vanta-Setup-2.1.3.exe`** (or newer) from the [Releases](../../releases) page.
 2. Run it. Windows SmartScreen may say *"Windows protected your PC"* because the installer isn't code-signed.
    Click **More info → Run anyway**.
 3. Pick an install folder (or keep the default) and finish. Vanta adds shortcuts to the **Start Menu** and the **Desktop**.

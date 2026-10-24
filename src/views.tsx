@@ -525,7 +525,7 @@ function DetailBody({ item, kids: children, next }: { item: Item; kids: Item[]; 
   const cover = (item.type === 'collection' && children[0]?.thumb) || item.thumb || item.composite;
 
   return (
-    <div className="detail">
+    <div className="detail item-detail">
       {(item.art || item.grandparentArt) && (
         <div className="backdrop" style={{ backgroundImage: `url("${img(item.art || item.grandparentArt, 1600, 900)}")` }} />
       )}
@@ -536,7 +536,7 @@ function DetailBody({ item, kids: children, next }: { item: Item; kids: Item[]; 
           {item.type === 'episode' && <h3>{item.title}</h3>}
           {(item.Director?.length || item.Writer?.length) && (
             <div className="credits-line">
-              {item.Director?.length ? <span>Directed by <b>{names(item.Director)}</b></span> : null}
+              {item.Director?.length ? <span>Directed by <b className="director">{names(item.Director)}</b></span> : null}
               {item.Writer?.length ? <span>Written by <b>{names(item.Writer.slice(0, 3))}</b></span> : null}
             </div>
           )}
