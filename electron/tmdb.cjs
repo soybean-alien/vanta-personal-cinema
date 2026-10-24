@@ -128,4 +128,17 @@ async function collections(refs) {
   return { byFilm: out, looked: todo.length, failed };
 }
 
-module.exports = { status, setKey, collections };
+// For backups: the key and the cache come back on a new install without asking TMDB again.
+function restore(k, c) {
+  if (k && typeof k === 'string') {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    fs.writeFileSync(file('tmdb.bin'), safeStorage.encryptString(k));
+    key = k;
+  }
+  if (c && typeof c === 'object') {
+    cache = { ...c, ...loadCache() };
+    saveCache();
+  }
+}
+
+module.exports = { status, setKey, collections, call, hasKey: () => !!loadKey(), backupKey: () => loadKey(), backupCache: () => loadCache(), restore };

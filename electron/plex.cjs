@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const safefile = require('./safefile.cjs');
 
 const PRODUCT = 'Vanta';
 const VERSION = require('../package.json').version;
@@ -19,11 +20,7 @@ const file = (name) => path.join(app.getPath('userData'), name);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function loadSettings() {
-  try {
-    settings = JSON.parse(fs.readFileSync(file('settings.json'), 'utf8'));
-  } catch {
-    settings = {};
-  }
+  settings = safefile.readJson(file('settings.json')) || {}; // falls back to settings.json.bak if damaged
   if (!settings.clientId) {
     settings.clientId = crypto.randomUUID();
     saveSettings();
@@ -32,7 +29,7 @@ function loadSettings() {
 
 function saveSettings() {
   fs.mkdirSync(app.getPath('userData'), { recursive: true });
-  fs.writeFileSync(file('settings.json'), JSON.stringify(settings, null, 2));
+  safefile.writeJson(file('settings.json'), settings); // crash-safe, keeps the previous version as .bak
 }
 
 const DEFAULT_PREFS = {
@@ -44,6 +41,7 @@ const DEFAULT_PREFS = {
     audioLang: 'default',
     subLang: 'english',
     subMode: 'smart', // off | smart | always
+    autoSubs: true, // find English subtitles for files without any (subtitles.cjs)
     hwdec: true,
     quality: 'default', // default | hq | sharp
     smoothMotion: false,
@@ -312,4 +310,13 @@ module.exports = {
   setMeta,
   setPrefs,
   getSession: () => session,
+  // For backups (backup.cjs): the sign-in and the settings that make a new install match this one.
+  // The device id (clientId) stays per install, so two PCs are never mistaken for one by Plex.
+  backupState: () => ({ token: loadToken(), serverId: settings.serverId || null, preferredUser: settings.preferredUser || '' }),
+  restoreState(s) {
+    if (s?.token && typeof s.token === 'string') saveToken(s.token);
+    if (s?.serverId) settings.serverId = s.serverId;
+    if (s?.preferredUser) settings.preferredUser = s.preferredUser;
+    saveSettings();
+  },
 };

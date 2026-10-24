@@ -8,6 +8,12 @@ const health = require('./health.cjs');
 const updater = require('./updater.cjs');
 const badges = require('./badges.cjs');
 const tmdb = require('./tmdb.cjs');
+const details = require('./details.cjs');
+const history = require('./history.cjs');
+const backup = require('./backup.cjs');
+const spotify = require('./spotify.cjs');
+const myCollections = require('./my-collections.cjs');
+const subtitles = require('./subtitles.cjs');
 
 const overlay = require('./badge-overlay.cjs');
 const CATALOG = require('./badge-catalog.json');
@@ -125,7 +131,8 @@ app.whenReady().then(() => {
   protocol.handle('plximg', (req) => {
     const u = new URL(req.url);
     const thumb = u.searchParams.get('u');
-    if (!thumb || !thumb.startsWith('/')) return new Response(null, { status: 400 });
+    // Library artwork ('/library/...'), or Plex's own cast and crew photos, which the server's transcoder fetches.
+    if (!thumb || !(thumb.startsWith('/') || /^https:\/\/metadata-static\.plex\.tv\//.test(thumb))) return new Response(null, { status: 400 });
     return plex.image(thumb, u.searchParams.get('w') || '300', u.searchParams.get('h') || '450');
   });
 
@@ -157,6 +164,32 @@ app.whenReady().then(() => {
   handle('tmdb:status', () => tmdb.status());
   handle('tmdb:setKey', (k) => tmdb.setKey(k));
   handle('tmdb:collections', (refs) => tmdb.collections(refs || {}));
+  handle('details:status', () => details.status());
+  handle('details:setKey', (service, k) => details.setKey(service, k));
+  handle('details:scores', (ids) => details.liveScores(ids || {}));
+  handle('details:cast', (req) => details.cast(req));
+  handle('history:all', () => history.all());
+  handle('history:record', (meta) => history.record(meta));
+  handle('history:forget', (guid) => history.forget(guid));
+  handle('history:merge', (entries) => history.merge(entries));
+  handle('backup:export', (opts) => backup.exportTo(win, opts || {}));
+  handle('backup:import', (opts) => backup.importFrom(win, opts || {}));
+  handle('backup:restart', () => backup.restart());
+  handle('subs:enqueue', (rks) => subtitles.enqueue(rks));
+  handle('subs:status', () => subtitles.status());
+  handle('subs:import', (meta) => subtitles.importFor(win, meta));
+  handle('mycol:get', () => myCollections.get());
+  handle('mycol:assign', (guid, key, name) => myCollections.assign(guid, key, name));
+  handle('mycol:unassign', (guid) => myCollections.unassign(guid));
+  handle('spotify:status', () => spotify.status());
+  handle('spotify:setClientId', (id) => spotify.setClientId(id));
+  handle('spotify:connect', () => spotify.connect());
+  handle('spotify:disconnect', () => spotify.disconnect());
+  handle('spotify:library', () => spotify.library());
+  handle('spotify:nowPlaying', () => spotify.nowPlaying());
+  handle('spotify:devices', () => spotify.devices());
+  handle('spotify:play', (uri, deviceId) => spotify.playUri(uri, deviceId));
+  handle('spotify:control', (action) => spotify.control(action));
   handle('badges:get', () => badges.state());
   handle('badges:take', () => (player.isPlaying() ? [] : pendingBadges.splice(0)));
   handle('badges:setFavorites', (ids) => badges.setFavorites(ids));

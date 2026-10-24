@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.0.0 (2026-10-23)
+
+The biggest update yet.
+
+- **Details page:** live scores (IMDb, Rotten Tomatoes critics and audience, Metacritic, TMDB, Trakt), the file's real video, audio and subtitle data, director and writers, tagline, certificate and an "Ends at" time.
+- **Cast & Crew:** birthdays, age today, age in this film, and the date of death for those who have passed. Click a person to see every title in your library with them, with their age in each.
+- **Automatic English subtitles** for files that have none: exact-file matches by fingerprint first, then the closest release; fetched in the background and at Play, ads removed, kept on your PC. Add your own .srt from the item menu.
+- **Music (Spotify):** playlists, saved albums and recently played, played on your Spotify devices, with a large now-playing view (cover, song, artist, album, year, playlist). Connected in Settings → Music.
+- **Backup and restore:** one file with badges, watch dates, collections, every setting, per-library filters and caches; with a password, also your Plex sign-in and keys (AES-256). Restore from the sign-in screen of a fresh install for zero setup.
+- **Crash-safe data:** every data file is written atomically with a last-good backup copy.
+- **Last watched:** a neon-green MM/DD/YYYY date on watched posters and details pages, kept in Vanta's own watch log.
+- **Watched at 80%:** stopping at 80% or later marks a title watched; earlier stays in Continue Watching.
+- **Continue Watching** is now its own sidebar page covering every library; the row is gone from the library pages.
+- **Add to collection:** put any film into a series folder or a new collection; the Collections page now summarises every series (Plex, TMDB and yours).
+- **Themes:** nine color themes.
+- **Cover size slider** in every library header, live.
+- **Sidebar order** is yours to set in Settings → Sidebar.
+- **Badge showcase** holds up to nine.
+- The unwatched corner flag is larger.
+- Badges: development has slowed for now; the roadmap is TBD.
 ## 1.6.0 (2026-10-23)
 
 - **Series folders.** In movie libraries, a series and its sequels fold into one folder poster with the first film's cover, stacked cards and a film count. A folder sits where its first film would in your current sort and filters.
