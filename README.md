@@ -33,8 +33,8 @@ stays out of the way. And now, watching earns you something.
 - **Plays everything, untouched.** Files play directly in mpv, so 4K HDR, HEVC, lossless audio and image subtitles reach your screen as they are, with no transcoding.
 - **Built for the couch.** Every screen works with the keyboard or an Xbox controller, and you sign in once.
 
-> Release: **2.1.0**, adding Trakt sync to 2.0, the biggest update yet (the new details page, automatic subtitles,
-> Spotify, full backups, themes and much more). For Windows 10 and 11, with Plex Media Server on the same PC or on
+> Release: **2.1.1**, with more cast birthdays, on top of 2.1's Trakt sync and 2.0, the biggest update yet (the new
+> details page, automatic subtitles, Spotify, full backups, themes and much more). For Windows 10 and 11, with Plex Media Server on the same PC or on
 > another PC in your home network.
 ---
 
@@ -105,6 +105,9 @@ Open any film or episode for a page that puts everything in one place, laid dire
 - **People.** Directed by and Written by under the title, and a Cast & Crew row with photos, characters, birthdays,
   age today or the day they died, a gold badge with their age in this film, and a 🎂 on their birthday. Birthdays and
   deaths come from [TMDB](https://www.themoviedb.org) (the free key from Settings → Library) and are re-checked monthly.
+  When TMDB has no birthday, Vanta asks [Wikidata](https://www.wikidata.org) (by the person's IMDb or Wikidata id),
+  then Trakt, then [TVmaze](https://www.tvmaze.com) (only when exactly one person there has that exact name). Only
+  exact dates are used, and hovering a person shows where their birthday came from.
 - **Click a person** for a page of everything in your library with them, newest first, with their age in each film.
 
 ## Subtitles
@@ -344,7 +347,7 @@ Plex music libraries and photo libraries. Vanta shows your video libraries, plus
 
 ## Install
 
-1. Download **`Vanta-Setup-2.1.0.exe`** (or newer) from the [Releases](../../releases) page.
+1. Download **`Vanta-Setup-2.1.1.exe`** (or newer) from the [Releases](../../releases) page.
 2. Run it. Windows SmartScreen may say *"Windows protected your PC"* because the installer isn't code-signed.
    Click **More info → Run anyway**.
 3. Pick an install folder (or keep the default) and finish. Vanta adds shortcuts to the **Start Menu** and the **Desktop**.
@@ -466,6 +469,7 @@ Choose how in **Settings → Updates → When an update is out**:
 - **The token is encrypted** with Windows' own data protection (DPAPI) and stored in `%APPDATA%\vanta\auth.bin`. Only your Windows user can decrypt it.
 - **Vanta talks to three places:** plex.tv (sign-in and finding your server), your own Plex Media Server, and GitHub (to check this repository for updates, unless you choose *Only when I check*).
 - **Only if you add a TMDB key:** The Movie Database, to find series and the cast's birthdays. Vanta sends it only each title's TMDB or IMDb id and TMDB person ids. Answers are cached on your PC (`tmdb-cache.json`, `credits-cache.json`, `people-cache.json`), and the key is encrypted like your sign-in (`tmdb.bin`).
+- **Cast birthdays TMDB doesn't have:** Wikidata gets the person's IMDb or Wikidata id, Trakt their TMDB person id, and TVmaze their name. Nothing about you or your library is sent.
 - **Trakt, for scores:** each details page asks Trakt for that title's score, sending only its IMDb id.
 - **Trakt, only if you connect it:** your watch history goes to your Trakt account: the IMDb/TMDB/TVDB ids and dates of what you've watched, nothing else (no file names, no server details). The sign-in is encrypted in `trakt-auth.bin`; Disconnect deletes it.
 - **OMDb, only if you add its key:** for live scores. It gets only a title's IMDb id. The key is encrypted (`omdb.bin`).
@@ -534,7 +538,7 @@ No Plex code or copyrighted media is included in this repository. The only artwo
 - Series, cast and score information from [The Movie Database (TMDB)](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB.
 - Scores and watch-history sync with [Trakt](https://trakt.tv), optional scores from [OMDb](https://www.omdbapi.com); music from [Spotify](https://www.spotify.com) through its Web API. Vanta isn't affiliated with or endorsed by any of them.
 - Subtitles found through [OpenSubtitles](https://www.opensubtitles.org) and [YTS-Subs](https://yts-subs.com), written and shared by their communities.
-- **AI disclosure:** Vanta was designed with and written by **Claude Code (Anthropic, Claude Opus 5.5)**, directed and tested by the author on a real two-PC home setup (Plex Media Server on one PC, Vanta on another) before release. For 1.5, badges were tested end to end on that setup: a real episode streamed from the server and finished, and its unlock ticket appeared inside the player with the account's own profile picture. For 1.6, series folders were checked against the author's real library: 227 of its 605 films grouped into 61 series folders through TMDB, and a folder opened with its films in release order. For 2.0, the details page, cast lifetimes, automatic subtitles, Add to collection, the watch log, backup and restore, themes and the cover slider were each exercised against the author's real library on that setup; the Music page was checked with sample data only, since no Spotify account was connected during testing. For 2.1, Trakt sync was tested on the author's own Trakt account: device sign-in, a full sync of 109 watched titles, and a live add and remove of one film.
+- **AI disclosure:** Vanta was designed with and written by **Claude Code (Anthropic, Claude Opus 5.5)**, directed and tested by the author on a real two-PC home setup (Plex Media Server on one PC, Vanta on another) before release. For 1.5, badges were tested end to end on that setup: a real episode streamed from the server and finished, and its unlock ticket appeared inside the player with the account's own profile picture. For 1.6, series folders were checked against the author's real library: 227 of its 605 films grouped into 61 series folders through TMDB, and a folder opened with its films in release order. For 2.0, the details page, cast lifetimes, automatic subtitles, Add to collection, the watch log, backup and restore, themes and the cover slider were each exercised against the author's real library on that setup; the Music page was checked with sample data only, since no Spotify account was connected during testing. For 2.1, Trakt sync was tested on the author's own Trakt account: device sign-in, a full sync of 109 watched titles, and a live add and remove of one film. For 2.1.1, the extra birthday sources were measured on 13 of the author's films: 286 of 485 cast and crew had a birthday, up from 266 with TMDB alone.
 
 ## Feedback
 Your reports shape what comes next. Please open an issue and include:

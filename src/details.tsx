@@ -342,7 +342,15 @@ function CastCard({ credit, life, loading, release, inThis, onOpen }: { credit: 
   const ageAtDeath = birth && dead ? ageOn(birth, day(life!.deathday!)) : undefined;
   const ageThen = birth && release && release >= day(birth) ? ageOn(birth, release) : undefined;
   const bday = birth && !dead && isBirthdayToday(birth);
-  const tip = [person.tag, label, life?.place && `Born in ${life.place}`].filter(Boolean).join('\n');
+  const tip = [
+    person.tag,
+    label,
+    life?.place && `Born in ${life.place}`,
+    birth && life?.src && `Birthday from ${life.src}`,
+    dead && life?.deathSrc && `Death from ${life.deathSrc}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   return (
     <button className={`cast-card ${dead ? 'dead' : ''}`} data-nav title={tip} onClick={onOpen}>
