@@ -18,6 +18,7 @@ const plex = require('./plex.cjs');
 const tmdb = require('./tmdb.cjs');
 const details = require('./details.cjs');
 const spotify = require('./spotify.cjs');
+const trakt = require('./trakt.cjs');
 const myCollections = require('./my-collections.cjs');
 
 const KIND = 'vanta-backup';
@@ -51,7 +52,7 @@ async function exportTo(win, opts = {}) {
     filters: [{ name: 'Vanta backup', extensions: ['json'] }],
   });
   if (canceled || !filePath) return { canceled: true };
-  const secrets = { plex: plex.backupState(), tmdb: tmdb.backupKey(), ...details.backupKeys(), spotify: spotify.backupState() };
+  const secrets = { plex: plex.backupState(), tmdb: tmdb.backupKey(), ...details.backupKeys(), spotify: spotify.backupState(), traktAuth: trakt.backupState() };
   const data = {
     kind: KIND,
     version: VERSION,
@@ -113,6 +114,7 @@ async function importFrom(win, opts = {}) {
   if (secrets) {
     details.restoreKeys(secrets);
     spotify.restoreState(secrets.spotify);
+    trakt.restoreState(secrets.traktAuth);
     plex.restoreState(secrets.plex);
   }
   // Preferences come back as they were, except pinned views, which are added to the ones already here.

@@ -9,6 +9,7 @@ const plex = require('./plex.cjs');
 const overlay = require('./badge-overlay.cjs');
 const history = require('./history.cjs');
 const subtitles = require('./subtitles.cjs');
+const trakt = require('./trakt.cjs');
 
 const PIPE = '\\\\.\\pipe\\vanta-mpv';
 const REPORT_EVERY_MS = 10000;
@@ -205,6 +206,7 @@ async function finishItem(c) {
   await timeline('stopped', c, it);
   if (c.duration && c.time / c.duration >= WATCHED_AT) {
     history.record(it.m); // Vanta's own copy of the date, in case Plex ever loses it
+    trakt.watched(it.m); // and your Trakt history, when connected (best effort)
     try {
       await plex.pms(`/:/scrobble?key=${it.ratingKey}&identifier=com.plexapp.plugins.library`);
     } catch {}

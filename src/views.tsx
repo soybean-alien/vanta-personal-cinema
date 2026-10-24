@@ -29,6 +29,7 @@ import {
   titlesFor,
   watchedOn,
   loadWatchLog,
+  TraktStatus,
 } from './api';
 import { BackupPanel, Choice, Modal, Poster, PosterSize, THEMES, applyTheme, navEntries, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
 import { CHIMES, playChime, previewBadgeToast } from './badges';
@@ -776,6 +777,136 @@ const LANG_OPTIONS: [string, string][] = [
   ['hindi', 'Hindi'],
 ];
 
+// The old "paste a Trakt client ID" field, shown only while this build has no Trakt app id of its own.
+function TraktKeyIfNeeded() {
+  const [builtIn, setBuiltIn] = useState(true);
+  useEffect(() => {
+    window.plex.detailsStatus().then((s) => setBuiltIn(!!s.traktBuiltIn));
+  }, []);
+  if (builtIn) return null;
+  return (
+    <ServiceKey
+      service="trakt"
+      label="Trakt scores (optional)"
+      placeholder="Paste your Trakt client ID"
+      hint="Free from trakt.tv (Settings → Your API Apps → New Application; any redirect URI). Vanta sends Trakt only each title’s IMDb id."
+    />
+  );
+}
+
+// Settings → Trakt: sign in on Trakt's own page (no key to paste, no secret anywhere), then Vanta keeps your Trakt
+// history in step: each watch as it happens, and Sync now for everything. Plex's watched status is never changed.
+function TraktSection() {
+  const ctx = useApp();
+  const [s, setS] = useState<TraktStatus>();
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState(''); // the device code shown while waiting for approval on trakt.tv
+  useEffect(() => {
+    window.plex.traktStatus().then(setS);
+  }, []);
+  if (!s?.available) return null;
+  const syncNow = async () => {
+    setBusy(true);
+    setMsg('Syncing with Trakt... (a big library can take a minute)');
+    const r = await window.plex.traktSync();
+    setBusy(false);
+    if ('error' in r) return setMsg(r.error);
+    setMsg(`Synced: ${r.pushed} sent to Trakt, ${r.pulled} watch dates from Trakt.${r.notFound ? ` ${r.notFound} titles Trakt didn't recognise.` : ''}`);
+    setS(await window.plex.traktStatus());
+    await loadWatchLog();
+    ctx.bump();
+  };
+  return (
+    <>
+      <h2>Trakt</h2>
+      <div className="field" style={{ marginTop: 4 }}>
+        <span>Trakt: {s.connected ? `✓ connected as ${s.user?.name || s.user?.username}` : code ? 'waiting for you to approve on Trakt…' : 'not connected'}</span>
+        {code && (
+          <div className="trakt-code" title="Click to copy" onClick={() => navigator.clipboard?.writeText(code).catch(() => {})}>
+            {code}
+          </div>
+        )}
+        <div className="pin-row">
+          {!s.connected ? (
+            code ? (
+              <button
+                className="tool"
+                data-nav
+                onClick={async () => {
+                  setS(await window.plex.traktConnectCancel());
+                  setCode('');
+                  setMsg('');
+                }}
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                className="play"
+                data-nav
+                disabled={busy}
+                onClick={async () => {
+                  // Device sign-in: show the code, open trakt.tv/activate, then wait for the approval.
+                  const r = await window.plex.traktConnect();
+                  if ('error' in r) return setMsg(r.error);
+                  setCode(r.userCode);
+                  setMsg(
+                    `Enter this code at ${r.url.replace(/^https?:\/\//, '')} (it’s open in your browser) and approve Vanta. Have more than one Trakt account? Use a private window so the right one approves.`,
+                  );
+                  const w = await window.plex.traktConnectWait();
+                  setCode('');
+                  if ('error' in w) return setMsg(w.error);
+                  setS(w);
+                  setMsg(`Connected as ${w.user?.name || w.user?.username}. Run Sync now once to bring both sides in step.`);
+                }}
+              >
+                Connect Trakt
+              </button>
+            )
+          ) : (
+            <>
+              <button className="play" data-nav disabled={busy} onClick={syncNow}>
+                ⟳ Sync now
+              </button>
+              <button
+                className="tool"
+                data-nav
+                disabled={busy}
+                onClick={async () => {
+                  setS(await window.plex.traktDisconnect());
+                  setMsg('Disconnected. Vanta no longer keeps any Trakt sign-in on this PC.');
+                }}
+              >
+                Disconnect
+              </button>
+            </>
+          )}
+        </div>
+        {s.connected && (
+          <div style={{ marginTop: 6 }}>
+            <Switch
+              label="Send what I watch to Trakt"
+              hint="On: each film or episode Vanta marks watched (80% or Mark watched) is added to your Trakt history right away; Mark unwatched removes it."
+              value={s.autoSync}
+              onChange={(traktAutoSync) => {
+                ctx.setPrefs({ ui: { traktAutoSync } });
+                setS({ ...s, autoSync: traktAutoSync });
+              }}
+            />
+          </div>
+        )}
+        <p className="muted small">
+          {msg ||
+            (s.connected
+              ? `${s.lastSync ? `Last sync ${new Date(s.lastSync.at).toLocaleString()}: ${s.lastSync.pushed} sent, ${s.lastSync.pulled} dates from Trakt. ` : ''}Sync now sends your Plex watch history to Trakt and copies Trakt's dates into Vanta's watch log. It never changes watched status in Plex.`
+              : 'Click Connect Trakt, then enter the code Vanta shows at trakt.tv/activate. There’s no key to paste and no password for Vanta to see. Only the sign-in Trakt gives back is kept on this PC, encrypted, and Disconnect deletes it.')}
+        </p>
+      </div>
+    </>
+  );
+}
+
 // Settings → Audio & subtitles: English subtitles found automatically for files that have none.
 function AutoSubs({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   const [s, setS] = useState<{ found: number; none: number; queued: number }>();
@@ -1037,12 +1168,8 @@ export function Settings({ onSignOut, username }: { onSignOut: () => void; usern
         birthday and age once a TMDB key is set (above). These optional keys make the scores live and add Trakt and
         Metacritic.
       </p>
-      <ServiceKey
-        service="trakt"
-        label="Trakt scores (optional)"
-        placeholder="Paste your Trakt client ID"
-        hint="Free from trakt.tv (Settings → Your API Apps → New Application; any redirect URI). Vanta sends Trakt only each title’s IMDb id."
-      />
+      {/* With Vanta's own Trakt app id built in, Trakt scores need no key. */}
+      <TraktKeyIfNeeded />
       <ServiceKey
         service="omdb"
         label="Live IMDb, Rotten Tomatoes and Metacritic (optional)"
@@ -1128,6 +1255,8 @@ export function Settings({ onSignOut, username }: { onSignOut: () => void; usern
         </button>
       </div>
       <p className="muted small">Badges are earned by watching in Vanta. The unlock sound is original to Vanta and plays softly.</p>
+
+      <TraktSection />
 
       <h2>Music</h2>
       <SpotifySettings />

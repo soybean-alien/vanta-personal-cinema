@@ -14,6 +14,7 @@ const backup = require('./backup.cjs');
 const spotify = require('./spotify.cjs');
 const myCollections = require('./my-collections.cjs');
 const subtitles = require('./subtitles.cjs');
+const trakt = require('./trakt.cjs');
 
 const overlay = require('./badge-overlay.cjs');
 const CATALOG = require('./badge-catalog.json');
@@ -175,6 +176,17 @@ app.whenReady().then(() => {
   handle('backup:export', (opts) => backup.exportTo(win, opts || {}));
   handle('backup:import', (opts) => backup.importFrom(win, opts || {}));
   handle('backup:restart', () => backup.restart());
+  handle('trakt:status', () => trakt.status());
+  handle('trakt:connect', () => trakt.startConnect());
+  handle('trakt:connectWait', () => trakt.waitConnect());
+  handle('trakt:connectCancel', () => trakt.cancelConnect());
+  handle('trakt:disconnect', () => trakt.disconnect());
+  handle('trakt:sync', () => trakt.sync());
+  // Mark watched / unwatched in the UI: the item is read back from Plex with its ids, then sent to Trakt.
+  handle('trakt:mark', async (ratingKey, watched) => {
+    const m = (await plex.pms(`/library/metadata/${encodeURIComponent(ratingKey)}?includeGuids=1`))?.MediaContainer?.Metadata?.[0];
+    return watched ? trakt.watched(m) : trakt.unwatched(m);
+  });
   handle('subs:enqueue', (rks) => subtitles.enqueue(rks));
   handle('subs:status', () => subtitles.status());
   handle('subs:import', (meta) => subtitles.importFor(win, meta));
