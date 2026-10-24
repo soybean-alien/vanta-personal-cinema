@@ -205,6 +205,12 @@ export interface LiveScores {
   errors: string[];
   at: number;
 }
+export interface BoxOffice {
+  budget: number | null;
+  opening: number | null; // domestic (US) opening weekend
+  worldwide: number | null;
+  src: string[];
+}
 export interface Life {
   id: number;
   birthday: string | null; // 'YYYY-MM-DD'
@@ -508,6 +514,8 @@ declare global {
       castLives(req: { kind: 'movie' | 'show'; tmdb?: string; names: string[] }): Promise<{ people: Record<string, Life>; noKey?: boolean } | { error: string }>;
       // File details read from the file itself when Plex never analyzed it (null when Plex already has them).
       fileDetails?(ratingKey: string): Promise<Media[] | null | { error: string }>;
+      // Budget, US opening weekend and worldwide gross in dollars (null where unknown), for the movie grid.
+      boxOffice?(ratingKey: string): Promise<BoxOffice | null | { error: string }>;
       devGrantBadge?(id: string): Promise<void>;
       devPatronLapse?(): Promise<boolean>;
       onBadgesEarned(cb: () => void): () => void;

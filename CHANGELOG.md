@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.4 (2026-10-24)
+
+- **Box office numbers** under every movie cover in the library grid: budget - US opening weekend - worldwide gross, from Box Office Mojo, with TMDB filling gaps. Unknown numbers are left out; series folders show their films' combined worldwide gross. Hover for exact amounts and the source.
+- Movie titles in the grid are centered under the numbers, without the year. Both scale with the poster size slider.
+
 ## 2.1.3 (2026-10-24)
 
 - **Restyled details page** for movies and TV shows: gold titles, the director in cyan, a red Play button and a glowing gold edge on the cover.

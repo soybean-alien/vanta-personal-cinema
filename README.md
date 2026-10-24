@@ -33,8 +33,9 @@ stays out of the way. And now, watching earns you something.
 - **Plays everything, untouched.** Files play directly in mpv, so 4K HDR, HEVC, lossless audio and image subtitles reach your screen as they are, with no transcoding.
 - **Built for the couch.** Every screen works with the keyboard or an Xbox controller, and you sign in once.
 
-> Release: **2.1.3**, with a restyled details page and more cast birthdays, on top of 2.1's Trakt sync and 2.0, the biggest update yet (the new
-> details page, automatic subtitles, Spotify, full backups, themes and much more). For Windows 10 and 11, with Plex Media Server on the same PC or on
+> Release: **2.1.4**, with box office numbers under every movie, a restyled details page and more cast birthdays, on
+> top of 2.1's Trakt sync and 2.0, the biggest update yet (the new details page, automatic subtitles, Spotify, full
+> backups, themes and much more). For Windows 10 and 11, with Plex Media Server on the same PC or on
 > another PC in your home network.
 ---
 
@@ -264,6 +265,7 @@ quality, and without anything competing for your attention.
 | **Series folders** | Sequels and prequels share one folder poster with the first film's cover. Open it for every film in release order, Play all or Shuffle. See [Series folders](#series-folders). |
 | **Libraries at a glance** | Your movie and TV libraries in the sidebar, opening straight into a fast poster wall. Unwatched corners, episode counts and progress bars show where you are. |
 | **Resolution tags** | Every poster in the library grid shows its file resolution: **4K** purple, **1080p** blue, **720p** green, lower in red. TV shows use the resolution most of their episodes have. |
+| **Box office** | Under every movie cover in the library grid: budget - US opening weekend - worldwide gross (for example 165M - 41M - 411M), from Box Office Mojo and TMDB. Unknown numbers are left out; a series folder shows its films' combined worldwide gross. Hover for exact amounts. |
 | **Continue Watching** | Its own page in the sidebar: everything you started and didn't finish (under 80%), across every library, plus the next episode of each show you're following. |
 | **Details page** | Live scores, the file's real video and audio data, and Cast & Crew with birthdays, ages and lifetimes. See [Details page](#details-page). |
 | **Automatic subtitles** | English subtitles matched to your exact file, fetched in the background, plus your own .srt files. See [Subtitles](#subtitles). |
@@ -349,7 +351,7 @@ Plex music libraries and photo libraries. Vanta shows your video libraries, plus
 
 ## Install
 
-1. Download **`Vanta-Setup-2.1.3.exe`** (or newer) from the [Releases](../../releases) page.
+1. Download **`Vanta-Setup-2.1.4.exe`** (or newer) from the [Releases](../../releases) page.
 2. Run it. Windows SmartScreen may say *"Windows protected your PC"* because the installer isn't code-signed.
    Click **More info → Run anyway**.
 3. Pick an install folder (or keep the default) and finish. Vanta adds shortcuts to the **Start Menu** and the **Desktop**.
@@ -472,6 +474,7 @@ Choose how in **Settings → Updates → When an update is out**:
 - **Vanta talks to three places:** plex.tv (sign-in and finding your server), your own Plex Media Server, and GitHub (to check this repository for updates, unless you choose *Only when I check*).
 - **Only if you add a TMDB key:** The Movie Database, to find series and the cast's birthdays. Vanta sends it only each title's TMDB or IMDb id and TMDB person ids. Answers are cached on your PC (`tmdb-cache.json`, `credits-cache.json`, `people-cache.json`), and the key is encrypted like your sign-in (`tmdb.bin`).
 - **Cast birthdays TMDB doesn't have:** Wikidata gets the person's IMDb or Wikidata id, Trakt their TMDB person id, and TVmaze their name. Nothing about you or your library is sent.
+- **Box office numbers:** Box Office Mojo gets each movie's IMDb id (and TMDB its TMDB id, with your key), only for movies on screen. Answers are cached on your PC (`boxoffice-cache.json`).
 - **Trakt, for scores:** each details page asks Trakt for that title's score, sending only its IMDb id.
 - **Trakt, only if you connect it:** your watch history goes to your Trakt account: the IMDb/TMDB/TVDB ids and dates of what you've watched, nothing else (no file names, no server details). The sign-in is encrypted in `trakt-auth.bin`; Disconnect deletes it.
 - **OMDb, only if you add its key:** for live scores. It gets only a title's IMDb id. The key is encrypted (`omdb.bin`).

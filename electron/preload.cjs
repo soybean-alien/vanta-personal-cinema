@@ -24,6 +24,7 @@ if (!new URLSearchParams(location.search).has('demo')) contextBridge.exposeInMai
   liveScores: (ids) => ipcRenderer.invoke('details:scores', ids),
   castLives: (req) => ipcRenderer.invoke('details:cast', req),
   fileDetails: (ratingKey) => ipcRenderer.invoke('details:file', ratingKey),
+  boxOffice: (ratingKey) => ipcRenderer.invoke('details:boxOffice', ratingKey),
   watchLog: () => ipcRenderer.invoke('history:all'),
   watchLogRecord: (meta) => ipcRenderer.invoke('history:record', meta),
   watchLogForget: (guid) => ipcRenderer.invoke('history:forget', guid),
