@@ -1,7 +1,7 @@
 // Vanta by soybean_alien
 // Re-records the README media from the real app running in demo mode (public-domain films and their posters):
-//   docs/demo.gif, docs/screenshot-movies.png, docs/screenshot-genres.png, docs/screenshot-connection.png,
-//   docs/screenshot-badges.png, docs/screenshot-ticket.png, tools/banner/app.png
+//   docs/demo.gif, docs/screenshot-{movies,genres,connection,details,cast,person,continue,music,collections,themes,
+//   backup,badges,ticket}.png, tools/banner/app.png
 // Usage: npm run build && node tools/demo/record.mjs
 // It launches Electron with --demo and a debug port, then drives the UI over the Chrome DevTools Protocol.
 import { spawn } from 'child_process';
@@ -50,11 +50,22 @@ const dismiss = (s) => js(`document.querySelector(${sel(s)})?.dispatchEvent(new 
 // ── GIF frames ─────────────────────────────────────────────────────────
 const frames = [];
 const frame = async (delay) => frames.push({ png: await png(), delay });
+const view = `document.querySelector('.view:not(.behind)')`;
+const scrollTo = (top) => js(`${view}.scrollTo({ top: ${top}, behavior: 'instant' })`);
+const intoView = (s) => js(`document.querySelector('.view:not(.behind) ${s}')?.scrollIntoView({ block: 'start', behavior: 'instant' })`);
+const slider = (px) =>
+  js(`(() => { const r = document.querySelector('.view:not(.behind) .poster-size input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(r, '${px}'); r.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+const openFilm = (title) => js(`[...document.querySelectorAll('.view:not(.behind) .poster')].find((p) => p.querySelector('.title').innerText.trim() === ${sel(title)}).click()`);
+const settingsAt = async (heading) => {
+  await js(`[...document.querySelectorAll('.view:not(.behind) .settings h2')].find((h) => h.textContent === ${sel(heading)}).scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  await sleep(300);
+};
 
 await sleep(2500); // fonts + posters
 
-// Screenshots for the README
-fs.writeFileSync(path.join(docs, 'screenshot-movies.png'), await png());
+// ── Screenshots for the README ─────────────────────────────────────────
+const shot = async (name) => fs.writeFileSync(path.join(docs, name), await png());
+await shot('screenshot-movies.png'); // library: resolution tags, last-watched dates, cover slider
 // The same view without scrollbars, for the banner's app window.
 await js(`document.head.insertAdjacentHTML('beforeend', '<style id="noscroll">* { scrollbar-width: none !important; }</style>')`);
 await sleep(200);
@@ -62,17 +73,46 @@ fs.writeFileSync(path.join(root, 'tools', 'banner', 'app.png'), await png());
 await js(`document.getElementById('noscroll').remove()`);
 await clickText('.view:not(.behind) .choice', 'Genre');
 await sleep(500);
-fs.writeFileSync(path.join(docs, 'screenshot-genres.png'), await png());
+await shot('screenshot-genres.png');
 await dismiss('.menu-backdrop');
 await click('.status');
 await sleep(700);
-fs.writeFileSync(path.join(docs, 'screenshot-connection.png'), await png());
+await shot('screenshot-connection.png');
 await dismiss('.modal-backdrop');
 await sleep(400);
+// 2.0: details page, cast, person page, Continue Watching, Music, collections, themes, backup
+await openFilm('Charade');
+await sleep(1200);
+await shot('screenshot-details.png');
+await intoView('.cast');
+await sleep(500);
+await shot('screenshot-cast.png');
+await clickText('.view:not(.behind) .cast-card', 'Cary Grant');
+await sleep(1000);
+await shot('screenshot-person.png');
+await clickText('.sidebar nav button', 'Continue Watching');
+await sleep(900);
+await shot('screenshot-continue.png');
+await clickText('.sidebar nav button', 'Music');
+await sleep(1200);
+await shot('screenshot-music.png');
+await clickText('.sidebar nav button', 'Silent Classics');
+await sleep(900);
+await clickText('.view:not(.behind) .tool', 'Collections');
+await sleep(1200);
+await shot('screenshot-collections.png');
+await clickText('.settings-btn', 'Settings');
+await sleep(800);
+await clickText('.view:not(.behind) .theme-swatch', 'Midnight Blue');
+await settingsAt('Theme');
+await shot('screenshot-themes.png');
+await clickText('.view:not(.behind) .theme-swatch', 'Vanta Gold');
+await settingsAt('Your data');
+await shot('screenshot-backup.png');
 // Badges: the page, and an unlock ticket drawn by the same code the player overlay uses (premultiplied BGRA -> PNG).
 await clickText('.settings-btn', 'Badges');
 await sleep(900);
-fs.writeFileSync(path.join(docs, 'screenshot-badges.png'), await png());
+await shot('screenshot-badges.png');
 const t = await js(`window.__vantaTicketBGRA('six-pack', Date.now(), 0, 1240)`);
 const raw = Buffer.from(t.b64, 'base64');
 const tp = new PNG({ width: t.w, height: t.h });
@@ -82,82 +122,67 @@ for (let i = 0; i < t.w * t.h; i++) {
   tp.data.set([un(raw[i * 4 + 2]), un(raw[i * 4 + 1]), un(raw[i * 4]), a], i * 4);
 }
 fs.writeFileSync(path.join(docs, 'screenshot-ticket.png'), PNG.sync.write(tp));
+console.log('wrote 13 screenshots');
+
+// ── The tour ───────────────────────────────────────────────────────────
+// library (dates, tags) → cover slider → Charade details → cast lifetimes → Cary Grant's page → Continue Watching →
+// Music → collections → badges + unlock ticket → themes → backup → library
 await clickText('.sidebar nav button', 'Movies');
 await sleep(900);
-console.log('wrote 5 screenshots');
-
-// The tour: badges page → an unlock ticket → library (resolution tags) → keyboard focus → detail → genre filter →
-// random → second library → collection → search → status → settings
+await frame(1800);
+await slider(105);
+await sleep(400);
+await frame(1100);
+await slider(260);
+await sleep(600);
+await frame(1100);
+await slider(150);
+await sleep(400);
+await openFilm('Charade');
+await sleep(1200);
+await frame(2600);
+await intoView('.file-info');
+await sleep(400);
+await frame(1600);
+await intoView('.cast');
+await sleep(500);
+await frame(2600);
+await clickText('.view:not(.behind) .cast-card', 'Cary Grant');
+await sleep(1000);
+await frame(2200);
+await clickText('.sidebar nav button', 'Continue Watching');
+await sleep(900);
+await frame(1500);
+await clickText('.sidebar nav button', 'Music');
+await sleep(1200);
+await frame(2600);
+await clickText('.sidebar nav button', 'Silent Classics');
+await sleep(900);
+await clickText('.view:not(.behind) .tool', 'Collections');
+await sleep(1100);
+await frame(1400);
 await clickText('.settings-btn', 'Badges');
 await sleep(900);
-await frame(1800);
-await js(`document.querySelector('.view:not(.behind)').scrollTo({ top: 330, behavior: 'instant' })`);
-await sleep(400);
 await frame(1300);
 await js(`window.__vantaDemoUnlock(['six-pack'])`);
 await sleep(1500);
-await frame(2600);
-await js(`document.querySelector('.view:not(.behind)').scrollTo({ top: 0, behavior: 'instant' })`);
-await clickText('.sidebar nav button', 'Movies');
-await sleep(900);
-await frame(1600);
-await key('ArrowRight');
-await frame(600);
-await key('ArrowRight');
-await frame(450);
-await key('ArrowRight');
-await frame(450);
-await key('ArrowDown');
-await frame(700);
-await key('Enter');
-await sleep(600);
-await frame(1700);
-await key('Escape');
-await sleep(300);
-await frame(600);
-await clickText('.view:not(.behind) .choice', 'Genre');
+await frame(2400);
+await clickText('.settings-btn', 'Settings');
+await sleep(800);
+await settingsAt('Theme');
+await frame(1100);
+await clickText('.view:not(.behind) .theme-swatch', 'Midnight Blue');
 await sleep(400);
 await frame(1100);
-await clickText('.menu button', 'Horror');
-await sleep(700);
-await frame(1200);
-await clickText('.view:not(.behind) .tool', 'Random');
-await sleep(600);
-await frame(1700);
-await dismiss('.modal-backdrop');
-await clickText('.view:not(.behind) .tool', 'Clear filters');
-await clickText('.sidebar nav button', 'Silent Classics');
-await sleep(900);
-await frame(1300);
-await clickText('.view:not(.behind) .grid .poster', 'Metropolis');
-await sleep(900);
-await frame(1600);
-await key('Escape');
-await clickText('.view:not(.behind) .tool', 'Collections');
-await sleep(900);
-await frame(1200);
-await clickText('.view:not(.behind) .poster', 'Buster Keaton');
-await sleep(900);
-await frame(1500);
-await js(`document.querySelector('.search').focus()`);
-await send('Input.insertText', { text: 'night' });
-await sleep(900);
-await frame(1600);
-await click('.status');
-await sleep(700);
-await frame(1800);
-await dismiss('.modal-backdrop');
-await click('.settings-btn');
-await sleep(700);
-await frame(1600);
-await js(`document.querySelector('.view:not(.behind)').scrollTo({ top: 520 })`);
+await clickText('.view:not(.behind) .theme-swatch', 'Emerald');
 await sleep(400);
-await frame(1300);
-await js(`(() => { const i = document.querySelector('.search'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ''); i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await frame(1000);
+await clickText('.view:not(.behind) .theme-swatch', 'Vanta Gold');
+await settingsAt('Your data');
+await frame(1700);
 await clickText('.sidebar nav button', 'Movies');
 await sleep(900);
-await frame(1400);
-
+await frame(1500);
 ws.close();
 app.kill();
 

@@ -2,7 +2,7 @@
 
 # Vanta: a private cinema for your Plex library
 
-![Vanta in action: badges, an unlock ticket, the library with resolution tags, genre filter, random pick, a collection and search (sample data)](docs/demo.gif)
+![Vanta 2.0 in action: the library with last-watched dates and the cover slider, a details page with scores, file info and Cast & Crew ages, a person page, Continue Watching, Music, collections, badges, themes and backup (sample data)](docs/demo.gif)
 
 **Vanta is a media library *viewer* for [Plex](https://www.plex.tv): a quiet, fast desktop app for browsing and watching
 the collection you've built yourself.** It opens straight into your movies and shows, plays everything through mpv, and
@@ -267,10 +267,33 @@ quality, and without anything competing for your attention.
 posters, each marked public domain on Wikimedia Commons (see [demo/posters/CREDITS.md](demo/posters/CREDITS.md)).
 Your own library shows your own cover art, straight from your Plex server.*
 
-**Your movie library, with resolution tags**
+**The details page: scores, the file's real data, and Cast & Crew** *(sample data: scores and file details are examples)*
 
-![Vanta's movie library with Continue Watching and a poster wall (sample data)](docs/screenshot-movies.png)
+![Charade's details page in Vanta with IMDb, Rotten Tomatoes, TMDB and Trakt scores, file tags and the audio and subtitle tracks (sample data)](docs/screenshot-details.png)
 
+**Cast ages and lifetimes, and a person's page**
+
+![Charade's Cast & Crew row with each person's birthday, the date they died, and their age in this film (sample data)](docs/screenshot-cast.png)
+
+![Cary Grant's page in Vanta: his birth and death dates and the two demo films he's in, with his age in each (sample data)](docs/screenshot-person.png)
+
+**Music, through Spotify** *(fictional sample artists and generated cover art)*
+
+![Vanta's Music page with the now-playing view: cover art, song, artist, album, year and the playlist it's playing from (sample data)](docs/screenshot-music.png)
+
+**Continue Watching, collections, themes and backup**
+
+![Vanta's Continue Watching page with three unfinished films (sample data)](docs/screenshot-continue.png)
+
+![A movie library's Collections summary page (sample data)](docs/screenshot-collections.png)
+
+![Settings → Theme with the Midnight Blue theme applied (sample data)](docs/screenshot-themes.png)
+
+![Settings → Your data, with Export backup and Restore from backup (sample data)](docs/screenshot-backup.png)
+
+**Your movie library, with resolution tags and last-watched dates**
+
+![Vanta's movie library with resolution tags, a last-watched date and the cover-size slider (sample data)](docs/screenshot-movies.png)
 **Filtering by genre**
 
 ![The Genre filter open in Vanta's movie library (sample data)](docs/screenshot-genres.png)

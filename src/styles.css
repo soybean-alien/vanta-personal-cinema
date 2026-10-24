@@ -44,40 +44,40 @@ input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 
 .brand-text { display: flex; flex-direction: column; }
 .brand-name { font-family: 'Jost Variable', 'Jost', 'Segoe UI', sans-serif; color: #f3efe6; line-height: 1; }
 .brand-tag { font-family: 'Jost Variable', 'Jost', sans-serif; font-size: 9.5px; font-weight: 500; letter-spacing: 0.32em; text-transform: uppercase; color: var(--accent); margin-top: 7px; }
-/* 1 Â· mark + name */
+/* 1 · mark + name */
 .brand-inline { align-items: center; gap: 12px; }
 .brand-inline .brand-mark { width: 64px; height: 64px; margin-left: -8px; }
 .brand-inline .brand-name { font-size: 34px; font-weight: 500; letter-spacing: 0.03em; }
-/* 2 Â· mark over name */
+/* 2 · mark over name */
 .brand-stacked { flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
 .brand-stacked .brand-mark { width: 70px; height: 70px; }
 .brand-stacked .brand-name { font-size: 14px; font-weight: 600; letter-spacing: 0.48em; text-transform: uppercase; margin-right: -0.48em; }
-/* 3 Â· corner mark, large name */
+/* 3 · corner mark, large name */
 .brand-corner { flex-direction: column; justify-content: space-between; }
 .brand-corner .brand-mark { width: 44px; height: 44px; margin-left: -5px; }
 .brand-corner .brand-name { font-size: 40px; font-weight: 500; letter-spacing: 0.01em; line-height: 0.9; }
-/* 4 Â· bold stack: smaller mark, heavier and larger caps */
+/* 4 · bold stack: smaller mark, heavier and larger caps */
 .brand-bold { flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
 .brand-bold .brand-mark { width: 60px; height: 60px; }
 .brand-bold .brand-name { font-size: 20px; font-weight: 700; letter-spacing: 0.34em; text-transform: uppercase; margin-right: -0.34em; }
-/* 5 Â· lockup with tagline */
+/* 5 · lockup with tagline */
 .brand-tagline { align-items: center; gap: 12px; }
 .brand-tagline .brand-mark { width: 58px; height: 58px; margin-left: -6px; }
 .brand-tagline .brand-name { font-size: 24px; font-weight: 600; letter-spacing: 0.26em; text-transform: uppercase; }
-/* 6 Â· gilded: stacked with the name in metallic gold */
+/* 6 · gilded: stacked with the name in metallic gold */
 .brand-gilded { flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
 .brand-gilded .brand-mark { width: 66px; height: 66px; }
 .brand-gilded .brand-name { font-size: 17px; font-weight: 700; letter-spacing: 0.42em; text-transform: uppercase; margin-right: -0.42em; background: linear-gradient(180deg, #fbe3a1 0%, #f0b93b 45%, #b67d08 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-/* 7 Â· seal: name set around the ring like a coin or watch dial */
+/* 7 · seal: name set around the ring like a coin or watch dial */
 .brand-seal { justify-content: center; align-items: center; }
 .seal { width: 96px; height: 96px; overflow: visible; }
 .seal text { font-family: 'Jost Variable', 'Jost', sans-serif; font-size: 9.6px; font-weight: 600; letter-spacing: 5.56px; fill: #f3efe6; } /* tracked so the phrase wraps the ring exactly once */
-/* 8 Â· monogram: a gold V inside the black disc */
+/* 8 · monogram: a gold V inside the black disc */
 .brand-monogram { flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
 .brand-monogram .brand-mark { width: 72px; height: 72px; }
 .brand-v { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Jost Variable', 'Jost', sans-serif; font-size: 24px; font-weight: 600; line-height: 1; color: var(--accent); padding-top: 2px; }
 .brand-monogram .brand-name { font-size: 13px; font-weight: 600; letter-spacing: 0.5em; text-transform: uppercase; margin-right: -0.5em; }
-/* 9 Â· centered row */
+/* 9 · centered row */
 .brand-row { align-items: center; justify-content: center; gap: 12px; }
 .brand-row .brand-mark { width: 46px; height: 46px; }
 .brand-row .brand-name { font-size: 24px; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; margin-right: -0.24em; }.who { padding: 4px 10px 4px; }
@@ -334,7 +334,7 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .specs dt { color: var(--muted); }
 .specs dd { margin: 0; min-width: 0; }
 .tracks { display: flex; flex-wrap: wrap; gap: 4px 0; }
-.tracks > span:not(:last-child)::after { content: 'Â·'; color: var(--muted); margin: 0 9px; }
+.tracks > span:not(:last-child)::after { content: '\00B7'; color: var(--muted); margin: 0 9px; }
 .tracks .main { color: #fff; font-weight: 600; }
 .tracks .more { color: var(--accent); cursor: help; }
 .file-name { color: #aab0bc; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
