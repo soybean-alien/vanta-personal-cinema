@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.1 (2026-10-24)
+
+- **More cast birthdays.** When TMDB has no birthday for someone, Vanta now asks Wikidata, then Trakt, then TVmaze (by exact, single name match only). Wikidata also fills in deaths TMDB hasn't recorded for anyone born before 1965. Hover a person to see where their birthday came from.
+
 ## 2.1.0 (2026-10-24)
 
 - **Trakt sync.** Settings → Trakt → Connect Trakt shows a short code to enter at trakt.tv/activate; there are no keys to paste and no secret built into Vanta (device sign-in with PKCE).

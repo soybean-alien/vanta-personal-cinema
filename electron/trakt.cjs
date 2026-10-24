@@ -280,6 +280,17 @@ async function rating(kind, imdb) {
   return r?.votes ? { value: r.rating, votes: r.votes } : null;
 }
 
+// A person's birthday and death from Trakt, by TMDB person id (public call; for details.cjs when TMDB has none).
+async function personLife(tmdbId) {
+  if (!available() || !tmdbId) return null;
+  const found = await call(`/search/tmdb/${encodeURIComponent(tmdbId)}?type=person`, { signedIn: false });
+  const slug = found?.[0]?.person?.ids?.slug;
+  if (!slug) return null;
+  const p = await call(`/people/${encodeURIComponent(slug)}?extended=full`, { signedIn: false });
+  const d = (s) => (/^\d{4}-\d{2}-\d{2}/.test(s || '') ? s.slice(0, 10) : null);
+  return p ? { birthday: d(p.birthday), deathday: d(p.death) } : null;
+}
+
 // For backups: the sign-in, so Trakt is connected on a new install too.
 const backupState = () => (load()?.refresh ? { ...auth } : null);
 function restoreState(s) {
@@ -288,4 +299,4 @@ function restoreState(s) {
   save();
 }
 
-module.exports = { status, startConnect, waitConnect, cancelConnect, disconnect, sync, watched, unwatched, rating, available, backupState, restoreState };
+module.exports = { personLife, status, startConnect, waitConnect, cancelConnect, disconnect, sync, watched, unwatched, rating, available, backupState, restoreState };

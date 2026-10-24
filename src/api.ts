@@ -208,6 +208,8 @@ export interface Life {
   birthday: string | null; // 'YYYY-MM-DD'
   deathday: string | null;
   place: string | null;
+  src?: string | null; // where the birthday came from: TMDB, Wikidata, Trakt or TVmaze
+  deathSrc?: string | null; // set only when the death came from a different source than TMDB
 }
 
 // A title's IMDb and TMDB ids, from Plex's Guid list.

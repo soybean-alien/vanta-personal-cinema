@@ -174,13 +174,81 @@ async function credits(kind, id) {
   return c[ref];
 }
 
-async function person(id) {
+// --- more sources for birthdays and deaths -----------------------------------------------------------------------
+// TMDB has no birthday for many supporting and bit-part actors. When it's missing, Vanta asks, in order:
+//  1. Wikidata, by the person's Wikidata id or IMDb id (both from TMDB): exact, never a guess by name.
+//  2. Trakt's people records, by TMDB id (Vanta's public Trakt app id; no sign-in needed).
+//  3. TVmaze, by name, but only when exactly one person there has that exact name (a wrong birthday is worse than
+//     none).
+// Wikidata also fills in deaths TMDB hasn't recorded, for anyone born before 1965. Only exact days are accepted.
+const UA = { 'User-Agent': `Vanta/${app.getVersion()} (+https://github.com/soybean-alien/vanta-personal-cinema)` };
+const day = (s) => (/^\d{4}-\d{2}-\d{2}/.test(s || '') ? s.slice(0, 10) : null);
+
+async function wikidataLife(wikidataId, imdbId) {
+  let qid = /^Q\d+$/.test(wikidataId || '') ? wikidataId : null;
+  if (!qid && /^nm\d+$/.test(imdbId || '')) {
+    const s = await fetch(`https://www.wikidata.org/w/api.php?action=query&list=search&srsearch=haswbstatement:P345=${imdbId}&format=json`, {
+      headers: UA,
+      signal: AbortSignal.timeout(15000),
+    }).then((r) => (r.ok ? r.json() : null));
+    qid = s?.query?.search?.length === 1 ? s.query.search[0].title : null;
+  }
+  if (!qid) return null;
+  const e = await fetch(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=claims&format=json`, {
+    headers: UA,
+    signal: AbortSignal.timeout(15000),
+  }).then((r) => (r.ok ? r.json() : null));
+  const claims = e?.entities?.[qid]?.claims || {};
+  // The preferred statement if there is one, else the first; day precision (11) only.
+  const date = (prop) => {
+    const list = (claims[prop] || []).filter((c) => c.rank !== 'deprecated');
+    const v = (list.find((c) => c.rank === 'preferred') || list[0])?.mainsnak?.datavalue?.value;
+    return v?.precision === 11 ? day(String(v.time).replace(/^\+/, '')) : null;
+  };
+  return { birthday: date('P569'), deathday: date('P570') };
+}
+
+// TVmaze allows about 20 requests per 10 seconds: one at a time, spaced out.
+let tvmazeChain = Promise.resolve();
+function tvmazeLife(name) {
+  const job = tvmazeChain.then(async () => {
+    await new Promise((r) => setTimeout(r, 550));
+    const list = await fetch(`https://api.tvmaze.com/search/people?q=${encodeURIComponent(name)}`, { headers: UA, signal: AbortSignal.timeout(15000) }).then((r) =>
+      r.ok ? r.json() : [],
+    );
+    const same = (list || []).map((x) => x.person).filter((p) => p && norm(p.name) === norm(name));
+    return same.length === 1 && day(same[0].birthday) ? { birthday: day(same[0].birthday), deathday: day(same[0].deathday) } : null;
+  });
+  tvmazeChain = job.catch(() => {});
+  return job;
+}
+
+async function person(id, name) {
   const c = peopleCache.get();
   const e = c[id];
   // Birthdays don't change; only the living are re-checked (for a death) once the entry is a month old.
-  if (e && (e.p.deathday || Date.now() - e.at < PEOPLE_TTL)) return e.p;
-  const r = await tmdb.call(`/person/${encodeURIComponent(id)}`);
-  const p = r ? { birthday: r.birthday || null, deathday: r.deathday || null, place: r.place_of_birth || null } : { birthday: null, deathday: null, place: null };
+  // Entries from before the extra sources (no `v`) and still missing a birthday are looked up again once.
+  // Older entries' birthdays all came from TMDB.
+  if (e && (e.p.v || e.p.birthday) && (e.p.deathday || Date.now() - e.at < PEOPLE_TTL)) return e.p.v ? e.p : { ...e.p, src: e.p.birthday ? 'TMDB' : null };
+  const r = await tmdb.call(`/person/${encodeURIComponent(id)}?append_to_response=external_ids`);
+  const p = { birthday: r?.birthday || null, deathday: r?.deathday || null, place: r?.place_of_birth || null, src: r?.birthday ? 'TMDB' : null, v: 2 };
+  const ext = r?.external_ids || {};
+  const fill = (life, src) => {
+    if (!life) return false;
+    if (!p.birthday && life.birthday) {
+      p.birthday = life.birthday;
+      p.src = src;
+    }
+    if (!p.deathday && life.deathday && p.birthday) {
+      p.deathday = life.deathday;
+      p.deathSrc = src;
+    }
+    return !!p.birthday;
+  };
+  const born = Number((p.birthday || '').slice(0, 4));
+  if (!p.birthday || (!p.deathday && born && born < 1965)) fill(await wikidataLife(ext.wikidata_id, ext.imdb_id || r?.imdb_id).catch(() => null), 'Wikidata');
+  if (!p.birthday) fill(await traktApp.personLife(id).catch(() => null), 'Trakt');
+  if (!p.birthday && (name || r?.name)) fill(await tvmazeLife(name || r.name).catch(() => null), 'TVmaze');
   c[id] = { p, at: Date.now() };
   peopleCache.save();
   return p;
@@ -208,7 +276,7 @@ async function cast(req) {
     while (i < wanted.length) {
       const [name, id] = wanted[i++];
       try {
-        people[name] = { id, ...(await person(id)) };
+        people[name] = { id, ...(await person(id, name)) };
       } catch (e) {
         if (e.message === 'TMDB rejected the key.') throw e;
       }
