@@ -528,9 +528,9 @@ npm run dist         # writes release/Vanta-Setup-<version>.exe
 ```
 
 Re-record the README media from demo mode with `node tools/demo/record.mjs` (writes `docs/demo.gif` and the
-screenshots). The banner is `tools/banner/banner.html`: `node tools/banner/capture.mjs` captures its app art from demo
-mode, and `design/icons/render.cjs` renders it. Badge style explorations live in `design/badge-styles`. The app icon
-concepts live in `design/icons` (`node design/icons/build.mjs`).
+screenshots). The banner is `tools/banner/banner.html`, in the Risograph style:
+`powershell -ExecutionPolicy Bypass -File toolsannerender.ps1` renders `docs/banner.png` and the social preview. Badge
+style explorations live in `design/badge-styles`. The app icon concepts live in `design/icons` (`node design/icons/build.mjs`).
 
 No Plex code or copyrighted media is included in this repository. The only artwork is the demo library's public-domain posters.
 

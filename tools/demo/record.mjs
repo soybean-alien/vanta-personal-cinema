@@ -1,7 +1,7 @@
 // Vanta by soybean_alien
 // Re-records the README media from the real app running in demo mode (public-domain films and their posters):
 //   docs/demo.gif, docs/screenshot-{movies,genres,connection,details,cast,person,continue,music,collections,themes,
-//   backup,badges,ticket}.png, tools/banner/app.png
+//   backup,badges,ticket}.png
 // Usage: npm run build && node tools/demo/record.mjs
 // It launches Electron with --demo and a debug port, then drives the UI over the Chrome DevTools Protocol.
 import { spawn } from 'child_process';
@@ -66,11 +66,6 @@ await sleep(2500); // fonts + posters
 // ── Screenshots for the README ─────────────────────────────────────────
 const shot = async (name) => fs.writeFileSync(path.join(docs, name), await png());
 await shot('screenshot-movies.png'); // library: resolution tags, last-watched dates, cover slider
-// The same view without scrollbars, for the banner's app window.
-await js(`document.head.insertAdjacentHTML('beforeend', '<style id="noscroll">* { scrollbar-width: none !important; }</style>')`);
-await sleep(200);
-fs.writeFileSync(path.join(root, 'tools', 'banner', 'app.png'), await png());
-await js(`document.getElementById('noscroll').remove()`);
 await clickText('.view:not(.behind) .choice', 'Genre');
 await sleep(500);
 await shot('screenshot-genres.png');
