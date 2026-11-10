@@ -1,5 +1,7 @@
 <p align="center"><img src="docs/banner.png" alt="Vanta: a private cinema for your Plex library" width="100%"></p>
 
+<p align="center"><img src="docs/Vanta-Stack.svg" alt="Built with TypeScript 32.8%, JavaScript 32.4%, HTML 28.6%, CSS 6.0% (GitHub language breakdown)"></p>
+
 # Vanta: a private cinema for your Plex library
 
 ![Vanta 2.0 in action: the library with last-watched dates and the cover slider, a details page with scores, file info and Cast & Crew ages, a person page, Continue Watching, Music, collections, badges, themes and backup (sample data)](docs/demo.gif)
