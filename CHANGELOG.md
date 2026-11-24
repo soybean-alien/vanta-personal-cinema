@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.11 (2026-11-24)
+
+- **Right-click → ☑ Select…** on any film in a movie library starts Select mode with that film ticked (and ticks more while selecting), so you don't have to scroll back up to the header. The select bar stays at the top as you scroll.
+- **Suggestions while you select:** films of the same series from every movie library (*Movies* and *New Arrivals* alike) are offered under the bar, with **Tick all**. Read from the titles only; nothing is added until you click.
+- **The collection picker suggests** a name for a new collection (the series the films share) and your collections that already hold the same series.
+- **🖼 Change cover** on a collection's page: the official covers of the TMDB collections its films belong to, whatever TMDB calls them, a TMDB search, or one of its films' posters. Your pick sticks, whatever you named the collection, and is kept in backups.
+
 ## 2.1.10 (2026-11-24)
 
 - **Select mode:** in a movie library, **☑ Select** lets you tick several films (or filter, then **Select all shown**) and put them all in one collection with **🗂 Add to collection…**. Collections open up into single films while you select; films already in another collection move to the one you pick.

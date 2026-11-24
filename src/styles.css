@@ -170,6 +170,24 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .select-bar span { flex: 1; min-width: 220px; }
 .select-bar button:disabled { opacity: 0.45; cursor: default; }
 .select-bar .tool.primary { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.select-bar .suggest-row { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
+.chip { background: var(--bg, #111); border: 1px solid var(--line); border-radius: 14px; padding: 3px 10px; color: var(--text); font-size: 12px; }
+.chip:hover, .kbd .chip:focus { border-color: var(--accent); outline: none; }
+.chip.all { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.chip-lib { color: var(--muted, #999); }
+.add-col-head { margin: 6px 4px 0; text-transform: uppercase; letter-spacing: 0.6px; font-size: 11px; }
+/* Change cover (a collection's page): official TMDB covers and film posters to pick from. */
+.cover-pick { padding: 22px 24px; display: flex; flex-direction: column; gap: 10px; max-height: 86vh; overflow-y: auto; box-sizing: border-box; }
+.cover-pick h2 { margin: 0; font-size: 19px; }
+.cover-pick h3 { margin: 8px 0 0; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+.cover-search { display: flex; gap: 8px; }
+.cover-search input { flex: 1; }
+.cover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.cover-choice { display: flex; flex-direction: column; gap: 4px; background: none; border: 2px solid transparent; border-radius: 8px; padding: 4px; color: var(--text); font-size: 11px; text-align: center; }
+.cover-choice img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; }
+.cover-choice span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cover-choice:hover, .kbd .cover-choice:focus { border-color: var(--line); outline: none; }
+.cover-choice.on { border-color: var(--accent); }
 
 /* detail */
 .detail { position: relative; }

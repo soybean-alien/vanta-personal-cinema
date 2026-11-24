@@ -10,6 +10,10 @@ import {
   collectionFolders,
   folderCover,
   releaseOrder,
+  moviePool,
+  PoolFilm,
+  seriesKey,
+  sameSeries,
   ResTier,
   resolutionOf,
   showResolutions,
@@ -35,7 +39,7 @@ import {
   loadWatchLog,
   TraktStatus,
 } from './api';
-import { AddToCollection, askDelete, BackupPanel, Choice, Modal, Poster, PosterSize, THEMES, applyTheme, navEntries, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
+import { AddToCollection, askDelete, selectHost, BackupPanel, Choice, Modal, Poster, PosterSize, THEMES, applyTheme, navEntries, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
 import { CHIMES, playChime, previewBadgeToast } from './badges';
 import { CastAndCrew, FileInfo, Scores, useTitleIds } from './details';
 import { SpotifySettings } from './music';
@@ -63,9 +67,11 @@ export function Library({ section, initial, pinId }: { section: Section; initial
   const [pick, setPick] = useState<Item | null>(null);
   // Select mode (movie libraries): tick several films, then put them all in one collection at once.
   const [selecting, setSelecting] = useState(false);
-  const [sel, setSel] = useState<Set<string>>(new Set());
+  // Ticked films by ratingKey; suggestions can add films from other movie libraries too.
+  const [sel, setSel] = useState<Map<string, Item>>(new Map());
   const [adding, setAdding] = useState(false);
-  const stopSelecting = () => (setSelecting(false), setSel(new Set()));
+  const [pool, setPool] = useState<PoolFilm[]>();
+  const stopSelecting = () => (setSelecting(false), setSel(new Map()));
   useEffect(stopSelecting, [section.key]);
 
   const update = (patch: Partial<Filters>) => {
@@ -131,13 +137,47 @@ export function Library({ section, initial, pinId }: { section: Section; initial
     }
     return out;
   }, [shown, folders, grouping, text, selecting]);
-  const picked = (shown || []).filter((i) => sel.has(i.ratingKey));
-  const toggleSel = (rk: string) =>
+  const picked = [...sel.values()];
+  const toggleSel = (i: Item) =>
     setSel((s) => {
-      const n = new Set(s);
-      if (!n.delete(rk)) n.add(rk);
+      const n = new Map(s);
+      if (!n.delete(i.ratingKey)) n.set(i.ratingKey, i);
       return n;
     });
+  // Right-click → "Select…" on any film starts Select mode with that film ticked (components.tsx selectHost).
+  useEffect(() => {
+    if (section.type !== 'movie') return;
+    const host = {
+      selecting,
+      tick: (i: Item) => {
+        setSelecting(true);
+        setSel((s) => (s.has(i.ratingKey) ? s : new Map(s).set(i.ratingKey, i)));
+      },
+    };
+    selectHost.current = host;
+    return () => {
+      if (selectHost.current === host) selectHost.current = null;
+    };
+  }, [section.type, selecting]);
+  useEffect(() => {
+    if (selecting) moviePool(ctx.refresh, ctx.prefs.ui.hiddenLibs || []).then(setPool, () => setPool([]));
+  }, [selecting, ctx.refresh, ctx.prefs.ui.hiddenLibs]);
+  // Suggestions while selecting: films from any movie library whose titles start like a ticked film's (the rest of
+  // a series). Only offered; a click ticks one, "Tick all" ticks them all.
+  const suggested = useMemo(() => {
+    if (!selecting || !pool || !sel.size) return [];
+    const keys = [...new Set(picked.map((i) => seriesKey(i.title)).filter(Boolean))];
+    const guids = new Set(picked.map((i) => i.guid).filter(Boolean));
+    const seen = new Set<string>();
+    const out: PoolFilm[] = [];
+    for (const f of [...pool].sort((a, b) => Number(b.libKey === section.key) - Number(a.libKey === section.key))) {
+      const g = f.item.guid || f.item.ratingKey;
+      if (sel.has(f.item.ratingKey) || guids.has(f.item.guid) || seen.has(g)) continue;
+      const k = seriesKey(f.item.title);
+      if (keys.some((t) => sameSeries(t, k))) (seen.add(g), out.push(f));
+    }
+    return releaseOrder(out.map((f) => f.item)).map((i) => out.find((f) => f.item === i)!).slice(0, 30);
+  }, [selecting, pool, sel, section.key]);
   const folded = tiles?.filter((t) => t.folder).length ?? 0;
   const filtered = f.genre || f.decade || f.unwatched || text;
   useAutoFocus(!!shown);
@@ -230,17 +270,38 @@ export function Library({ section, initial, pinId }: { section: Section; initial
           <button className="tool primary" data-nav disabled={!picked.length} onClick={() => setAdding(true)}>
             🗂 Add to collection…
           </button>
-          <button className="tool" data-nav onClick={() => setSel(new Set((shown || []).map((i) => i.ratingKey)))}>
+          <button className="tool" data-nav onClick={() => setSel((s) => new Map([...s, ...(shown || []).map((i) => [i.ratingKey, i] as const)]))}>
             Select all shown
           </button>
           {sel.size > 0 && (
-            <button className="tool" data-nav onClick={() => setSel(new Set())}>
+            <button className="tool" data-nav onClick={() => setSel(new Map())}>
               Clear
             </button>
           )}
           <button className="tool" data-nav onClick={stopSelecting}>
             Done
           </button>
+          {suggested.length > 0 && (
+            <div className="suggest-row">
+              <span className="muted small">Same series in your libraries:</span>
+              {suggested.map((f) => {
+                const inCol = folders?.byFilm[f.item.ratingKey]?.col.title;
+                return (
+                  <button key={f.item.ratingKey} className="chip" data-nav title={inCol ? `In “${inCol}” now: adding moves it` : undefined} onClick={() => toggleSel(f.item)}>
+                    ＋ {cleanTitle(f.item.title)}
+                    {f.item.year ? ` (${f.item.year})` : ''}
+                    {f.libKey !== section.key && <span className="chip-lib"> · {f.lib}</span>}
+                    {inCol && <span className="chip-lib"> · in {inCol}</span>}
+                  </button>
+                );
+              })}
+              {suggested.length > 1 && (
+                <button className="chip all" data-nav onClick={() => setSel((s) => new Map([...s, ...suggested.map((f) => [f.item.ratingKey, f.item] as const)]))}>
+                  Tick all {suggested.length}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
       {!tiles ? (
@@ -260,7 +321,7 @@ export function Library({ section, initial, pinId }: { section: Section; initial
                 money={i.type === 'movie'}
                 noYear={i.type === 'show'}
                 selected={selecting ? sel.has(i.ratingKey) : undefined}
-                onClick={selecting ? () => toggleSel(i.ratingKey) : undefined}
+                onClick={selecting ? () => toggleSel(i) : undefined}
               />
             ),
           )}
@@ -487,12 +548,91 @@ function StartCollectionsOver() {
   );
 }
 
+// Pick a collection's cover: the official posters of the TMDB collections its films belong to (whatever TMDB calls
+// them, so a name of your own still gets the right art), a TMDB search by name, or one of its films' posters.
+// Only the picture changes; the name and the films stay yours.
+function CoverPicker({ folder, onClose }: { folder: Folder; onClose: () => void }) {
+  const ctx = useApp();
+  const [q, setQ] = useState('');
+  const [res, setRes] = useState<{ choices?: { name: string; poster: string }[]; error?: string }>();
+  const look = (query: string) => {
+    setRes(undefined);
+    window.plex
+      .tmdbCoverChoices(folder.films.map((f) => ({ title: cleanTitle(f.title), year: f.year })), query)
+      .then(setRes, (e) => setRes({ error: e.message }));
+  };
+  useEffect(() => look(''), []);
+  const set = async (cover: string | null) => {
+    const r = await window.plex.myCollectionCover(folder.key, cover);
+    if ('error' in r) return ctx.error(r.error);
+    ctx.bump();
+    onClose();
+  };
+  const choice = (key: string, src: string, label: string, value: string) => (
+    <button key={key} className={`cover-choice ${folder.cover === value ? 'on' : ''}`} data-nav title={label} onClick={() => set(value)}>
+      <img loading="lazy" src={img(src, 150, 225)} />
+      <span>{label}</span>
+    </button>
+  );
+  return (
+    <Modal onClose={onClose}>
+      <div className="cover-pick" data-nav-scope>
+        <h2>Cover for “{folder.col.title}”</h2>
+        <p className="muted small">
+          Official covers come from the TMDB collections these films belong to, whatever TMDB calls them. Only the picture changes; the name and
+          films stay yours.
+        </p>
+        <div className="cover-search">
+          <input
+            data-nav
+            autoFocus
+            placeholder="Search TMDB collections by name..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && look(q)}
+          />
+          <button className="tool" data-nav onClick={() => look(q)}>
+            Search
+          </button>
+        </div>
+        <h3>Official covers</h3>
+        {!res ? (
+          <p className="muted">Looking on TMDB...</p>
+        ) : res.error ? (
+          <p className="muted">{res.error}</p>
+        ) : !res.choices?.length ? (
+          <p className="muted">TMDB has no collection for these films. Try a search, or use a film’s poster.</p>
+        ) : (
+          <div className="cover-grid">{res.choices.map((c) => choice(c.poster, c.poster, c.name, c.poster))}</div>
+        )}
+        {folder.films.some((f) => f.thumb) && (
+          <>
+            <h3>Film posters</h3>
+            <div className="cover-grid">{folder.films.filter((f) => f.thumb).map((f) => choice(f.ratingKey, f.thumb!, cleanTitle(f.title), f.thumb!))}</div>
+          </>
+        )}
+        <div className="actions">
+          {folder.cover && (
+            <button className="tool" data-nav onClick={() => set(null)} title="TMDB's cover for a collection of this exact name, else the first film's poster">
+              Automatic cover
+            </button>
+          )}
+          <button className="tool" data-nav onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function FolderView({ folder: opened }: { folder: Folder }) {
   const ctx = useApp();
   const [folder, setFolder] = useState(opened);
   const [gone, setGone] = useState(false);
   const [name, setName] = useState<string>();
   const [sure, setSure] = useState(false);
+  const [picking, setPicking] = useState(false);
   useEffect(() => {
     collectionFolders(ctx.refresh, ctx.prefs.ui.hiddenLibs || []).then(
       (f) => {
@@ -566,10 +706,16 @@ export function FolderView({ folder: opened }: { folder: Folder }) {
             <button className="tool" data-nav onClick={() => setName(col.title)}>
               ✎ Rename
             </button>
+            {first && (
+              <button className="tool" data-nav onClick={() => setPicking(true)}>
+                🖼 Change cover
+              </button>
+            )}
             <button className="tool" data-nav onClick={remove} onBlur={() => setSure(false)}>
               {sure ? 'Click again to delete it' : '🗑 Delete collection'}
             </button>
           </div>
+          {picking && <CoverPicker folder={folder} onClose={() => setPicking(false)} />}
           {!first && <p className="muted">No films in it. Right-click a film (or press Y) and choose 🗂 Add to collection.</p>}
         </div>
       </div>

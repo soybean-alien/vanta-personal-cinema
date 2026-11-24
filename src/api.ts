@@ -227,14 +227,15 @@ export interface Folder {
   key: string; // 'mine:<id>' (electron/my-collections.cjs)
   col: Item; // a stand-in item for the collection ('mine-<id>')
   films: Item[]; // release order, from every library
-  poster?: string;
+  poster?: string; // TMDB's poster for a collection of exactly this name
+  cover?: string; // the cover you picked (always wins)
 }
 // A collection's cover: TMDB's poster for a collection of exactly that name ("Saw" finds the Saw Collection's), with
 // Official release posters on; else its first film's. Only the art comes from TMDB, never which films are in it.
-export const folderCover = (f: Folder, official: boolean) => (official && f.poster) || f.films[0]?.thumb;
+export const folderCover = (f: Folder, official: boolean) => f.cover || (official && f.poster) || f.films[0]?.thumb;
 // Your collections (electron/my-collections.cjs): films by Plex guid.
 export interface MyCollections {
-  mine: Record<string, { name: string; films: string[] }>;
+  mine: Record<string, { name: string; films: string[]; cover?: string }>;
 }
 export interface Folders {
   byFilm: Record<string, Folder>; // ratingKey -> the collection the film folds into in the grid
@@ -260,7 +261,7 @@ export function collectionFolders(refresh: number, hidden: string[]): Promise<Fo
     const all: Folder[] = [];
     for (const [id, m] of ids) {
       const films = releaseOrder(m.films.map((g) => copies.get(g)?.[0]).filter((i): i is Item => !!i));
-      const folder: Folder = { key: `mine:${id}`, col: { ratingKey: `mine-${id}`, key: '', type: 'collection', title: m.name }, films };
+      const folder: Folder = { key: `mine:${id}`, col: { ratingKey: `mine-${id}`, key: '', type: 'collection', title: m.name }, films, cover: m.cover };
       all.push(folder);
       for (const g of m.films)
         for (const c of copies.get(g) || []) byFilm[c.ratingKey] ??= folder;
@@ -279,6 +280,37 @@ export function collectionFolders(refresh: number, hidden: string[]): Promise<Fo
   folderCache = { sig, p };
   return p;
 }
+
+// Every film of every movie library in the sidebar (hidden ones left out), each with its library's name: the pool
+// Select mode and the collection picker suggest from. Cached per refresh.
+export interface PoolFilm { item: Item; lib: string; libKey: string }
+let poolCache: { sig: string; p: Promise<PoolFilm[]> } | undefined;
+export function moviePool(refresh: number, hidden: string[]): Promise<PoolFilm[]> {
+  const sig = JSON.stringify([refresh, [...hidden].sort()]);
+  if (poolCache?.sig === sig) return poolCache.p;
+  const p = (async () => {
+    const libs = (await sections()).filter((s) => s.type === 'movie' && !hidden.includes(s.key));
+    const lists = await Promise.all(libs.map((s) => items(`/library/sections/${s.key}/all?type=1`)));
+    return lists.flatMap((l, n) => l.map((item) => ({ item, lib: libs[n].title, libKey: libs[n].key })));
+  })();
+  p.catch(() => {
+    if (poolCache?.p === p) poolCache = undefined;
+  });
+  poolCache = { sig, p };
+  return p;
+}
+
+// Suggestions only, never automatic: films whose titles start the same way ("The Strangers: Chapter 2",
+// "The Strangers: Prey at Night", "Saw II") are offered together. Read from the titles in Plex; TMDB is not asked.
+export const seriesName = (title: string | undefined) =>
+  cleanTitle(title)
+    .split(/\s*[:–—]\s+|\s+-\s+|\s*\(/)[0]
+    .replace(/\s+(\d+|[ivx]{1,4}|part\s+\w+|chapter\s+\w+)$/i, '')
+    .trim();
+export const seriesKey = (title: string | undefined) =>
+  seriesName(title).toLowerCase().replace(/&/g, 'and').replace(/^(the|a|an)\s+/, '').replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+export const sameSeries = (a: string, b: string) =>
+  !!a && !!b && (a === b || (a.length >= 4 && b.startsWith(a + ' ')) || (b.length >= 4 && a.startsWith(b + ' ')));
 
 export interface PlayerPrefs {
   fullscreen: boolean;
@@ -409,6 +441,7 @@ declare global {
       tmdbStatus(): Promise<TmdbStatus>;
       tmdbSetKey(key: string): Promise<TmdbStatus | { error: string }>;
       tmdbCollectionPoster(name: string): Promise<string | null>;
+      tmdbCoverChoices(films: { title: string; year?: number }[], query: string): Promise<{ choices: { name: string; poster: string }[] } | { error: string }>;
       detailsStatus(): Promise<DetailsStatus>;
       detailsSetKey(service: 'trakt' | 'omdb', key: string): Promise<DetailsStatus | { error: string }>;
       liveScores(ids: { kind: 'movie' | 'show'; imdb?: string; tmdb?: string }): Promise<LiveScores | { error: string }>;
@@ -456,6 +489,7 @@ declare global {
       myCollectionRename(key: string, name: string): Promise<MyCollections | { error: string }>;
       myCollectionDelete(key: string): Promise<MyCollections | { error: string }>;
       myCollectionReset(): Promise<MyCollections | { error: string }>;
+      myCollectionCover(key: string, cover: string | null): Promise<MyCollections | { error: string }>;
       spotifyStatus(): Promise<import('./music').SpotifyStatus>;
       spotifySetClientId(id: string): Promise<import('./music').SpotifyStatus | { error: string }>;
       spotifyConnect(): Promise<import('./music').SpotifyStatus | { error: string }>;

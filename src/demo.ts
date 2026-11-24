@@ -286,7 +286,7 @@ const DEMO_BADGES = {
 for (const [k, v] of Object.entries(DEMO_BADGES.progress)) if (!v) delete DEMO_BADGES.progress[k];
 
 const demoUnlocks: string[] = [];
-const demoMine: { mine: Record<string, { name: string; films: string[] }> } = { mine: {} };
+const demoMine: { mine: Record<string, { name: string; films: string[]; cover?: string }> } = { mine: {} };
 
 // ── Demo music (fictional) ─────────────────────────────────────────────
 // URL-encoded rather than base64: btoa can't take the symbols used as cover marks.
@@ -376,6 +376,7 @@ export function install() {
     tmdbStatus: () => later({ hasKey: false, cached: 0 }),
     tmdbSetKey: () => later({ error: 'TMDB lookups are off in demo mode.' }),
     tmdbCollectionPoster: () => later(null),
+    tmdbCoverChoices: () => later({ error: 'Official covers are off in demo mode. Film posters still work.' }),
     detailsStatus: () => later({ tmdb: true, trakt: false, omdb: false }),
     detailsSetKey: () => later({ error: 'Live scores are off in demo mode.' }),
     // A sample "live" Trakt score, so the green live dot shows on the films with credits.
@@ -435,6 +436,14 @@ export function install() {
     },
     myCollectionReset: () => {
       demoMine.mine = {};
+      return later(structuredClone(demoMine));
+    },
+    myCollectionCover: (key: string, cover: string | null) => {
+      const m = demoMine.mine[key.slice(5)];
+      if (m) {
+        if (cover) m.cover = cover;
+        else delete m.cover;
+      }
       return later(structuredClone(demoMine));
     },
     // A pretend connected Spotify: fictional artists and albums with generated cover art, so the Music page can be
