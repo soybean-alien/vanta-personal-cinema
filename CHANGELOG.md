@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1.11 (unreleased)
+## 2.1.11 (2026-11-24)
 
 - **Right-click → ☑ Select…** on any film in a movie library starts Select mode with that film ticked (and ticks more while selecting), so you don't have to scroll back up to the header. The select bar stays at the top as you scroll.
 - **Suggestions while you select:** films of the same series from every movie library (*Movies* and *New Arrivals* alike) are offered under the bar, with **Tick all**. Read from the titles only; nothing is added until you click.
