@@ -10,14 +10,19 @@ if (-not $browser) { throw "Chrome or Edge is needed" }
 
 # The page is laid out at 1280x640 and loads its fonts from Google Fonts.
 $html = (Resolve-Path "$PSScriptRoot\banner.html").Path
-$profile = Join-Path $env:TEMP "vanta-banner-profile"
+# A fresh throwaway profile per run. Start-Process in Windows PowerShell doesn't quote arguments, so paths are quoted
+# here (the repo folder name has spaces).
+$profile = Join-Path $env:TEMP "vanta-banner-$([guid]::NewGuid().ToString('N'))"
 foreach ($r in @(@{ Out = "$root\docs\banner.png"; Scale = "2" }, @{ Out = "$root\docs\social-preview.png"; Scale = "1" })) {
+    Remove-Item $r.Out -ErrorAction SilentlyContinue
     $p = Start-Process $browser -PassThru -WindowStyle Hidden -ArgumentList @("--headless=new", "--disable-gpu", "--hide-scrollbars",
-        "--user-data-dir=$profile", "--force-device-scale-factor=$($r.Scale)", "--window-size=1280,640",
-        "--virtual-time-budget=8000", "--screenshot=$($r.Out)", ([Uri]$html).AbsoluteUri)
+        "`"--user-data-dir=$profile`"", "--force-device-scale-factor=$($r.Scale)", "--window-size=1280,640",
+        "--virtual-time-budget=8000", "`"--screenshot=$($r.Out)`"", ([Uri]$html).AbsoluteUri)
     $p.WaitForExit(60000) | Out-Null
+    if (-not (Test-Path $r.Out)) { throw "The browser wrote no $(Split-Path $r.Out -Leaf)" }
     Write-Host "$(Split-Path $r.Out -Leaf): $([math]::Round((Get-Item $r.Out).Length / 1KB)) KB"
 }
+Remove-Item $profile -Recurse -Force -ErrorAction SilentlyContinue
 
 # The film grain can push the PNG past GitHub's 1 MB limit; fall back to a high-quality JPEG next to it.
 $social = Get-ChildItem "$root\docs" -Recurse -Filter "social-preview.png" | Select-Object -First 1

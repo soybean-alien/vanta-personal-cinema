@@ -1,35 +1,36 @@
 <!doctype html>
-<!-- Vanta by soybean_alien. Repo banner and social preview in the Risograph design language (overprinted ink tickets on
-     cream stock, Instrument Serif, JetBrains Mono captions). Rendered by tools/banner/render.ps1 to docs/banner.png
-     (2560x1280) and docs/social-preview.png (1280x640). Ticket details are sample data. --><html><head><meta charset="utf-8" />
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!-- Vanta by soybean_alien. Repo banner and social preview in the Risograph design language: a release file name struck
+     out and the clean title it becomes (cream stock, two overprinted inks, Instrument Serif, JetBrains Mono captions).
+     Rendered by tools/banner/render.ps1 to docs/banner.png (2560x1280) and docs/social-preview (1280x640). The film
+     title is sample data. --><html><head><meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 <style>
-  :root { --paper: #efe7d6; --ink: #1d2040; --soft: #5a5a6e; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 1280px; height: 640px; overflow: hidden; background: var(--paper); color: var(--ink);
-    font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; position: relative; }
-  .ink { position: absolute; mix-blend-mode: multiply; }
-  .dot { position: absolute; border-radius: 50%; mix-blend-mode: multiply; }
-  .halftone { position: absolute; mix-blend-mode: multiply; opacity: .22;
-    background: radial-gradient(circle, var(--ink) 1.1px, transparent 1.4px) 0 0 / 7px 7px; }
-  .grain { position: absolute; inset: 0; mix-blend-mode: multiply; opacity: .22; pointer-events: none; }
-  .lbl { position: absolute; font: 500 13px 'JetBrains Mono', monospace; letter-spacing: .24em; color: var(--ink); }
-  .num { position: absolute; font: italic 400 96px/1 'Instrument Serif', serif; letter-spacing: -.03em; }
-  .copy { position: absolute; left: 64px; top: 72px; width: 560px; }
-  .kicker { font: 500 12px 'JetBrains Mono', monospace; letter-spacing: .26em; color: var(--soft); }
-  h1 { margin-top: 18px; font: italic 400 150px/0.9 'Instrument Serif', serif; letter-spacing: -.035em; }
-  .tag { margin-top: 26px; font: 400 40px/1.08 'Instrument Serif', serif; }
-  .sub { margin-top: 22px; font-size: 16px; line-height: 1.55; color: var(--soft); width: 420px; }
-  .foot { position: absolute; left: 64px; bottom: 44px; font: 500 11px 'JetBrains Mono', monospace; letter-spacing: .24em; color: var(--soft); }
-  .tk{position:absolute;width:500px;height:250px;mix-blend-mode:multiply;-webkit-mask:radial-gradient(circle at 0 50%,transparent 30px,#000 31px) left/51% 100% no-repeat,radial-gradient(circle at 100% 50%,transparent 30px,#000 31px) right/51% 100% no-repeat}
+  :root { --paper:#efe7d6; --ink:#1d2040; --soft:#5a5a6e; --red:#e2493b; --gold:#f2b134; --yellow:#ffd23a; --pink:#ff6f91; --blue:#4f9bff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:1280px; height:640px; overflow:hidden; background:var(--paper); color:var(--ink); font-family:Inter,system-ui,sans-serif; -webkit-font-smoothing:antialiased; position:relative; }
+  .ink { position:absolute; mix-blend-mode:multiply; }
+  .halftone { position:absolute; mix-blend-mode:multiply; opacity:.25; background:radial-gradient(circle, var(--ink) 1.1px, transparent 1.4px) 0 0/7px 7px; -webkit-mask:radial-gradient(closest-side at 55% 55%, #000, transparent); }
+  .grain { position:absolute; inset:0; mix-blend-mode:multiply; opacity:.22; pointer-events:none; }
+  .lbl { position:absolute; font:500 13px 'JetBrains Mono',monospace; letter-spacing:.24em; color:var(--ink); white-space:nowrap; }
+  .it { position:absolute; font:italic 400 96px/1 'Instrument Serif',serif; letter-spacing:-.03em; color:var(--ink); white-space:nowrap; }
+  .copy { position:absolute; left:64px; top:72px; width:580px; }
+  .kicker { font:500 12px 'JetBrains Mono',monospace; letter-spacing:.26em; color:var(--soft); }
+  h1 { margin-top:18px; font:italic 400 150px/.9 'Instrument Serif',serif; letter-spacing:-.035em; }
+  .tag { margin-top:26px; font:400 40px/1.08 'Instrument Serif',serif; }
+  .sub { margin-top:22px; font-size:16px; line-height:1.55; color:var(--soft); width:440px; }
+  .foot { position:absolute; left:64px; bottom:44px; font:500 11px 'JetBrains Mono',monospace; letter-spacing:.24em; color:var(--soft); }
+  .tk { position:absolute; mix-blend-mode:multiply; -webkit-mask:radial-gradient(circle at 0 50%,transparent 30px,#000 31px) left/51% 100% no-repeat, radial-gradient(circle at 100% 50%,transparent 30px,#000 31px) right/51% 100% no-repeat; }
 </style></head><body>
-<div class="tk" style="left:670px;top:110px;background:#e2493b;transform:rotate(-8deg)"></div><div class="tk" style="left:690px;top:270px;background:#f2b134;transform:rotate(5deg)"></div><div class="halftone" style="left:640px;top:60px;width:640px;height:560px;opacity:0.25;-webkit-mask: radial-gradient(closest-side at 55% 55%, #000, transparent);"></div><span class="num" style="left:800px;top:190px;font-size:68px;transform:rotate(-8deg);color:#1d2040">Opening Night</span><span class="lbl" style="left:800px;top:150px;transform:rotate(-8deg)">ADMIT ONE · LEGENDARY</span><span class="lbl" style="left:860px;top:440px;transform:rotate(5deg)">No. 0412 · ROW F · SEAT 7</span>
-<div class="copy">
-  <div class="kicker">VANTA · PRIVATE CINEMA</div>
-  <h1>Vanta</h1>
-  <div class="tag">Every film you finish<br />earns a ticket.</div>
-  <p class="sub">Collectible badges in five rarities, each one announced with its own movie ticket.</p>
-</div>
-<div class="foot">PRINTED IN TWO INKS · ADMIT ONE · No. 0412</div>
+
+<div class="halftone" style="left:640px;top:40px;width:640px;height:580px"></div>
+<div class="ink" style="left:930px;top:150px;width:230px;height:340px;border-radius:8px;background:var(--yellow);transform:rotate(3deg)"></div>
+<div class="ink" style="left:938px;top:157px;width:230px;height:340px;border-radius:8px;background:var(--red);opacity:.55;transform:rotate(3deg)"></div>
+<span class="lbl" style="left:660px;top:96px;transform:rotate(-4deg);font-size:15px;letter-spacing:.04em">Galaxy.Lawyers.3.2011.1080p.BluRay.x265-GROUP.mkv</span>
+<div class="ink" style="left:654px;top:112px;width:520px;height:6px;background:var(--red);transform:rotate(-4deg)"></div>
+<span class="it" style="left:960px;top:360px;font-size:58px;line-height:.95;white-space:normal;width:190px;transform:rotate(3deg)">Galaxy Lawyers 3</span>
+<span class="it" style="left:740px;top:250px;font-size:120px;color:var(--red);mix-blend-mode:multiply">→</span>
+
+<div class="copy"><div class="kicker">VANTA · PRIVATE CINEMA</div><h1>Vanta</h1><div class="tag">Nobody's favourite film<br />is called x265.</div><p class="sub">File names go in, titles come out. Your poster wall finally looks like a cinema instead of a downloads folder having a bad day.</p></div>
+<div class="foot">PRINTED IN TWO INKS · 1080p · BLURAY · x265 · ALL REMOVED · TITLE IS SAMPLE DATA</div>
 <svg class="grain" width="1280" height="640"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch" /><feColorMatrix values="0 0 0 0 .2  0 0 0 0 .18  0 0 0 0 .15  0 0 0 .6 0" /></filter><rect width="100%" height="100%" filter="url(#n)" /></svg>
 </body></html>
