@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.10 (unreleased)
+
+- **Select mode:** in a movie library, **☑ Select** lets you tick several films (or filter, then **Select all shown**) and put them all in one collection with **🗂 Add to collection…**. Collections open up into single films while you select; films already in another collection move to the one you pick.
+
 ## 2.1.9 (2026-11-24)
 
 - **Your collections, made by you only.** Vanta no longer groups films by itself: no TMDB series and no Plex collections. A collection exists only because you made it (🗂 Add to collection), so single films never turn into collections on their own. Series picks from earlier versions are dropped; collections you named yourself are kept.

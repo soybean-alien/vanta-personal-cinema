@@ -132,6 +132,7 @@ export function Poster({
   folder,
   money,
   noYear,
+  selected,
 }: {
   item: Item;
   wide?: boolean;
@@ -142,6 +143,7 @@ export function Poster({
   folder?: Folder; // a collection folded into the movie grid: stacked first-film poster
   money?: boolean; // movie library grid: centered title, no year
   noYear?: boolean; // TV library grid: centered title, no year (no box office)
+  selected?: boolean; // Select mode in a movie library: false = can be ticked, true = ticked
 }) {
   const ctx = useApp();
   const watched = isWatched(item);
@@ -161,7 +163,7 @@ export function Poster({
     onClick || (() => ctx.open(folder ? { kind: 'folder', folder } : { kind: 'item', ratingKey: item.ratingKey }));
   return (
     <div
-      className={`poster ${wide ? 'wide' : ''} ${folder ? 'folder' : ''} ${folder || item.type === 'collection' ? 'col-edge' : ''} ${money ? 'money' : ''} ${noYear ? 'centered' : ''}`}
+      className={`poster ${wide ? 'wide' : ''} ${folder ? 'folder' : ''} ${folder || item.type === 'collection' ? 'col-edge' : ''} ${money ? 'money' : ''} ${noYear ? 'centered' : ''} ${selected !== undefined ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
       tabIndex={0}
       data-nav
       data-rk={item.ratingKey}
@@ -177,6 +179,7 @@ export function Poster({
         {unwatchedEps > 0 && <span className="badge">{unwatchedEps}</span>}
         {group && watched && <span className="check">✓</span>}
         {res && <span className={`res res-${res.tier}`}>{res.label}</span>}
+        {selected !== undefined && <span className="pick-box">{selected ? '✓' : ''}</span>}
         {folder && <span className="stack-count">🗂 {folder.films.length}</span>}
         {progress > 0 && (
           <div className="bar">
@@ -405,9 +408,10 @@ export function ScrollRow({ children, className = '', trackClass, count }: { chi
 }
 
 // "Add to collection": pick the one collection a film is in (picking another moves it there; picking its own takes it
-// out), or type a name to start a new one. Remembered on this PC (electron/my-collections.cjs); nothing is written
-// to Plex, and Vanta never adds a film to a collection by itself.
-export function AddToCollection({ item, onClose }: { item: Item; onClose: () => void }) {
+// out), or type a name to start a new one. With several films (Select mode in a movie library), picking a collection
+// puts them all in it, moving each out of the one it was in. Remembered on this PC (electron/my-collections.cjs);
+// nothing is written to Plex, and Vanta never adds a film to a collection by itself.
+export function AddToCollection({ items, onClose, onDone }: { items: Item[]; onClose: () => void; onDone?: () => void }) {
   const ctx = useApp();
   const official = ctx.prefs.ui.officialCovers !== false;
   const [mine, setMine] = useState<MyCollections>();
@@ -420,7 +424,12 @@ export function AddToCollection({ item, onClose }: { item: Item; onClose: () => 
   useEffect(() => {
     collectionFolders(ctx.refresh, ctx.prefs.ui.hiddenLibs || []).then((f) => setFolders(f.all), () => setFolders([]));
   }, [ctx.refresh]);
-  const has = (key: string) => !!item.guid && !!mine?.mine[key.slice(5)]?.films.includes(item.guid);
+  const many = items.length > 1;
+  const item = items[0];
+  const guids = [...new Set(items.map((i) => i.guid).filter((g): g is string => !!g))];
+  const noId = items.length - items.filter((i) => i.guid).length;
+  const inCol = (key: string) => mine?.mine[key.slice(5)]?.films || [];
+  const has = (key: string) => !many && !!item.guid && inCol(key).includes(item.guid);
   const cols = Object.entries(mine?.mine || {})
     .map(([id, m]) => ({ key: `mine:${id}`, name: m.name, n: m.films.length, folder: folders?.find((f) => f.key === `mine:${id}`) }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -428,26 +437,32 @@ export function AddToCollection({ item, onClose }: { item: Item; onClose: () => 
   const shown = cols.filter((c) => !name || c.name.toLowerCase().includes(name.toLowerCase()));
   const exact = cols.some((c) => c.name.toLowerCase() === name.toLowerCase());
   const current = cols.find((c) => has(c.key));
+  const already = many ? cols.filter((c) => guids.some((g) => inCol(c.key).includes(g))).length : 0;
   const done = (r: MyCollections | { error: string }) => {
     if ('error' in r) return setMsg(r.error);
     setMsg('');
     setMine(r);
     ctx.bump(); // the grid behind refreshes
+    onDone?.();
     onClose();
   };
-  const toggle = async (key: string, title: string) =>
-    done(await (has(key) ? window.plex.myCollectionDrop(item.guid!, key) : window.plex.myCollectionAdd(item.guid!, key, title)));
+  const pick = async (key: string, title: string) =>
+    done(await (has(key) ? window.plex.myCollectionDrop(item.guid!, key) : window.plex.myCollectionAdd(many ? guids : item.guid!, key, title)));
   const create = async () => {
     if (!name || exact) return;
-    done(await window.plex.myCollectionAdd(item.guid!, null, name));
+    done(await window.plex.myCollectionAdd(many ? guids : item.guid!, null, name));
     setQ('');
   };
   return (
     <Modal onClose={onClose}>
       <div className="add-col" data-nav-scope>
-        <h2>Collections for “{item.title}”</h2>
+        <h2>{many ? `Add ${items.length} films to a collection` : `Collections for “${item.title}”`}</h2>
         <p className="muted small">
-          {current ? `In “${current.name}”. Pick another to move it, or “${current.name}” again to take it out.` : 'Not in a collection yet. Pick one, or type a name to start a new one.'}
+          {many
+            ? `Pick a collection, or type a name to start a new one.${already ? ' Films already in another collection move to the one you pick.' : ''}${noId ? ` ${noId} of them ${noId === 1 ? 'has' : 'have'} no Plex id and ${noId === 1 ? 'is' : 'are'} skipped.` : ''}`
+            : current
+              ? `In “${current.name}”. Pick another to move it, or “${current.name}” again to take it out.`
+              : 'Not in a collection yet. Pick one, or type a name to start a new one.'}
         </p>
         <input
           data-nav
@@ -471,7 +486,7 @@ export function AddToCollection({ item, onClose }: { item: Item; onClose: () => 
             shown.map((c) => {
               const cover = c.folder && folderCover(c.folder, official);
               return (
-                <button key={c.key} className={`add-col-row ${has(c.key) ? 'on' : ''}`} data-nav onClick={() => toggle(c.key, c.name)}>
+                <button key={c.key} className={`add-col-row ${has(c.key) ? 'on' : ''}`} data-nav onClick={() => pick(c.key, c.name)}>
                   <span className="add-col-check">{has(c.key) ? '✓' : ''}</span>
                   {cover && <img src={img(cover, 60, 90)} />}
                   <span className="add-col-name">{c.name}</span>

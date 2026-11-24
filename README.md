@@ -239,6 +239,9 @@ put in it. Its tile, the Collections page and its own page carry a neon red edge
 
 - **Make one:** right-click a film (or press Y), choose **🗂 Add to collection**, type a name and press Enter. Pick the
   same collection from any other film's menu to add that film too.
+- **Many at once:** in a movie library, click **☑ Select**, tick the posters you want (or filter, then **Select all
+  shown**) and choose **🗂 Add to collection…**. Collections open up into single films while you select, so any film
+  can be ticked; films already in another collection move to the one you pick.
 - **One collection per film.** Picking another collection moves the film there; picking its own collection again
   takes it out.
 - **Across libraries.** Every film of every movie library in your sidebar counts, so a collection can hold films from

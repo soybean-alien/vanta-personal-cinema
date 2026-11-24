@@ -303,9 +303,12 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
 
   const go = useCallback((view: View) => setHistory([{ id: nextId++, view }]), []);
   // "Add to collection" from any item menu opens its picker here.
-  const [addTo, setAddTo] = useState<Item | null>(null);
+  const [addTo, setAddTo] = useState<Item[] | null>(null);
   useEffect(() => {
-    const onAdd = (e: Event) => setAddTo((e as CustomEvent<Item>).detail);
+    const onAdd = (e: Event) => {
+      const d = (e as CustomEvent<Item | Item[]>).detail;
+      setAddTo(Array.isArray(d) ? d : [d]);
+    };
     window.addEventListener('vanta:add-to-collection', onAdd);
     return () => window.removeEventListener('vanta:add-to-collection', onAdd);
   }, []);
@@ -615,7 +618,7 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
         </main>
       </div>
       {menu && <Menu {...menu} onClose={() => setMenu(null)} />}
-      {addTo && <AddToCollection item={addTo} onClose={() => setAddTo(null)} />}
+      {addTo && <AddToCollection items={addTo} onClose={() => setAddTo(null)} />}
       {toDelete && (
         <DeleteDialog
           item={toDelete}

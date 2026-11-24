@@ -44,10 +44,11 @@ const collection = (key) => {
   return m;
 };
 
-// Put a film in a collection, taking it out of the one it was in; key null with a name makes a new collection (or
-// reuses the one of that name).
+// Put a film (or several, from select mode) in a collection, taking each out of the one it was in; key null with a
+// name makes a new collection (or reuses the one of that name).
 function add(guid, key, name) {
-  if (!okGuid(guid)) throw new Error('This film has no Plex id to remember it by.');
+  const guids = (Array.isArray(guid) ? guid : [guid]).filter(okGuid);
+  if (!guids.length) throw new Error(Array.isArray(guid) ? 'None of these films has a Plex id to remember it by.' : 'This film has no Plex id to remember it by.');
   load();
   if (!key) {
     name = okName(name);
@@ -57,8 +58,9 @@ function add(guid, key, name) {
     if (!existing) data.mine[key.slice(5)] = { name, films: [] };
   }
   const m = collection(key);
-  for (const other of Object.values(data.mine)) if (other !== m) other.films = other.films.filter((g) => g !== guid);
-  if (!m.films.includes(guid)) m.films.push(guid);
+  const moving = new Set(guids);
+  for (const other of Object.values(data.mine)) if (other !== m) other.films = other.films.filter((g) => !moving.has(g));
+  for (const g of moving) if (!m.films.includes(g)) m.films.push(g);
   save();
   return get();
 }
