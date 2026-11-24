@@ -100,18 +100,19 @@ export function Library({ section, initial, pinId }: { section: Section; initial
     [list, text],
   );
 
-  // Movie libraries: fold each collection into one folder poster (the collection's cover and name, neon red edge),
-  // placed where its first matching film would sit in the current sort. Which films count as a collection is
-  // decided in collectionFolders(): 2 or more of a series in the library, or your own Add to collection.
+  // Movie libraries: fold each of your collections into one folder poster (its cover and name, neon red edge),
+  // placed where its first matching film would sit in the current sort. Only collections you made fold anything
+  // (collectionFolders), and a film is in one at most.
+  // While you type in the filter box, matching films show as themselves, so a film inside a collection is found.
   const grouping = section.type === 'movie' && ctx.prefs.ui.groupCollections;
   const [folders, setFolders] = useState<Folders>();
   useEffect(() => {
     setFolders(undefined);
-    if (grouping) collectionFolders(section.key, ctx.refresh).then(setFolders, () => {});
-  }, [section.key, grouping, ctx.refresh]);
+    if (grouping) collectionFolders(ctx.refresh, ctx.prefs.ui.hiddenLibs || []).then(setFolders, () => {});
+  }, [grouping, ctx.refresh, ctx.prefs.ui.hiddenLibs]);
   const tiles = useMemo((): { item: Item; folder?: Folder }[] | undefined => {
     if (!shown) return undefined;
-    if (!grouping || !folders) return shown.map((item) => ({ item }));
+    if (!grouping || !folders || text.trim()) return shown.map((item) => ({ item }));
     const placed = new Set<Folder>();
     const out: { item: Item; folder?: Folder }[] = [];
     for (const i of shown) {
@@ -123,7 +124,7 @@ export function Library({ section, initial, pinId }: { section: Section; initial
       }
     }
     return out;
-  }, [shown, folders, grouping]);
+  }, [shown, folders, grouping, text]);
   const folded = tiles?.filter((t) => t.folder).length ?? 0;
   const filtered = f.genre || f.decade || f.unwatched || text;
   useAutoFocus(!!shown);
@@ -197,7 +198,7 @@ export function Library({ section, initial, pinId }: { section: Section; initial
         <span className="count">
           {shown
             ? `${shown.length} items${
-                grouping && !folders ? ' · finding series...' : folded ? ` · ${folded} collection${folded === 1 ? '' : 's'}` : ''
+                grouping && !folders ? '' : folded ? ` · ${folded} collection${folded === 1 ? '' : 's'}` : ''
               }`
             : ''}
         </span>
@@ -256,10 +257,8 @@ function RandomPick({ item, onAnother, onClose }: { item: Item; onAnother: () =>
   );
 }
 
-const SOURCE_LABEL: Record<Folder['source'], string> = { plex: 'Plex', tmdb: 'TMDB', mine: 'Yours' };
-
-// A movie library's Collections page: a summary of every series folder (Plex's, TMDB's and the ones you made with
-// "Add to collection"), A to Z, filterable by where it came from. TV libraries list their Plex collections.
+// A movie library's Collections page: every collection you made, A to Z, with films from all your movie libraries.
+// TV libraries list their Plex collections.
 export function Collections({ section }: { section: Section }) {
   if (section.type === 'movie') return <FolderSummary section={section} />;
   return <PlexCollections section={section} />;
@@ -268,47 +267,28 @@ export function Collections({ section }: { section: Section }) {
 function FolderSummary({ section }: { section: Section }) {
   const ctx = useApp();
   const [folders, setFolders] = useState<Folder[]>();
-  const [only, setOnly] = useState<'' | Folder['source']>('');
   useEffect(() => {
-    collectionFolders(section.key, ctx.refresh).then((f) => setFolders(f.list), (e) => ctx.error(e.message));
-  }, [section.key, ctx.refresh]);
+    collectionFolders(ctx.refresh, ctx.prefs.ui.hiddenLibs || []).then((f) => setFolders(f.list), (e) => ctx.error(e.message));
+  }, [ctx.refresh, ctx.prefs.ui.hiddenLibs]);
   useAutoFocus(!!folders);
-  const shown = (folders || []).filter((f) => !only || f.source === only);
-  const films = shown.reduce((n, f) => n + f.films.length, 0);
-  const count = (s: Folder['source']) => (folders || []).filter((f) => f.source === s).length;
+  const films = (folders || []).reduce((n, f) => n + f.films.length, 0);
   return (
     <>
       <header className="libhead">
         <h1>{section.title} · Collections</h1>
-        <Choice
-          label="From"
-          value={only}
-          options={[
-            ['', `All (${folders?.length ?? 0})`],
-            ['mine', `Yours (${count('mine')})`],
-            ['tmdb', `TMDB (${count('tmdb')})`],
-            ['plex', `Plex (${count('plex')})`],
-          ]}
-          onChange={setOnly}
-        />
-        <span className="count">{folders ? `${shown.length} collections · ${films} films` : 'Finding series...'}</span>
+        <span className="count">{folders ? `${folders.length} collections · ${films} films` : 'Loading...'}</span>
       </header>
       <p className="muted small" style={{ marginTop: -8 }}>
-        Missing a film from a series? Right-click it (or press Y) and choose 🗂 Add to collection.
+        Your collections only: Vanta never groups films by itself. To put a film in one (or start one), right-click it (or press Y) and choose 🗂 Add to collection.
       </p>
       {!folders ? (
         <p className="muted">Loading...</p>
-      ) : !shown.length ? (
-        <p className="muted">No collections here yet.</p>
+      ) : !folders.length ? (
+        <p className="muted">No collections yet.</p>
       ) : (
         <div className="grid">
-          {shown.map((f) => (
-            <Poster
-              key={f.key}
-              item={f.col}
-              folder={f}
-              sub={`${f.films.length} ${f.films.length === 1 ? 'film' : 'films'} · ${SOURCE_LABEL[f.source]}`}
-            />
+          {folders.map((f) => (
+            <Poster key={f.key} item={f.col} folder={f} sub={`${f.films.length} ${f.films.length === 1 ? 'film' : 'films'}`} />
           ))}
         </div>
       )}
@@ -344,8 +324,8 @@ function PlexCollections({ section }: { section: Section }) {
   );
 }
 
-// Optional TMDB key for finding series Plex hasn't grouped. The key is checked with TMDB, then kept encrypted
-// by the main process; the UI only ever learns whether one is set.
+// Optional TMDB key (cast ages, live scores, official posters, covers for your collections). The key is checked
+// with TMDB, then kept encrypted by the main process; the UI only ever learns whether one is set.
 function TmdbKey() {
   const ctx = useApp();
   const [status, setStatus] = useState<TmdbStatus>();
@@ -360,13 +340,13 @@ function TmdbKey() {
     if ('error' in r) return setMsg(r.error);
     setStatus(r);
     setDraft('');
-    setMsg(key ? 'Key saved. Movie libraries will look up their series the next time they open.' : 'Key removed.');
+    setMsg(key ? 'Key saved.' : 'Key removed.');
     ctx.bump();
   };
   return (
     <div className="field" style={{ marginTop: 12 }}>
       <span>
-        TMDB key (optional) for cast ages and series folders: {status?.hasKey ? '✓ key saved' : 'no key'}
+        TMDB key (optional) for cast ages, posters and collection covers: {status?.hasKey ? '✓ key saved' : 'no key'}
         {status?.cached ? ` · ${status.cached} films checked` : ''}
       </span>
       <div className="pin-row">
@@ -388,7 +368,7 @@ function TmdbKey() {
       </div>
       <p className="muted small">
         {msg ||
-          'Free from themoviedb.org (Settings → API). This one key gives every cast member’s birthday and age on details pages, the live TMDB score, and the series grouping above. Vanta sends TMDB only TMDB or IMDb ids and saves the answers on this PC. Nothing is written to Plex or your files.'}
+          'Free from themoviedb.org (Settings → API). This one key gives every cast member’s birthday and age on details pages, the live TMDB score, official posters, and cover art for your collections (looked up by the collection’s name; TMDB never decides what is in one). Vanta sends TMDB only TMDB or IMDb ids and collection names and saves the answers on this PC. Nothing is written to Plex or your files.'}
       </p>
       <p className="muted small">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
     </div>
@@ -433,36 +413,116 @@ function ServiceKey({ service, label, placeholder, hint }: { service: 'trakt' | 
   );
 }
 
-// A movie-grid folder opened: the series' films in release order, under the collection's cover.
-export function FolderView({ folder }: { folder: Folder }) {
+// One of your collections: its films from every library, kept in step with Add to collection, and renamed or
+// deleted here. Deleting removes only the grouping; the films stay in your libraries.
+// Settings: delete every collection at once, so every film is its own poster again. Two clicks; the previous file is
+// kept as my-collections.json.bak, and backups made before still hold them.
+function StartCollectionsOver() {
   const ctx = useApp();
+  const [sure, setSure] = useState(false);
+  const [msg, setMsg] = useState('');
+  const go = async () => {
+    if (!sure) return setSure(true);
+    setSure(false);
+    const r = await window.plex.myCollectionReset();
+    if ('error' in r) return setMsg(r.error);
+    setMsg('Done: no collections left, every film is its own poster.');
+    ctx.bump();
+  };
+  return (
+    <div className="field">
+      <button className="tool" data-nav onClick={go} onBlur={() => setSure(false)}>
+        {sure ? 'Click again to delete every collection' : '🗂 Start collections from scratch'}
+      </button>
+      <p className="muted small">{msg || 'Deletes all your collections (the films stay in your libraries).'}</p>
+    </div>
+  );
+}
+
+export function FolderView({ folder: opened }: { folder: Folder }) {
+  const ctx = useApp();
+  const [folder, setFolder] = useState(opened);
+  const [gone, setGone] = useState(false);
+  const [name, setName] = useState<string>();
+  const [sure, setSure] = useState(false);
+  useEffect(() => {
+    collectionFolders(ctx.refresh, ctx.prefs.ui.hiddenLibs || []).then(
+      (f) => {
+        const now = f.all.find((x) => x.key === opened.key);
+        if (now) setFolder(now);
+        else setGone(true);
+      },
+      () => {},
+    );
+  }, [ctx.refresh]);
+  useAutoFocus(true);
   const { col, films } = folder;
   const first = films[0];
-  const years = [first.year, films[films.length - 1].year].filter(Boolean);
-  useAutoFocus(true);
+  const years = [first?.year, films[films.length - 1]?.year].filter(Boolean);
+  const cover = folderCover(folder, ctx.prefs.ui.officialCovers !== false);
+  const done = (r: unknown) => {
+    if (r && typeof r === 'object' && 'error' in r) return ctx.error(String((r as { error: string }).error));
+    ctx.bump();
+  };
+  const rename = async () => {
+    const n = (name || '').trim();
+    setName(undefined);
+    if (n && n !== col.title) done(await window.plex.myCollectionRename(folder.key, n));
+  };
+  const remove = async () => {
+    if (!sure) return setSure(true);
+    done(await window.plex.myCollectionDelete(folder.key));
+  };
+  if (gone)
+    return (
+      <div className="detail">
+        <p className="muted">“{col.title}” was deleted. Its films are still in your libraries.</p>
+      </div>
+    );
   return (
     <div className="detail">
-      {first.art && <div className="backdrop" style={{ backgroundImage: `url("${img(first.art, 1600, 900)}")` }} />}
+      {first?.art && <div className="backdrop" style={{ backgroundImage: `url("${img(first.art, 1600, 900)}")` }} />}
       <div className="top">
-        {folderCover(folder, ctx.prefs.ui.officialCovers !== false) && (
-          <img className="cover collection-cover" src={img(folderCover(folder, ctx.prefs.ui.officialCovers !== false), 300, 450)} />
-        )}
+        {cover && <img className="cover collection-cover" src={img(cover, 300, 450)} />}
         <div className="info">
-          <h1>{col.title}</h1>
+          {name === undefined ? (
+            <h1>{col.title}</h1>
+          ) : (
+            <input
+              className="rename"
+              data-nav
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') rename();
+                if (e.key === 'Escape') setName(undefined);
+              }}
+              onBlur={rename}
+            />
+          )}
           <div className="meta">
-            {[`${films.length} film${films.length === 1 ? '' : 's'}`, years.length && [...new Set(years)].join('–'), folder.source === 'tmdb' && 'Series info from TMDB', folder.source === 'mine' && 'Your collection']
-              .filter(Boolean)
-              .join(' · ')}
+            {[`${films.length} film${films.length === 1 ? '' : 's'}`, years.length && [...new Set(years)].join('–'), 'Your collection'].filter(Boolean).join(' · ')}
           </div>
           <div className="actions">
-            <button className="play" data-nav onClick={() => playFolder(ctx, folder)}>
-              ▶ Play all
+            {first && (
+              <>
+                <button className="play" data-nav onClick={() => playFolder(ctx, folder)}>
+                  ▶ Play all
+                </button>
+                <button className="tool" data-nav onClick={() => playFolder(ctx, folder, true)}>
+                  🔀 Shuffle
+                </button>
+              </>
+            )}
+            <button className="tool" data-nav onClick={() => setName(col.title)}>
+              ✎ Rename
             </button>
-            <button className="tool" data-nav onClick={() => playFolder(ctx, folder, true)}>
-              🔀 Shuffle
+            <button className="tool" data-nav onClick={remove} onBlur={() => setSure(false)}>
+              {sure ? 'Click again to delete it' : '🗑 Delete collection'}
             </button>
           </div>
-          {col.summary && <p className="summary">{col.summary}</p>}
+          {!first && <p className="muted">No films in it. Right-click a film (or press Y) and choose 🗂 Add to collection.</p>}
         </div>
       </div>
       <div className="grid">
@@ -1172,15 +1232,16 @@ export function Settings({ onSignOut, username }: { onSignOut: () => void; usern
 
       <h2>Library</h2>
       <Switch
-        label="Group collections in movie libraries"
+        label="Fold my collections in movie libraries"
         hint={
           ui.groupCollections
-            ? 'On: a series and its sequels (a Plex collection, or a TMDB series below) share one folder poster, with the first film as the cover.'
-            : 'Off: every film gets its own poster. Collections are still under 🗂 Collections.'
+            ? 'On: the films of each collection you made share one folder poster in the grid. Vanta never groups films by itself.'
+            : 'Off: every film gets its own poster. Your collections are still under 🗂 Collections.'
         }
         value={ui.groupCollections}
         onChange={(groupCollections) => setUi({ groupCollections })}
       />
+      <StartCollectionsOver />
       <Switch
         label="Official release posters"
         hint={

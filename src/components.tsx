@@ -404,74 +404,89 @@ export function ScrollRow({ children, className = '', trackClass, count }: { chi
   );
 }
 
-// "Add to collection": put one film into a series folder (Plex's, TMDB's or yours) or start a new one. For the
-// films TMDB missed. Remembered on this PC (electron/my-collections.cjs); nothing is written to Plex.
+// "Add to collection": pick the one collection a film is in (picking another moves it there; picking its own takes it
+// out), or type a name to start a new one. Remembered on this PC (electron/my-collections.cjs); nothing is written
+// to Plex, and Vanta never adds a film to a collection by itself.
 export function AddToCollection({ item, onClose }: { item: Item; onClose: () => void }) {
   const ctx = useApp();
-  const [folders, setFolders] = useState<Folder[]>();
+  const official = ctx.prefs.ui.officialCovers !== false;
   const [mine, setMine] = useState<MyCollections>();
+  const [folders, setFolders] = useState<Folder[]>();
   const [q, setQ] = useState('');
   const [msg, setMsg] = useState('');
   useEffect(() => {
-    // Grid items don't carry their library id (Plex puts it on the list, not each film), so ask for the film itself.
-    (async () => {
-      let section = item.librarySectionID;
-      if (section == null) section = (await items(`/library/metadata/${item.ratingKey}`).catch(() => []))[0]?.librarySectionID;
-      if (section == null) return setFolders([]);
-      collectionFolders(String(section), ctx.refresh).then((f) => setFolders(f.all), () => setFolders([]));
-    })();
-    window.plex.myCollections().then(setMine);
+    window.plex.myCollections().then(setMine, () => setMine({ mine: {} }));
   }, []);
-  const current = mine && item.guid ? mine.assign[item.guid] : undefined;
-  const inNow = folders?.find((f) => f.films.some((x) => x.ratingKey === item.ratingKey));
-  // The grid refreshes behind the closed picker, which shows the film in its new folder.
+  useEffect(() => {
+    collectionFolders(ctx.refresh, ctx.prefs.ui.hiddenLibs || []).then((f) => setFolders(f.all), () => setFolders([]));
+  }, [ctx.refresh]);
+  const has = (key: string) => !!item.guid && !!mine?.mine[key.slice(5)]?.films.includes(item.guid);
+  const cols = Object.entries(mine?.mine || {})
+    .map(([id, m]) => ({ key: `mine:${id}`, name: m.name, n: m.films.length, folder: folders?.find((f) => f.key === `mine:${id}`) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const name = q.trim();
+  const shown = cols.filter((c) => !name || c.name.toLowerCase().includes(name.toLowerCase()));
+  const exact = cols.some((c) => c.name.toLowerCase() === name.toLowerCase());
+  const current = cols.find((c) => has(c.key));
   const done = (r: MyCollections | { error: string }) => {
     if ('error' in r) return setMsg(r.error);
-    ctx.bump();
+    setMsg('');
+    setMine(r);
+    ctx.bump(); // the grid behind refreshes
     onClose();
   };
-  const pick = async (f: Folder) => done(await window.plex.myCollectionAssign(item.guid!, f.key, f.col.title));
-  const create = async () => done(await window.plex.myCollectionAssign(item.guid!, null, q.trim()));
-  const shown = (folders || []).filter((f) => !q.trim() || f.col.title.toLowerCase().includes(q.trim().toLowerCase()));
-  const exact = shown.some((f) => f.col.title.toLowerCase() === q.trim().toLowerCase());
+  const toggle = async (key: string, title: string) =>
+    done(await (has(key) ? window.plex.myCollectionDrop(item.guid!, key) : window.plex.myCollectionAdd(item.guid!, key, title)));
+  const create = async () => {
+    if (!name || exact) return;
+    done(await window.plex.myCollectionAdd(item.guid!, null, name));
+    setQ('');
+  };
   return (
     <Modal onClose={onClose}>
       <div className="add-col" data-nav-scope>
-        <h2>Add “{item.title}” to a collection</h2>
-        <p className="muted small">{inNow ? `Now in: ${inNow.col.title}.` : 'Not in a collection yet.'} Pick one, or type a name to start a new one.</p>
-        <input data-nav autoFocus placeholder="Search collections or name a new one..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <h2>Collections for “{item.title}”</h2>
+        <p className="muted small">
+          {current ? `In “${current.name}”. Pick another to move it, or “${current.name}” again to take it out.` : 'Not in a collection yet. Pick one, or type a name to start a new one.'}
+        </p>
+        <input
+          data-nav
+          autoFocus
+          placeholder="Search your collections or name a new one..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && create()}
+        />
         <div className="add-col-list">
-          {q.trim() && !exact && (
+          {name && !exact && (
             <button className="add-col-row new" data-nav onClick={create}>
-              <span className="add-col-name">＋ New collection “{q.trim()}”</span>
+              <span className="add-col-name">＋ New collection “{name}”</span>
             </button>
           )}
-          {!folders ? (
+          {!mine ? (
             <p className="muted">Loading collections...</p>
-          ) : !shown.length && !q.trim() ? (
-            <p className="muted">No collections in this library yet. Type a name above to start one.</p>
+          ) : !shown.length && !name ? (
+            <p className="muted">No collections yet. Type a name above to start one.</p>
           ) : (
-            shown.map((f) => (
-              <button key={f.key} className={`add-col-row ${inNow?.key === f.key ? 'on' : ''}`} data-nav onClick={() => pick(f)}>
-                {folderCover(f, ctx.prefs.ui.officialCovers !== false) && <img src={img(folderCover(f, ctx.prefs.ui.officialCovers !== false), 60, 90)} />}
-                <span className="add-col-name">{f.col.title}</span>
-                <span className="muted small">
-                  {f.films.length} {f.films.length === 1 ? 'film' : 'films'} · {f.source === 'mine' ? 'Yours' : f.source === 'tmdb' ? 'TMDB' : 'Plex'}
-                </span>
-              </button>
-            ))
+            shown.map((c) => {
+              const cover = c.folder && folderCover(c.folder, official);
+              return (
+                <button key={c.key} className={`add-col-row ${has(c.key) ? 'on' : ''}`} data-nav onClick={() => toggle(c.key, c.name)}>
+                  <span className="add-col-check">{has(c.key) ? '✓' : ''}</span>
+                  {cover && <img src={img(cover, 60, 90)} />}
+                  <span className="add-col-name">{c.name}</span>
+                  <span className="muted small">
+                    {c.n} {c.n === 1 ? 'film' : 'films'}
+                  </span>
+                </button>
+              );
+            })
           )}
         </div>
-        {current && (
-          <button
-            className="tool"
-            data-nav
-            onClick={async () => done(await window.plex.myCollectionUnassign(item.guid!))}
-          >
-            ✕ Undo my choice ({current.name || 'collection'})
-          </button>
-        )}
         {msg && <p className="music-msg">{msg}</p>}
+        <button className="tool" data-nav onClick={onClose}>
+          Close
+        </button>
       </div>
     </Modal>
   );

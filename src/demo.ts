@@ -286,7 +286,7 @@ const DEMO_BADGES = {
 for (const [k, v] of Object.entries(DEMO_BADGES.progress)) if (!v) delete DEMO_BADGES.progress[k];
 
 const demoUnlocks: string[] = [];
-const demoMine: { assign: Record<string, { key: string; name: string }>; mine: Record<string, { name: string }> } = { assign: {}, mine: {} };
+const demoMine: { mine: Record<string, { name: string; films: string[] }> } = { mine: {} };
 
 // ── Demo music (fictional) ─────────────────────────────────────────────
 // URL-encoded rather than base64: btoa can't take the symbols used as cover marks.
@@ -375,7 +375,6 @@ export function install() {
     // No TMDB in demo mode: the sample library's folders come from its Plex-style collections only.
     tmdbStatus: () => later({ hasKey: false, cached: 0 }),
     tmdbSetKey: () => later({ error: 'TMDB lookups are off in demo mode.' }),
-    tmdbCollections: () => later({ byFilm: {}, looked: 0, failed: 0 }),
     tmdbCollectionPoster: () => later(null),
     detailsStatus: () => later({ tmdb: true, trakt: false, omdb: false }),
     detailsSetKey: () => later({ error: 'Live scores are off in demo mode.' }),
@@ -407,18 +406,35 @@ export function install() {
     subsImport: () => later({ error: 'Subtitles are off in demo mode.' }),
     deleteItem: () => later({ error: 'Deleting is off in demo mode.' }),
     canDelete: () => later(null),
-    myCollections: () => later(demoMine),
-    myCollectionAssign: (guid: string, key: string | null, name: string) => {
+    myCollections: () => later(structuredClone(demoMine)),
+    myCollectionAdd: (guid: string, key: string | null, name: string) => {
       if (!key) {
-        key = `mine:${Date.now().toString(36)}`;
-        demoMine.mine[key.slice(5)] = { name };
+        const found = Object.entries(demoMine.mine).find(([, m]) => m.name.toLowerCase() === name.toLowerCase());
+        key = `mine:${found ? found[0] : Date.now().toString(36)}`;
+        if (!found) demoMine.mine[key.slice(5)] = { name, films: [] };
       }
-      demoMine.assign[guid] = { key, name };
-      return later(demoMine);
+      const m = demoMine.mine[key.slice(5)];
+      for (const o of Object.values(demoMine.mine)) if (o !== m) o.films = o.films.filter((g) => g !== guid);
+      if (m && !m.films.includes(guid)) m.films.push(guid);
+      return later(structuredClone(demoMine));
     },
-    myCollectionUnassign: (guid: string) => {
-      delete demoMine.assign[guid];
-      return later(demoMine);
+    myCollectionDrop: (guid: string, key: string) => {
+      const m = demoMine.mine[key.slice(5)];
+      if (m) m.films = m.films.filter((g) => g !== guid);
+      return later(structuredClone(demoMine));
+    },
+    myCollectionRename: (key: string, name: string) => {
+      const m = demoMine.mine[key.slice(5)];
+      if (m) m.name = name;
+      return later(structuredClone(demoMine));
+    },
+    myCollectionDelete: (key: string) => {
+      delete demoMine.mine[key.slice(5)];
+      return later(structuredClone(demoMine));
+    },
+    myCollectionReset: () => {
+      demoMine.mine = {};
+      return later(structuredClone(demoMine));
     },
     // A pretend connected Spotify: fictional artists and albums with generated cover art, so the Music page can be
     // shown and recorded without anyone's real account or copyrighted artwork.

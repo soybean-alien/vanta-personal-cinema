@@ -161,20 +161,6 @@ export function showResolutions(sectionKey: string): Promise<Record<string, ResT
 const released = (i: Item) => i.originallyAvailableAt || (i.year ? String(i.year) : '9999');
 export const releaseOrder = (list: Item[]) => [...list].sort((a, b) => released(a).localeCompare(released(b)));
 
-// A movie's TMDB or IMDb id as Plex knows it: the new Plex agent lists them in Guid (with includeGuids=1),
-// the legacy agents put one in guid ('com.plexapp.agents.themoviedb://603?lang=en', '...imdb://tt0133093?...').
-export function movieRef(i: Item): string | undefined {
-  const ids = [...(i.Guid || []).map((g) => g.id), i.guid || ''];
-  for (const id of ids) {
-    const m = id.match(/^(?:tmdb|com\.plexapp\.agents\.themoviedb):\/\/(\d+)/);
-    if (m) return `tmdb:${m[1]}`;
-  }
-  for (const id of ids) {
-    const m = id.match(/^(?:imdb|com\.plexapp\.agents\.imdb):\/\/(tt\d+)/);
-    if (m) return `imdb:${m[1]}`;
-  }
-}
-
 export interface TmdbStatus {
   hasKey: boolean;
   cached: number;
@@ -233,140 +219,64 @@ export function externalIds(i: Item): { imdb?: string; tmdb?: string } {
   };
 }
 
-// Movie grid folders, built from two read-only sources (nothing is written to Plex):
-//  - the collections Plex already has (smart collections are saved filters, not franchises, so they're skipped)
-//  - TMDB's franchise collections, when a TMDB key is set (looked up by the main process, cached on this PC)
-// A film in several collections goes into the smallest one that holds 2 or more of your films (the most specific,
-// e.g. a trilogy over a 30-film universe). A collection counts only when 2 or more of its films are in the library,
-// or when you put a film in it yourself (Add to collection): one film of a series you don't otherwise own stays a
-// plain poster. Cached per library and refresh.
+// Collections are yours alone: Vanta groups nothing on its own (no TMDB series, no Plex collections, no sort order
+// from Plex). Every film of every movie library shown in the sidebar is read into one pool, so a collection holds
+// films from any library ("Movies" and "New Arrivals" alike). A film is in one collection at most
+// (electron/my-collections.cjs), and in the movie grid it folds into that collection's tile.
 export interface Folder {
-  key: string; // 'plex:<ratingKey>' | 'tmdb:<id>' | 'mine:<id>' (what "Add to collection" remembers)
-  col: Item; // a Plex collection, or a stand-in for a TMDB one ('tmdb-<id>') or one of yours ('mine-<id>')
-  films: Item[]; // release order
-  source: 'plex' | 'tmdb' | 'mine';
-  poster?: string; // TMDB's poster for the series its films belong to, when most of them share one
+  key: string; // 'mine:<id>' (electron/my-collections.cjs)
+  col: Item; // a stand-in item for the collection ('mine-<id>')
+  films: Item[]; // release order, from every library
+  poster?: string;
 }
-// A collection's cover: the series' official TMDB poster (with Official release posters on), else the collection's
-// own poster in Plex, else its first film's.
-export const folderCover = (f: Folder, official: boolean) =>
-  (official ? f.poster || f.col.thumb : f.col.thumb || f.poster) || f.films[0]?.thumb;
-// "Add to collection" choices (electron/my-collections.cjs), keyed by film guid.
+// A collection's cover: TMDB's poster for a collection of exactly that name ("Saw" finds the Saw Collection's), with
+// Official release posters on; else its first film's. Only the art comes from TMDB, never which films are in it.
+export const folderCover = (f: Folder, official: boolean) => (official && f.poster) || f.films[0]?.thumb;
+// Your collections (electron/my-collections.cjs): films by Plex guid.
 export interface MyCollections {
-  assign: Record<string, { key: string; name: string }>;
-  mine: Record<string, { name: string }>;
+  mine: Record<string, { name: string; films: string[] }>;
 }
 export interface Folders {
-  byFilm: Record<string, Folder>;
-  list: Folder[];
-  all: Folder[]; // every collection, including ones with a single film (the Add to collection picker)
-  tmdb?: { looked: number; failed: number; error?: string };
+  byFilm: Record<string, Folder>; // ratingKey -> the collection the film folds into in the grid
+  list: Folder[]; // collections with films, A to Z
+  all: Folder[]; // every collection, empty ones too (the Add to collection picker)
 }
-const folderCache = new Map<string, { refresh: number; p: Promise<Folders> }>();
-export function collectionFolders(sectionKey: string, refresh: number): Promise<Folders> {
-  const hit = folderCache.get(sectionKey);
-  if (hit && hit.refresh === refresh) return hit.p;
+let folderCache: { sig: string; p: Promise<Folders> } | undefined;
+export function collectionFolders(refresh: number, hidden: string[]): Promise<Folders> {
+  const sig = JSON.stringify([refresh, [...hidden].sort()]);
+  if (folderCache?.sig === sig) return folderCache.p;
   const p = (async () => {
-    const cols = (await items(`/library/sections/${sectionKey}/collections`)).filter((c) => !Number(c.smart) && c.smart !== true);
-    const all: { key: string; col: Item; films: Item[]; source: Folder['source']; poster?: string }[] = await Promise.all(
-      cols.map(async (col) => ({
-        key: `plex:${col.ratingKey}`,
-        col,
-        films: (await items(`/library/collections/${col.ratingKey}/children`)).filter((i) => i.type === 'movie'),
-        source: 'plex' as const,
-      })),
-    );
-    let movies: Item[] = [];
-    // Always asked: without a key, the main process answers from its cache only.
-    let tmdb: Folders['tmdb'];
-    let tmdbOf: Record<string, { id: number; name: string; poster?: string | null }> = {};
-    {
-      movies = await items(`/library/sections/${sectionKey}/all?type=1&includeGuids=1`);
-      const refs: Record<string, string> = {};
-      for (const m of movies) {
-        const r = movieRef(m);
-        if (r) refs[m.ratingKey] = r;
-      }
-      const r = await window.plex.tmdbCollections(refs);
-      if ('error' in r) tmdb = { looked: 0, failed: 0, error: r.error };
-      else {
-        tmdb = { looked: r.looked, failed: r.failed };
-        tmdbOf = r.byFilm;
-        const groups = new Map<number, { name: string; films: Item[]; poster?: string }>();
-        for (const m of movies) {
-          const c = r.byFilm[m.ratingKey];
-          if (!c) continue;
-          if (!groups.has(c.id)) groups.set(c.id, { name: c.name, films: [], poster: c.poster ? `https://image.tmdb.org/t/p/w500${c.poster}` : undefined });
-          groups.get(c.id)!.films.push(m);
-        }
-        for (const [id, g] of groups)
-          all.push({
-            key: `tmdb:${id}`,
-            col: { ratingKey: `tmdb-${id}`, key: '', type: 'collection', title: g.name },
-            films: g.films,
-            source: 'tmdb',
-            poster: g.poster,
-          });
-      }
+    const mine: MyCollections = await window.plex.myCollections().catch(() => ({ mine: {} }));
+    const ids = Object.entries(mine.mine || {}).sort((a, b) => a[1].name.localeCompare(b[1].name));
+    const wanted = new Set(ids.flatMap(([, m]) => m.films));
+    // Every copy of a film (the same film can sit in two libraries) folds into its collection.
+    const copies = new Map<string, Item[]>();
+    if (wanted.size) {
+      const libs = (await sections()).filter((s) => s.type === 'movie' && !hidden.includes(s.key));
+      for (const m of (await Promise.all(libs.map((s) => items(`/library/sections/${s.key}/all?type=1`)))).flat())
+        if (m.guid && wanted.has(m.guid)) copies.set(m.guid, [...(copies.get(m.guid) || []), m]);
     }
-    // Your own choices win over Plex and TMDB: a film you put in a collection lives there.
-    const mine: MyCollections = await window.plex.myCollections().catch(() => ({ assign: {}, mine: {} }));
-    const byKey = new Map(all.map((c) => [c.key, c]));
-    const chosen: Record<string, (typeof all)[number]> = {};
-    for (const m of movies) {
-      const a = m.guid && mine.assign[m.guid];
-      if (!a) continue;
-      let target = byKey.get(a.key);
-      if (!target && a.key.startsWith('mine:')) {
-        const id = a.key.slice(5);
-        target = { key: a.key, col: { ratingKey: `mine-${id}`, key: '', type: 'collection', title: mine.mine[id]?.name || a.name }, films: [], source: 'mine' };
-        all.push(target);
-        byKey.set(a.key, target);
-      }
-      if (!target) continue; // its Plex collection or TMDB series is gone: the film goes back to normal grouping
-      if (!target.films.some((f) => f.ratingKey === m.ratingKey)) target.films.push(m);
-      chosen[m.ratingKey] = target;
-    }
-    const home: Record<string, (typeof all)[number]> = { ...chosen };
-    const rank = (c: (typeof all)[number]) => (c.films.length >= 2 ? 0 : 1e6) + c.films.length; // smallest real series first
-    for (const c of all)
-      for (const f of c.films) if (!chosen[f.ratingKey] && (!home[f.ratingKey] || rank(c) < rank(home[f.ratingKey]))) home[f.ratingKey] = c;
-    // The TMDB series poster most of a collection's films share (a Plex "Star Wars" collection gets TMDB's).
-    const posterOf = (films: Item[]) => {
-      const n = new Map<string, number>();
-      for (const f of films) {
-        const p = tmdbOf[f.ratingKey]?.poster;
-        if (p) n.set(p, (n.get(p) || 0) + 1);
-      }
-      const [p, k] = [...n].sort((a, b) => b[1] - a[1])[0] || [];
-      return p && k! * 2 >= films.length ? `https://image.tmdb.org/t/p/w500${p}` : undefined;
-    };
-    const list: Folder[] = [];
-    const every: Folder[] = [];
     const byFilm: Record<string, Folder> = {};
-    for (const c of all) {
-      const films = releaseOrder(c.films.filter((f) => home[f.ratingKey] === c));
-      if (!films.length) continue;
-      const folder: Folder = { key: c.key, col: c.col, films, source: c.source, poster: c.poster || posterOf(films) };
-      every.push(folder);
-      if (films.length < 2 && !films.some((f) => chosen[f.ratingKey] === c)) continue;
-      list.push(folder);
-      for (const f of films) byFilm[f.ratingKey] = folder;
+    const all: Folder[] = [];
+    for (const [id, m] of ids) {
+      const films = releaseOrder(m.films.map((g) => copies.get(g)?.[0]).filter((i): i is Item => !!i));
+      const folder: Folder = { key: `mine:${id}`, col: { ratingKey: `mine-${id}`, key: '', type: 'collection', title: m.name }, films };
+      all.push(folder);
+      for (const g of m.films)
+        for (const c of copies.get(g) || []) byFilm[c.ratingKey] ??= folder;
     }
-    // Your collections and Plex's without a TMDB series behind them: TMDB's poster for a collection of that name.
+    const list = all.filter((f) => f.films.length);
     await Promise.all(
-      list
-        .filter((f) => !f.poster)
-        .map(async (f) => {
-          f.poster = (await window.plex.tmdbCollectionPoster(f.col.title).catch(() => null)) || undefined;
-        }),
+      list.map(async (f) => {
+        f.poster = (await window.plex.tmdbCollectionPoster(f.col.title).catch(() => null)) || undefined;
+      }),
     );
-    list.sort((a, b) => a.col.title.localeCompare(b.col.title));
-    every.sort((a, b) => a.col.title.localeCompare(b.col.title));
-    return { byFilm, list, all: every, tmdb };
+    return { byFilm, list, all };
   })();
-  p.catch(() => folderCache.delete(sectionKey));
-  folderCache.set(sectionKey, { refresh, p });
+  p.catch(() => {
+    if (folderCache?.p === p) folderCache = undefined;
+  });
+  folderCache = { sig, p };
   return p;
 }
 
@@ -499,9 +409,6 @@ declare global {
       tmdbStatus(): Promise<TmdbStatus>;
       tmdbSetKey(key: string): Promise<TmdbStatus | { error: string }>;
       tmdbCollectionPoster(name: string): Promise<string | null>;
-      tmdbCollections(
-        refs: Record<string, string>,
-      ): Promise<{ byFilm: Record<string, { id: number; name: string; poster?: string | null }>; looked: number; failed: number } | { error: string }>;
       detailsStatus(): Promise<DetailsStatus>;
       detailsSetKey(service: 'trakt' | 'omdb', key: string): Promise<DetailsStatus | { error: string }>;
       liveScores(ids: { kind: 'movie' | 'show'; imdb?: string; tmdb?: string }): Promise<LiveScores | { error: string }>;
@@ -544,8 +451,11 @@ declare global {
       subsStatus(): Promise<{ found: number; none: number; queued: number; enabled: boolean }>;
       subsImport(meta: { guid?: string; title: string }): Promise<{ ok?: boolean; canceled?: boolean; name?: string; error?: string }>;
       myCollections(): Promise<MyCollections>;
-      myCollectionAssign(guid: string, key: string | null, name: string): Promise<MyCollections | { error: string }>;
-      myCollectionUnassign(guid: string): Promise<MyCollections | { error: string }>;
+      myCollectionAdd(guid: string, key: string | null, name: string): Promise<MyCollections | { error: string }>;
+      myCollectionDrop(guid: string, key: string): Promise<MyCollections | { error: string }>;
+      myCollectionRename(key: string, name: string): Promise<MyCollections | { error: string }>;
+      myCollectionDelete(key: string): Promise<MyCollections | { error: string }>;
+      myCollectionReset(): Promise<MyCollections | { error: string }>;
       spotifyStatus(): Promise<import('./music').SpotifyStatus>;
       spotifySetClientId(id: string): Promise<import('./music').SpotifyStatus | { error: string }>;
       spotifyConnect(): Promise<import('./music').SpotifyStatus | { error: string }>;

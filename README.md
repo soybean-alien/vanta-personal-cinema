@@ -22,12 +22,11 @@ stays out of the way. And now, watching earns you something.
   full-screen-worthy now-playing view. [More below](#music-spotify).
 - **🛟 Your data is safe.** Last-watched dates, badges, collections and every setting are saved crash-safe on your PC,
   and one backup file restores a new PC with zero setup. [More below](#your-data-backup-and-restore).
-- **🎨 Themes, a cover-size slider, a Continue Watching page,** your own sidebar order, and a one-click way to add a
-  film TMDB missed to its series.
+- **🎨 Themes, a cover-size slider, a Continue Watching page,** and your own sidebar order.
 - **🏅 Badges.** Every film and episode you finish counts toward collectible badges in five rarities, each one announced
   with its own movie ticket. [More below](#badges).
-- **🗂 Series folders.** When you own two or more films of a series, they fold into one tile with the series' own
-  cover and a neon red edge, so a franchise takes one spot in your library instead of eight. [More below](#series-folders).
+- **🗂 Your collections.** Group films your way (a franchise, *Noir*, *Not for the squeamish*) into one tile with a
+  neon red edge, across all your movie libraries. Vanta never groups anything by itself. [More below](#your-collections).
 - **A viewer, not a manager.** Vanta doesn't scan, rename, tag or reorganise anything. Your Plex Media Server keeps doing
   that job; Vanta is the screen you watch it on. The only things it writes back are what any Plex player does: resume
   points and watched status. The one exception is a delete you ask for yourself: **🗑 Delete from disk**, which works
@@ -51,7 +50,7 @@ stays out of the way. And now, watching earns you something.
 - [Music (Spotify)](#music-spotify)
 - [Your data: backup and restore](#your-data-backup-and-restore)
 - [Badges](#badges)
-- [Series folders](#series-folders)
+- [Your collections](#your-collections)
 - [Delete from disk](#delete-from-disk)
 - [Made for the collection you own](#made-for-the-collection-you-own)
 - [What it does](#what-it-does)
@@ -90,7 +89,7 @@ library you already have.
 | **Last watched** | A neon-green date on every watched poster, and the date and time (New York time) on details pages, kept by Vanta even if Plex loses its history. |
 | **Watched at 80%** | Stop at 80% or later and it counts as watched. Anything earlier stays in Continue Watching. |
 | **Continue Watching page** | Its own sidebar page with everything you started and didn't finish, across every library, plus each show's next episode. The library pages stay clear. |
-| **Add to collection** | Right-click any film, choose 🗂 Add to collection, and put it with its series (for the sequel TMDB missed) or start a new collection. The Collections page summarises them all. |
+| **Add to collection** | Right-click any film, choose 🗂 Add to collection, and put it in one of your collections or start a new one. The Collections page summarises them all. |
 | **Themes** | Nine color themes: Vanta Gold, OLED Black, Midnight Blue, Glacier, Emerald, Amethyst, Crimson, Sunset and Desert Sand. |
 | **Cover size slider** | Drag from 10 small covers per row to 2 large ones; the grid resizes as you drag and remembers your choice. |
 | **Your sidebar, your order** | Move Continue Watching, each library and Music up or down in Settings → Sidebar. |
@@ -232,25 +231,28 @@ so everyone starts fresh.
 
 ---
 
-## Series folders
+## Your collections
 
-A franchise takes one spot in your movie library. The films of a series (*Alien*, *Aliens*, *Alien³*...) fold into
-one tile with the series' name, its official cover from TMDB and a neon red edge. The Collections page and each
-collection's own page carry the same red edge.
+Collections in Vanta are yours alone. Vanta never groups films by itself: it ignores Plex's own collections and sort
+order, and doesn't sort films into series. A collection exists only because you made it, and holds only the films you
+put in it. Its tile, the Collections page and its own page carry a neon red edge.
 
-- **Only real series.** A series becomes a folder when two or more of its films are in your library. One film of a
-  series you don't otherwise own stays an ordinary poster, unless you put it in a collection yourself with
-  **🗂 Add to collection**: then it shows as that collection straight away.
-
-- **Open a folder** to see every cover inside in release order, with **Play all** (in order) and **Shuffle**. Right-click
-  a folder (or press Y) for the same.
-- **Folders follow your view.** A folder sits where its first film would in the current sort.
-- **Where the series come from:** your Plex collections, plus, if you add a free [TMDB](https://www.themoviedb.org) key
-  in **Settings → Library**, the series The Movie Database knows about. TMDB decides what counts as a series (it keeps
-  *Prometheus* apart from the *Alien* films, for example) and supplies the cover, also for collections you named
-  yourself when TMDB has one by that name.
-- **Nothing on your server changes.** Folders exist only in Vanta. No collections are created in Plex, and no files or
-  folders are touched. Turn them off in **Settings → Library**.
+- **Make one:** right-click a film (or press Y), choose **🗂 Add to collection**, type a name and press Enter. Pick the
+  same collection from any other film's menu to add that film too.
+- **One collection per film.** Picking another collection moves the film there; picking its own collection again
+  takes it out.
+- **Across libraries.** Every film of every movie library in your sidebar counts, so a collection can hold films from
+  *Movies* and *New Arrivals* alike. Its tile shows in each library that holds one of its films, and opening it from
+  either shows them all, in release order, with **Play all** and **Shuffle**.
+- **Folders follow your view.** A collection's tile sits where its first film would in the current sort. While you
+  type in a library's filter box, matching films show on their own, so a film inside a collection is still found.
+- **Rename or delete** a collection on its own page. Deleting removes only the grouping; the films stay in your
+  library. **Settings → Library → Start collections from scratch** deletes every collection at once.
+- **Covers:** with a free [TMDB](https://www.themoviedb.org) key and **Official release posters** on, a collection
+  named like a TMDB collection (*Saw*, *Alien*) gets that collection's official cover. Only the cover comes from TMDB,
+  never which films are in it. Otherwise its first film's cover is used.
+- **Nothing on your server changes.** Collections exist only in Vanta (`my-collections.json`, included in backups).
+  No collections are created in Plex, and no files or folders are touched. Turn folding off in **Settings → Library**.
 
 Getting a TMDB key: create a free account at [themoviedb.org](https://www.themoviedb.org), then go to your profile's
 **Settings → API**. Paste either the *API Key* or the *API Read Access Token* into Vanta.
@@ -287,7 +289,7 @@ quality, and without anything competing for your attention.
 | Feature | Details |
 |---|---|
 | **Badges** | Earn collectible badges by watching, each announced with a movie ticket. A Badges page with progress on every locked badge, and a showcase of up to nine favorites. See [Badges](#badges). |
-| **Series folders** | Two or more films of a series share one tile with the series' official cover and a neon red edge. Open it for every film in release order, Play all or Shuffle. See [Series folders](#series-folders). |
+| **Your collections** | The films you group share one tile with a neon red edge, across all your movie libraries. Open it for every film in release order, Play all or Shuffle. See [Your collections](#your-collections). |
 | **Clean titles** | Movie covers are captioned with the title alone in white bold, even when Plex only has a file name like *Film.2009.1080p.BluRay.x265*. |
 | **Official release posters** | With a TMDB key, every movie and show shows its main English release poster instead of fan art (Settings → Library). Titles Plex never matched get a poster found by title and year. |
 | **Delete from disk** | Remove a movie or episode from the library and its files from the server, after typing its title to confirm. See [Delete from disk](#delete-from-disk). |
@@ -299,7 +301,7 @@ quality, and without anything competing for your attention.
 | **Trakt sync** | Connect with a short code; what you watch goes to your Trakt history, and Sync now brings your Plex history across. See [Trakt](#trakt). |
 | **Music** | Spotify playlists and albums with a now-playing view, played on your Spotify devices. See [Music (Spotify)](#music-spotify). |
 | **Last watched** | A neon-green date on watched posters and pages, kept by Vanta's own crash-safe watch log. |
-| **Add to collection** | Put any film into a series folder (or a new one) from its menu; the Collections page summarises every series. |
+| **Add to collection** | Put any film into one of your collections (or a new one) from its menu; the Collections page summarises them all. |
 | **Themes and layout** | Nine color themes, a live cover-size slider, and your own sidebar order. |
 | **Backup and restore** | One file restores everything on a new PC, sign-in included, with no setup. See [Your data](#your-data-backup-and-restore). |
 | **Sort and filter** | Sort by title, recently added, release date, rating or recently watched. Filter by genre, decade or unwatched. Your choice is remembered per library. |
@@ -444,7 +446,7 @@ Open **⚙ Settings** at the bottom of the sidebar (or press Menu ☰ on the con
 | Audio & subtitles | Preferred audio language · subtitles off, smart or always · subtitle language · find English subtitles automatically (on by default). *Smart* shows only forced subtitles when the audio is already in your language, and full subtitles when it isn't. |
 | Video | Hardware decoding · upscaling (default, high quality, high quality + sharp) · smooth motion · your own GLSL shaders · extra mpv options |
 | Badges | Show badges during playback (off by default) · unlock sound (Ember, Temple, Dusk, Hearth, Lantern, Harbor or off) with a preview · show a test ticket |
-| Library | Group series into folders in movie libraries (on by default) · optional TMDB key to find series Plex hasn't grouped (it also powers cast birthdays and ages) |
+| Library | Fold your collections in movie libraries (on by default) · Start collections from scratch · optional TMDB key (cast birthdays and ages, official posters, collection covers) |
 | Scores and cast | Optional OMDb key for live IMDb and Rotten Tomatoes scores plus Metacritic (Trakt scores need no key) |
 | Trakt | Connect Trakt (a short code at trakt.tv/activate) · Sync now · send what I watch to Trakt · Disconnect |
 | Theme | Nine color themes, applied instantly |
@@ -499,7 +501,7 @@ Choose how in **Settings → Updates → When an update is out**:
 - **Sign-in happens on Plex's own page.** Vanta receives a sign-in token, never your password.
 - **The token is encrypted** with Windows' own data protection (DPAPI) and stored in `%APPDATA%\vanta\auth.bin`. Only your Windows user can decrypt it.
 - **Vanta talks to three places:** plex.tv (sign-in and finding your server), your own Plex Media Server, and GitHub (to check this repository for updates, unless you choose *Only when I check*).
-- **Only if you add a TMDB key:** The Movie Database, to find series, posters and the cast's birthdays. Vanta sends it only each title's TMDB or IMDb id, TMDB person ids, and a title, year or collection name when it searches for a poster. Answers are cached on your PC (`tmdb-cache.json`, `credits-cache.json`, `people-cache.json`), and the key is encrypted like your sign-in (`tmdb.bin`).
+- **Only if you add a TMDB key:** The Movie Database, for posters, collection covers and the cast's birthdays. Vanta sends it only each title's TMDB or IMDb id, TMDB person ids, and a title, year or collection name when it searches for a poster. Answers are cached on your PC (`tmdb-cache.json`, `credits-cache.json`, `people-cache.json`), and the key is encrypted like your sign-in (`tmdb.bin`).
 - **Cast birthdays TMDB doesn't have:** Wikidata gets the person's IMDb or Wikidata id, Trakt their TMDB person id, and TVmaze their name. Nothing about you or your library is sent.
 - **Posters for titles Plex never matched:** Wikipedia gets the title (and year) when TMDB has no poster for it. Found posters are cached on your PC.
 - **Deleting only when you ask.** Vanta deletes a file only through Delete from disk, after you type its title, and the deletion itself is done by your Plex server.
@@ -568,7 +570,7 @@ No Plex code or copyrighted media is included in this repository. The only artwo
 - [Electron](https://github.com/electron/electron), [React](https://github.com/facebook/react) and [mpv](https://github.com/mpv-player/mpv). Vanta is an Electron app that plays video through mpv; the installer bundles the [shinchiro mpv build](https://github.com/shinchiro/mpv-winbuild-cmake). See [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md).
 - [Jost](https://github.com/indestructible-type/Jost) typeface by Indestructible Type (SIL OFL 1.1), via Fontsource.
 - Plex © Plex, Inc. Vanta is an unofficial client and isn't affiliated with or endorsed by Plex, Inc.
-- Series, cast and score information from [The Movie Database (TMDB)](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB.
+- Posters, cast and score information from [The Movie Database (TMDB)](https://www.themoviedb.org). This product uses the TMDB API but is not endorsed or certified by TMDB.
 - Scores and watch-history sync with [Trakt](https://trakt.tv), optional scores from [OMDb](https://www.omdbapi.com); music from [Spotify](https://www.spotify.com) through its Web API. Vanta isn't affiliated with or endorsed by any of them.
 - Subtitles found through [OpenSubtitles](https://www.opensubtitles.org) and [YTS-Subs](https://yts-subs.com), written and shared by their communities.
 - **AI disclosure:** Vanta was designed with and written by **Claude Code (Anthropic: Claude Opus 5.5)**, directed and tested by the author on a real two-PC home setup (Plex Media Server on one PC, Vanta on another) before release. For 1.5, badges were tested end to end on that setup: a real episode streamed from the server and finished, and its unlock ticket appeared inside the player with the account's own profile picture. For 1.6, series folders were checked against the author's real library: 227 of its 605 films grouped into 61 series folders through TMDB, and a folder opened with its films in release order. For 2.0, the details page, cast lifetimes, automatic subtitles, Add to collection, the watch log, backup and restore, themes and the cover slider were each exercised against the author's real library on that setup; the Music page was checked with sample data only, since no Spotify account was connected during testing. For 2.1, Trakt sync was tested on the author's own Trakt account: device sign-in, a full sync of 109 watched titles, and a live add and remove of one film. For 2.1.1, the extra birthday sources were measured on 13 of the author's films: 286 of 485 cast and crew had a birthday, up from 266 with TMDB alone. For 2.1.7, clean titles, series tiles with their covers and red edge, official posters and Delete from disk were checked against the author's real library on a copy of the Vanta profile; Delete from disk was tested up to the typed confirmation (wrong and right titles), without deleting a file, and the installed build was confirmed identical to the release build.

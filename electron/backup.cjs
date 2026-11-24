@@ -80,7 +80,7 @@ async function exportTo(win, opts = {}) {
     file: filePath,
     badges: Object.keys(data.badges.earned || {}).length,
     watched: Object.keys(data.watchHistory).length,
-    collections: Object.keys(data.myCollections.assign || {}).length,
+    collections: myCollections.count(data.myCollections),
     subtitles: Object.keys(data.subtitles.files).length,
     secrets: !!data.secrets,
   };
