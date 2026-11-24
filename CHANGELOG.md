@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.8 (2026-11-24)
+
+- Under the hood: React 19, Vite 8 and TypeScript 7. Nothing changes on screen; the app's code is a little smaller.
+- **Demo mode:** opening a movie's details page no longer crashes the page.
+
 ## 2.1.7 (2026-11-24)
 
 - **Series tiles:** a series becomes one tile only when two or more of its films are in your library, or when you put a film in a collection yourself (Add to collection). One film of a series you don't otherwise own stays an ordinary poster.
