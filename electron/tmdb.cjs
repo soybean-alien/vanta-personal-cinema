@@ -12,6 +12,7 @@ const API = 'https://api.themoviedb.org/3';
 const RECHECK_NONE = 30 * 24 * 3600 * 1000; // films with no collection are asked again after 30 days (sequels get made)
 
 let key;
+let rejected = false; // TMDB answered 401 for the saved key: stop asking until a new key is set
 let cache; // { [ref]: { c: { id, name } | null, at } }, ref = 'tmdb:603' | 'imdb:tt0133093'
 
 function loadKey() {
@@ -40,6 +41,8 @@ const saveCache = () => fs.writeFileSync(file('tmdb-cache.json'), JSON.stringify
 // TMDB hands out two credentials: a short v3 "API key" (query string) and a long v4 "read access token" (Bearer).
 async function call(p, k = loadKey()) {
   if (!k) throw new Error('No TMDB key set.');
+  const saved = k === loadKey();
+  if (saved && rejected) throw new Error('TMDB rejected the key.');
   const bearer = k.length > 40;
   const url = API + p + (bearer ? '' : `${p.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(k)}`);
   for (let attempt = 0; ; attempt++) {
@@ -51,7 +54,10 @@ async function call(p, k = loadKey()) {
       await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
       continue;
     }
-    if (res.status === 401) throw new Error('TMDB rejected the key.');
+    if (res.status === 401) {
+      if (saved) rejected = true;
+      throw new Error('TMDB rejected the key.');
+    }
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`TMDB error ${res.status}`);
     return res.json();
@@ -59,7 +65,7 @@ async function call(p, k = loadKey()) {
 }
 
 function status() {
-  return { hasKey: !!loadKey(), cached: Object.keys(loadCache()).length };
+  return { hasKey: !!loadKey(), rejected, cached: Object.keys(loadCache()).length };
 }
 
 // Checks the key against TMDB before saving it. An empty key removes it (the cache stays).
@@ -70,12 +76,14 @@ async function setKey(k) {
       fs.unlinkSync(file('tmdb.bin'));
     } catch {}
     key = null;
+    rejected = false;
     return status();
   }
   await call('/configuration', k);
   fs.mkdirSync(app.getPath('userData'), { recursive: true });
   fs.writeFileSync(file('tmdb.bin'), safeStorage.encryptString(k));
   key = k;
+  rejected = false;
   return status();
 }
 
@@ -89,7 +97,7 @@ async function lookupOne(ref) {
   }
   const m = await call(`/movie/${encodeURIComponent(tmdbId)}`);
   const c = m?.belongs_to_collection;
-  return c ? { id: c.id, name: c.name } : null;
+  return c ? { id: c.id, name: c.name, poster: c.poster_path || null } : null;
 }
 
 // refs: { [ratingKey]: ref } -> { [ratingKey]: { id, name } } for films that belong to a TMDB collection.
@@ -97,7 +105,7 @@ async function lookupOne(ref) {
 async function collections(refs) {
   loadCache();
   const now = Date.now();
-  const stale = (e) => !e || (!e.c && now - e.at > RECHECK_NONE);
+  const stale = (e) => !e || (!e.c && now - e.at > RECHECK_NONE) || (e.c && !('poster' in e.c));
   // Without a key, only what's already cached is used.
   const todo = loadKey() ? [...new Set(Object.values(refs).filter((r) => stale(cache[r])))] : [];
   let i = 0;
@@ -134,6 +142,7 @@ function restore(k, c) {
     fs.mkdirSync(app.getPath('userData'), { recursive: true });
     fs.writeFileSync(file('tmdb.bin'), safeStorage.encryptString(k));
     key = k;
+    rejected = false;
   }
   if (c && typeof c === 'object') {
     cache = { ...c, ...loadCache() };
@@ -141,4 +150,34 @@ function restore(k, c) {
   }
 }
 
-module.exports = { status, setKey, collections, call, hasKey: () => !!loadKey(), backupKey: () => loadKey(), backupCache: () => loadCache(), restore };
+// A collection's official poster by its name ("Saw", "The Saw Collection"): only an exact name match on TMDB counts.
+// Found posters are kept 30 days, misses 3. -> full image URL or null.
+const DAY = 24 * 3600 * 1000;
+const colName = (s) =>
+  String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/&/g, 'and')
+    .replace(/\b(the|collection|series|trilogy|saga|films?|movies?)\b/g, '')
+    .replace(/[^a-z0-9]/g, '');
+const posterUrl = (p) => (p ? `https://image.tmdb.org/t/p/w500${p}` : null);
+async function collectionPoster(name) {
+  const n = colName(name);
+  if (!n) return null;
+  loadCache();
+  const k = `colname:${n}`;
+  const e = cache[k];
+  if ((e && Date.now() - e.at < (e.p ? 30 : 3) * DAY) || !loadKey()) return posterUrl(e?.p);
+  try {
+    const r = await call(`/search/collection?query=${encodeURIComponent(name)}&language=en-US`);
+    const hit = (r?.results || []).find((x) => x.poster_path && colName(x.name) === n);
+    cache[k] = { p: hit?.poster_path || null, at: Date.now() };
+    saveCache();
+    return posterUrl(cache[k].p);
+  } catch {
+    return posterUrl(e?.p); // TMDB unreachable: keep what was known
+  }
+}
+
+module.exports = { status, setKey, collections, collectionPoster, call, hasKey: () => !!loadKey(), keyRejected: () => rejected, backupKey: () => loadKey(), backupCache: () => loadCache(), restore };

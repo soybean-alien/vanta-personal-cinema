@@ -8,6 +8,7 @@ import {
   Item,
   TmdbStatus,
   collectionFolders,
+  folderCover,
   releaseOrder,
   ResTier,
   resolutionOf,
@@ -15,6 +16,7 @@ import {
   SORTS,
   Section,
   directory,
+  cleanTitle,
   episodeLabel,
   get,
   img,
@@ -33,7 +35,7 @@ import {
   loadWatchLog,
   TraktStatus,
 } from './api';
-import { BackupPanel, Choice, Modal, Poster, PosterSize, THEMES, applyTheme, navEntries, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
+import { askDelete, BackupPanel, Choice, Modal, Poster, PosterSize, THEMES, applyTheme, navEntries, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
 import { CHIMES, playChime, previewBadgeToast } from './badges';
 import { CastAndCrew, FileInfo, Scores, useTitleIds } from './details';
 import { SpotifySettings } from './music';
@@ -98,8 +100,9 @@ export function Library({ section, initial, pinId }: { section: Section; initial
     [list, text],
   );
 
-  // Movie libraries: fold each Plex collection into one folder poster, placed where its first matching film
-  // would sit in the current sort. A collection with only one film left after filtering shows as that film.
+  // Movie libraries: fold each collection into one folder poster (the collection's cover and name, neon red edge),
+  // placed where its first matching film would sit in the current sort. Which films count as a collection is
+  // decided in collectionFolders(): 2 or more of a series in the library, or your own Add to collection.
   const grouping = section.type === 'movie' && ctx.prefs.ui.groupCollections;
   const [folders, setFolders] = useState<Folders>();
   useEffect(() => {
@@ -109,16 +112,11 @@ export function Library({ section, initial, pinId }: { section: Section; initial
   const tiles = useMemo((): { item: Item; folder?: Folder }[] | undefined => {
     if (!shown) return undefined;
     if (!grouping || !folders) return shown.map((item) => ({ item }));
-    const hits = new Map<Folder, number>();
-    for (const i of shown) {
-      const fo = folders.byFilm[i.ratingKey];
-      if (fo) hits.set(fo, (hits.get(fo) || 0) + 1);
-    }
     const placed = new Set<Folder>();
     const out: { item: Item; folder?: Folder }[] = [];
     for (const i of shown) {
       const fo = folders.byFilm[i.ratingKey];
-      if (!fo || hits.get(fo)! < 2) out.push({ item: i });
+      if (!fo) out.push({ item: i });
       else if (!placed.has(fo)) {
         placed.add(fo);
         out.push({ item: fo.col, folder: fo });
@@ -272,7 +270,7 @@ function FolderSummary({ section }: { section: Section }) {
   const [folders, setFolders] = useState<Folder[]>();
   const [only, setOnly] = useState<'' | Folder['source']>('');
   useEffect(() => {
-    collectionFolders(section.key, ctx.refresh).then((f) => setFolders(f.all), (e) => ctx.error(e.message));
+    collectionFolders(section.key, ctx.refresh).then((f) => setFolders(f.list), (e) => ctx.error(e.message));
   }, [section.key, ctx.refresh]);
   useAutoFocus(!!folders);
   const shown = (folders || []).filter((f) => !only || f.source === only);
@@ -368,7 +366,7 @@ function TmdbKey() {
   return (
     <div className="field" style={{ marginTop: 12 }}>
       <span>
-        Find series with TMDB (optional): {status?.hasKey ? '✓ key saved' : 'no key'}
+        TMDB key (optional) for cast ages and series folders: {status?.hasKey ? '✓ key saved' : 'no key'}
         {status?.cached ? ` · ${status.cached} films checked` : ''}
       </span>
       <div className="pin-row">
@@ -390,7 +388,7 @@ function TmdbKey() {
       </div>
       <p className="muted small">
         {msg ||
-          'Free from themoviedb.org (Settings → API). Vanta sends TMDB only each film’s TMDB or IMDb id and saves the answers on this PC. Nothing is written to Plex or your files.'}
+          'Free from themoviedb.org (Settings → API). This one key gives every cast member’s birthday and age on details pages, the live TMDB score, and the series grouping above. Vanta sends TMDB only TMDB or IMDb ids and saves the answers on this PC. Nothing is written to Plex or your files.'}
       </p>
       <p className="muted small">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
     </div>
@@ -435,7 +433,7 @@ function ServiceKey({ service, label, placeholder, hint }: { service: 'trakt' | 
   );
 }
 
-// A movie-grid folder opened: the series' films in release order, the first film's poster as the cover.
+// A movie-grid folder opened: the series' films in release order, under the collection's cover.
 export function FolderView({ folder }: { folder: Folder }) {
   const ctx = useApp();
   const { col, films } = folder;
@@ -446,11 +444,13 @@ export function FolderView({ folder }: { folder: Folder }) {
     <div className="detail">
       {first.art && <div className="backdrop" style={{ backgroundImage: `url("${img(first.art, 1600, 900)}")` }} />}
       <div className="top">
-        {first.thumb && <img className="cover" src={img(first.thumb, 300, 450)} />}
+        {folderCover(folder, ctx.prefs.ui.officialCovers !== false) && (
+          <img className="cover collection-cover" src={img(folderCover(folder, ctx.prefs.ui.officialCovers !== false), 300, 450)} />
+        )}
         <div className="info">
           <h1>{col.title}</h1>
           <div className="meta">
-            {[`${films.length} films`, years.length && [...new Set(years)].join('–'), folder.source === 'tmdb' && 'Series info from TMDB', folder.source === 'mine' && 'Your collection']
+            {[`${films.length} film${films.length === 1 ? '' : 's'}`, years.length && [...new Set(years)].join('–'), folder.source === 'tmdb' && 'Series info from TMDB', folder.source === 'mine' && 'Your collection']
               .filter(Boolean)
               .join(' · ')}
           </div>
@@ -520,7 +520,7 @@ function DetailBody({ item, kids: children, next }: { item: Item; kids: Item[]; 
       ? `${item.parentTitle} · ${item.title}`
       : item.type === 'episode'
         ? `${item.grandparentTitle} · ${episodeLabel(item)}`
-        : item.title;
+        : cleanTitle(item.title);
   const watched = isWatched(item);
   const group = item.type === 'show' || item.type === 'season';
   // A collection's cover is its first film's poster, matching its folder in the movie grid.
@@ -532,7 +532,12 @@ function DetailBody({ item, kids: children, next }: { item: Item; kids: Item[]; 
         <div className="backdrop" style={{ backgroundImage: `url("${img(item.art || item.grandparentArt, 1600, 900)}")` }} />
       )}
       <div className="top">
-        {cover && <img className={`cover ${item.type === 'episode' ? 'wide' : ''}`} src={img(cover, 300, 450)} />}
+        {cover && (
+          <img
+            className={`cover ${item.type === 'episode' ? 'wide' : ''} ${item.type === 'collection' ? 'collection-cover' : ''}`}
+            src={img(cover, 300, 450)}
+          />
+        )}
         <div className="info">
           <h1>{heading}</h1>
           {item.type === 'episode' && <h3>{item.title}</h3>}
@@ -610,10 +615,15 @@ function DetailBody({ item, kids: children, next }: { item: Item; kids: Item[]; 
                 📺 Go to show
               </button>
             )}
+            {(item.type === 'movie' || item.type === 'episode') && (
+              <button className="tool" data-nav onClick={() => askDelete(item)} title="Delete from the library and from the server's storage">
+                🗑 Delete
+              </button>
+            )}
           </div>
           {item.tagline && <p className="tagline">{item.tagline}</p>}
           <p className="summary">{item.summary}</p>
-          {playable(item) && <FileInfo item={item} />}
+          {playable(item) && <FileInfo item={item} ids={ids} />}
         </div>
       </div>
       {item.type !== 'collection' && <CastAndCrew item={item} ids={ids} />}
@@ -1171,13 +1181,23 @@ export function Settings({ onSignOut, username }: { onSignOut: () => void; usern
         value={ui.groupCollections}
         onChange={(groupCollections) => setUi({ groupCollections })}
       />
+      <Switch
+        label="Official release posters"
+        hint={
+          ui.officialCovers !== false
+            ? 'On: every movie and show shows its official poster from TMDB (needs the TMDB key below), so covers match the real release instead of fan art. Plex is not changed.'
+            : 'Off: covers are the ones chosen in Plex.'
+        }
+        value={ui.officialCovers !== false}
+        onChange={(officialCovers) => setUi({ officialCovers })}
+      />
       <TmdbKey />
 
       <h2>Scores and cast</h2>
       <p className="muted small">
-        The details page shows the IMDb, Rotten Tomatoes and TMDB scores Plex already has, and each cast member’s
-        birthday and age once a TMDB key is set (above). These optional keys make the scores live and add Trakt and
-        Metacritic.
+        Cast birthdays and ages need only the TMDB key in Library above; nothing here affects them. Without any key
+        here, the details page shows the IMDb, Rotten Tomatoes and TMDB scores Plex already has. The optional OMDb key
+        below only makes the IMDb and Rotten Tomatoes scores live and adds Metacritic.
       </p>
       {/* With Vanta's own Trakt app id built in, Trakt scores need no key. */}
       <TraktKeyIfNeeded />
@@ -1185,7 +1205,7 @@ export function Settings({ onSignOut, username }: { onSignOut: () => void; usern
         service="omdb"
         label="Live IMDb, Rotten Tomatoes and Metacritic (optional)"
         placeholder="Paste your OMDb API key"
-        hint="Free from omdbapi.com (1,000 lookups a day). Vanta sends OMDb only each title’s IMDb id; scores are kept for 12 hours."
+        hint="Scores only, not ages. Free from omdbapi.com (1,000 lookups a day). Vanta sends OMDb only each title’s IMDb id; scores are kept for 12 hours."
       />
 
       <h2>Sidebar</h2>

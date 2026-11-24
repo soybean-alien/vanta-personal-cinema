@@ -1,7 +1,7 @@
 // Vanta by soybean_alien
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, User, items, nextEpisode, playable, releaseOrder, sections, shownTitle, loadWatchLog, goldName } from './api';
-import { AddToCollection, AppCtx, BackupPanel, Ctx, Menu, MenuEntry, Modal, POSTER_DEFAULT, View, applyPosterSize, applyTheme, navEntries, useUpdate } from './components';
+import { ConnectResult, Health, Item, PlayOpts, PlayerState, Prefs, Section, User, items, nextEpisode, playable, releaseOrder, sections, shownTitle, loadWatchLog, goldName, setCoverMode } from './api';
+import { AddToCollection, AppCtx, DeleteDialog, BackupPanel, Ctx, Menu, MenuEntry, Modal, POSTER_DEFAULT, View, applyPosterSize, applyTheme, navEntries, useUpdate } from './components';
 import { focusEl, focusFirst, installGamepad, installKeys } from './nav';
 import mark from './assets/vanta-mark.svg';
 import { BadgeShowcase, BadgeState, BadgeToasts, setTicketAvatar, setTicketHolder } from './badges';
@@ -285,6 +285,7 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
       .then((p) => {
         applyPosterSize(p.ui.posterSize ?? POSTER_DEFAULT);
         applyTheme(p.ui.theme);
+        setCoverMode(p.ui.officialCovers !== false);
         setPrefsState(p);
       });
     sections()
@@ -307,6 +308,13 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
     const onAdd = (e: Event) => setAddTo((e as CustomEvent<Item>).detail);
     window.addEventListener('vanta:add-to-collection', onAdd);
     return () => window.removeEventListener('vanta:add-to-collection', onAdd);
+  }, []);
+  // "Delete from disk" from an item menu or a details page opens the "Are you sure?" dialog here.
+  const [toDelete, setToDelete] = useState<Item | null>(null);
+  useEffect(() => {
+    const onDel = (e: Event) => setToDelete((e as CustomEvent<Item>).detail);
+    window.addEventListener('vanta:delete', onDel);
+    return () => window.removeEventListener('vanta:delete', onDel);
   }, []);
   useEffect(() => {
     const openBadges = () => go({ kind: 'badges' });
@@ -444,7 +452,11 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
     error: setError,
     refresh,
     prefs,
-    setPrefs: (patch) => window.plex.setPrefs(patch).then(setPrefsState),
+    setPrefs: (patch) =>
+      window.plex.setPrefs(patch).then((p) => {
+        setCoverMode(p.ui.officialCovers !== false);
+        setPrefsState(p);
+      }),
     sections: libs,
   };
 
@@ -604,6 +616,17 @@ function Shell({ user, server, onSignOut }: { user: User; server: string; onSign
       </div>
       {menu && <Menu {...menu} onClose={() => setMenu(null)} />}
       {addTo && <AddToCollection item={addTo} onClose={() => setAddTo(null)} />}
+      {toDelete && (
+        <DeleteDialog
+          item={toDelete}
+          onClose={() => setToDelete(null)}
+          onDeleted={() => {
+            // Leave the deleted title's page, then reload the lists without it.
+            if (top?.view.kind === 'item' && top.view.ratingKey === toDelete.ratingKey) back();
+            setRefresh((n) => n + 1);
+          }}
+        />
+      )}
       <BadgeToasts sound={prefs.ui.badgeSound} onEarned={refreshBadges} />
     </AppCtx.Provider>
   );

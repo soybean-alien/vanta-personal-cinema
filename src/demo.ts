@@ -376,6 +376,7 @@ export function install() {
     tmdbStatus: () => later({ hasKey: false, cached: 0 }),
     tmdbSetKey: () => later({ error: 'TMDB lookups are off in demo mode.' }),
     tmdbCollections: () => later({ byFilm: {}, looked: 0, failed: 0 }),
+    tmdbCollectionPoster: () => later(null),
     detailsStatus: () => later({ tmdb: true, trakt: false, omdb: false }),
     detailsSetKey: () => later({ error: 'Live scores are off in demo mode.' }),
     // A sample "live" Trakt score, so the green live dot shows on the films with credits.
@@ -401,6 +402,8 @@ export function install() {
     subsEnqueue: () => later({ queued: 0 }),
     subsStatus: () => later({ found: 0, none: 0, queued: 0, enabled: true }),
     subsImport: () => later({ error: 'Subtitles are off in demo mode.' }),
+    deleteItem: () => later({ error: 'Deleting is off in demo mode.' }),
+    canDelete: () => later(null),
     myCollections: () => later(demoMine),
     myCollectionAssign: (guid: string, key: string | null, name: string) => {
       if (!key) {

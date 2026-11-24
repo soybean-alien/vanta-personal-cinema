@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.7 (2026-11-24)
+
+- **Series tiles:** a series becomes one tile only when two or more of its films are in your library, or when you put a film in a collection yourself (Add to collection). One film of a series you don't otherwise own stays an ordinary poster.
+- Series tiles show the series' own cover from TMDB (also for collections you named yourself, when TMDB has one by that name) and a neon red edge, as do the Collections page and each collection's page.
+- **Clean titles:** movie covers are captioned with the title alone, in white bold, even when Plex only has a file name such as *Film.2009.1080p.BluRay.x265*.
+- **Official release posters:** with a TMDB key, movies and shows show their main English release poster instead of fan art (Settings → Library). Covers Plex can't serve, or never matched, fall back to a poster found online.
+- **Delete from disk:** from the item menu or a details page, remove a movie or episode from the library and its files from the server's storage. A dialog shows the file path, and the delete works only after you type the title. Needs the server's "Allow media deletion" setting.
+- The box office numbers under movie covers are gone.
+- **Faster start:** Vanta reuses the last working connection to your server, so covers appear in under a second.
+- **Cast ages:** when only a birth year is known, the age is shown as an estimate ("Age 41 or 42, estimated"), and ages already found still show when TMDB rejects the key. Clearer wording for the TMDB and OMDb keys in Settings.
+- Updated to Electron 45.
+
 ## 2.1.5 (2026-10-24)
 
 - **Watch times:** details pages show when you last watched, with the time in New York time (for example "✓ Watched 10/22/2026 11:52 PM"), for movies, shows, seasons and episodes. Shows and seasons you're part-way through say when you last watched an episode. The poster grid keeps the date only.
