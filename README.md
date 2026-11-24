@@ -35,7 +35,7 @@ stays out of the way. And now, watching earns you something.
 - **Plays everything, untouched.** Files play directly in mpv, so 4K HDR, HEVC, lossless audio and image subtitles reach your screen as they are, with no transcoding.
 - **Built for the couch.** Every screen works with the keyboard or an Xbox controller, and you sign in once.
 
-> Release: **2.1.9**: collections you make yourself, across all your movie libraries, one collection per film, with
+> Release: **2.1.10**: Select mode to put many films in a collection at once, with 2.1.9's collections you make yourself, across all your movie libraries, one collection per film,
 > clean movie titles in the grid, official release posters, Delete from disk and a faster start, on top of 2.1.5's watch times and complete backups,
 > 2.1's Trakt sync and 2.0, the biggest update yet (the new details page, automatic subtitles, Spotify, full
 > backups, themes and much more). For Windows 10 and 11, with Plex Media Server on the same PC or on

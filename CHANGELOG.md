@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1.10 (unreleased)
+## 2.1.10 (2026-11-24)
 
 - **Select mode:** in a movie library, **☑ Select** lets you tick several films (or filter, then **Select all shown**) and put them all in one collection with **🗂 Add to collection…**. Collections open up into single films while you select; films already in another collection move to the one you pick.
 
