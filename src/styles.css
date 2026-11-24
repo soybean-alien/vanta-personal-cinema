@@ -501,6 +501,7 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .add-col-row.new { color: var(--accent); font-weight: 600; }
 .add-col-row img { width: 30px; height: 45px; object-fit: cover; border-radius: 3px; }
 .add-col-name { flex: 1; }
+.add-col-check { width: 16px; color: var(--accent); font-weight: 700; text-align: center; }
 .delete-dialog p { margin: 0; line-height: 1.45; }
 .delete-files { font-family: Consolas, monospace; font-size: 12px; color: var(--muted, #aaa); background: var(--raised); border-radius: 6px; padding: 8px 10px; word-break: break-all; }
 .delete-confirm { display: flex; flex-direction: column; gap: 6px; }

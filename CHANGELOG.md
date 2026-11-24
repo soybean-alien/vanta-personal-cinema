@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.9 (2026-11-24)
+
+- **Your collections, made by you only.** Vanta no longer groups films by itself: no TMDB series and no Plex collections. A collection exists only because you made it (🗂 Add to collection), so single films never turn into collections on their own. Series picks from earlier versions are dropped; collections you named yourself are kept.
+- **Across libraries:** a collection holds films from every movie library in the sidebar (*Movies* and *New Arrivals* alike), shows in each library that holds one of its films, and opens with all of them.
+- **One collection per film:** picking another collection moves the film; picking its own again takes it out.
+- Rename or delete a collection on its page; **Settings → Library → Start collections from scratch** deletes them all.
+- Typing in a library's filter box shows matching films on their own, even ones inside a collection.
+- Covers: with a TMDB key, a collection named like a TMDB collection gets its official cover. TMDB never decides what is in a collection.
+
 ## 2.1.8 (2026-11-24)
 
 - Under the hood: React 19, Vite 8 and TypeScript 7. Nothing changes on screen; the app's code is a little smaller.

@@ -1,19 +1,18 @@
 // Vanta by soybean_alien
-// Optional franchise lookup on The Movie Database (TMDB), for the movie grid's collection folders.
-// Read-only towards Plex: it only reads each movie's TMDB/IMDb id from Plex and asks TMDB which collection
-// ("The Matrix Collection") the film belongs to. Answers are cached on this PC in tmdb-cache.json; the key the
-// user pastes in Settings is stored encrypted (safeStorage) in tmdb.bin and never leaves the main process.
+// The Movie Database (TMDB), optional: the key the user pastes in Settings is stored encrypted (safeStorage) in
+// tmdb.bin and never leaves the main process. Other modules call TMDB through call() (official posters, details, box
+// office). Here: cover art for your collections, found by the collection's name. TMDB never decides which films
+// are in a collection; that is only ever you (my-collections.cjs). Answers are cached in tmdb-cache.json.
 const { app, safeStorage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
 const file = (name) => path.join(app.getPath('userData'), name);
 const API = 'https://api.themoviedb.org/3';
-const RECHECK_NONE = 30 * 24 * 3600 * 1000; // films with no collection are asked again after 30 days (sequels get made)
 
 let key;
 let rejected = false; // TMDB answered 401 for the saved key: stop asking until a new key is set
-let cache; // { [ref]: { c: { id, name } | null, at } }, ref = 'tmdb:603' | 'imdb:tt0133093'
+let cache; // { ['colname:<name>']: { p: poster path | null, at } } (older installs also hold per-film series answers)
 
 function loadKey() {
   if (key === undefined) {
@@ -87,55 +86,6 @@ async function setKey(k) {
   return status();
 }
 
-async function lookupOne(ref) {
-  const [kind, id] = ref.split(':');
-  let tmdbId = id;
-  if (kind === 'imdb') {
-    const found = await call(`/find/${encodeURIComponent(id)}?external_source=imdb_id`);
-    tmdbId = found?.movie_results?.[0]?.id;
-    if (!tmdbId) return null;
-  }
-  const m = await call(`/movie/${encodeURIComponent(tmdbId)}`);
-  const c = m?.belongs_to_collection;
-  return c ? { id: c.id, name: c.name, poster: c.poster_path || null } : null;
-}
-
-// refs: { [ratingKey]: ref } -> { [ratingKey]: { id, name } } for films that belong to a TMDB collection.
-// Uncached refs are looked up 8 at a time; the cache is saved as it goes so an interrupted run isn't lost.
-async function collections(refs) {
-  loadCache();
-  const now = Date.now();
-  const stale = (e) => !e || (!e.c && now - e.at > RECHECK_NONE) || (e.c && !('poster' in e.c));
-  // Without a key, only what's already cached is used.
-  const todo = loadKey() ? [...new Set(Object.values(refs).filter((r) => stale(cache[r])))] : [];
-  let i = 0;
-  let failed = 0;
-  let sinceSave = 0;
-  const worker = async () => {
-    while (i < todo.length) {
-      const ref = todo[i++];
-      try {
-        cache[ref] = { c: await lookupOne(ref), at: Date.now() };
-        if (++sinceSave >= 25) {
-          sinceSave = 0;
-          saveCache();
-        }
-      } catch (e) {
-        if (e.message === 'TMDB rejected the key.') throw e;
-        failed++;
-      }
-    }
-  };
-  try {
-    await Promise.all(Array.from({ length: Math.min(8, todo.length) }, worker));
-  } finally {
-    if (todo.length) saveCache();
-  }
-  const out = {};
-  for (const [rk, ref] of Object.entries(refs)) if (cache[ref]?.c) out[rk] = cache[ref].c;
-  return { byFilm: out, looked: todo.length, failed };
-}
-
 // For backups: the key and the cache come back on a new install without asking TMDB again.
 function restore(k, c) {
   if (k && typeof k === 'string') {
@@ -180,4 +130,4 @@ async function collectionPoster(name) {
   }
 }
 
-module.exports = { status, setKey, collections, collectionPoster, call, hasKey: () => !!loadKey(), keyRejected: () => rejected, backupKey: () => loadKey(), backupCache: () => loadCache(), restore };
+module.exports = { status, setKey, collectionPoster, call, hasKey: () => !!loadKey(), keyRejected: () => rejected, backupKey: () => loadKey(), backupCache: () => loadCache(), restore };
