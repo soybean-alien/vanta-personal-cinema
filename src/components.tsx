@@ -1,6 +1,6 @@
 // Vanta by soybean_alien
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { cleanTitle, collectionFolders, folderCover, Filters, Folder, Item, items, MyCollections, PlayOpts, Prefs, ResTier, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState, watchedOn } from './api';
+import { cleanTitle, collectionFolders, sameSeries, seriesKey, seriesName, folderCover, Filters, Folder, Item, items, MyCollections, PlayOpts, Prefs, ResTier, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState, watchedOn } from './api';
 import { focusEl, focusFirst, focusLost } from './nav';
 
 // When a view finishes loading and nothing useful has focus (keyboard/controller just opened it),
@@ -66,6 +66,10 @@ export const folderMenu = (ctx: Ctx, f: Folder): MenuEntry[] => [
 ];
 
 // Right-click / Y-button menu entries for any library item.
+// The movie library on screen registers here, so a film's right-click menu can start (or tick in) Select mode from
+// anywhere in the grid, not only from the header button.
+export const selectHost: { current: null | { selecting: boolean; tick: (i: Item) => void } } = { current: null };
+
 export function itemMenu(ctx: Ctx, item: Item): MenuEntry[] {
   const e: MenuEntry[] = [];
   const watched = isWatched(item);
@@ -92,6 +96,9 @@ export function itemMenu(ctx: Ctx, item: Item): MenuEntry[] {
     });
   if (item.type === 'movie' && item.guid)
     e.push({ label: '🗂 Add to collection…', action: () => window.dispatchEvent(new CustomEvent('vanta:add-to-collection', { detail: item })) });
+  const host = selectHost.current;
+  if (item.type === 'movie' && item.guid && host)
+    e.push({ label: host.selecting ? '☑ Tick this film' : '☑ Select… (put several films in a collection)', action: () => host.tick(item) });
   if (item.type === 'movie' || item.type === 'episode')
     e.push({ label: '🗑 Delete from disk…', action: () => askDelete(item) });
   if (item.type === 'episode' && item.grandparentRatingKey)
@@ -438,6 +445,15 @@ export function AddToCollection({ items, onClose, onDone }: { items: Item[]; onC
   const exact = cols.some((c) => c.name.toLowerCase() === name.toLowerCase());
   const current = cols.find((c) => has(c.key));
   const already = many ? cols.filter((c) => guids.some((g) => inCol(c.key).includes(g))).length : 0;
+  // Suggestions (from the titles only; nothing is added until you pick): your collections that already hold films of
+  // the same series, and a new collection named after the series the picked films share.
+  const keys = [...new Set(items.map((i) => seriesKey(i.title)).filter(Boolean))];
+  const related = (c: (typeof cols)[number]) =>
+    !has(c.key) && (keys.some((k) => sameSeries(k, seriesKey(c.name))) || !!c.folder?.films.some((f) => keys.some((k) => sameSeries(k, seriesKey(f.title)))));
+  const suggestCols = cols.filter(related);
+  const names = items.map((i) => seriesName(i.title)).filter(Boolean);
+  const top = names.sort((a, b) => names.filter((n) => n === b).length - names.filter((n) => n === a).length)[0];
+  const suggestNew = top && !cols.some((c) => c.name.toLowerCase() === top.toLowerCase()) ? top : '';
   const done = (r: MyCollections | { error: string }) => {
     if ('error' in r) return setMsg(r.error);
     setMsg('');
@@ -448,9 +464,9 @@ export function AddToCollection({ items, onClose, onDone }: { items: Item[]; onC
   };
   const pick = async (key: string, title: string) =>
     done(await (has(key) ? window.plex.myCollectionDrop(item.guid!, key) : window.plex.myCollectionAdd(many ? guids : item.guid!, key, title)));
-  const create = async () => {
-    if (!name || exact) return;
-    done(await window.plex.myCollectionAdd(many ? guids : item.guid!, null, name));
+  const create = async (n = name) => {
+    if (!n || cols.some((c) => c.name.toLowerCase() === n.toLowerCase())) return;
+    done(await window.plex.myCollectionAdd(many ? guids : item.guid!, null, n));
     setQ('');
   };
   return (
@@ -473,8 +489,27 @@ export function AddToCollection({ items, onClose, onDone }: { items: Item[]; onC
           onKeyDown={(e) => e.key === 'Enter' && create()}
         />
         <div className="add-col-list">
+          {!name && (suggestNew || suggestCols.length > 0) && (
+            <>
+              <p className="add-col-head muted small">Suggested</p>
+              {suggestNew && (
+                <button className="add-col-row new" data-nav onClick={() => create(suggestNew)}>
+                  <span className="add-col-name">＋ New collection “{suggestNew}”</span>
+                </button>
+              )}
+              {suggestCols.map((c) => (
+                <button key={`s-${c.key}`} className="add-col-row" data-nav onClick={() => pick(c.key, c.name)}>
+                  <span className="add-col-check">★</span>
+                  {c.folder && folderCover(c.folder, official) && <img src={img(folderCover(c.folder, official)!, 60, 90)} />}
+                  <span className="add-col-name">{c.name}</span>
+                  <span className="muted small">same series</span>
+                </button>
+              ))}
+              {cols.length > 0 && <p className="add-col-head muted small">All your collections</p>}
+            </>
+          )}
           {name && !exact && (
-            <button className="add-col-row new" data-nav onClick={create}>
+            <button className="add-col-row new" data-nav onClick={() => create()}>
               <span className="add-col-name">＋ New collection “{name}”</span>
             </button>
           )}

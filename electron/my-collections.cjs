@@ -3,7 +3,7 @@
 // the films you put in it (any number, from any library). A film is in one collection at most: putting it in
 // another moves it. Kept on this PC in my-collections.json (crash-safe, with a .bak), keyed by each film's Plex guid so they survive re-scans,
 // and included in backups. Nothing is written to Plex.
-//   mine: { [id]: { name, films: guid[] } }
+//   mine: { [id]: { name, films: guid[], cover? } }   cover: the poster you picked (a TMDB image URL or a Plex film poster)
 const { app } = require('electron');
 const path = require('path');
 const { readJson, writeJson } = require('./safefile.cjs');
@@ -14,13 +14,17 @@ let data = null;
 const MINE = /^mine:[\w-]+$/;
 const okGuid = (g) => typeof g === 'string' && g.length > 0 && g.length < 300;
 const okName = (n) => String(n || '').trim().slice(0, 120);
+const okCover = (c) => (typeof c === 'string' && c.length < 500 && (/^https:\/\/image\.tmdb\.org\//.test(c) || /^\/library\//.test(c)) ? c : undefined);
 
 function load() {
   if (data) return data;
   const raw = readJson(FILE()) || {};
   data = { mine: {} };
   for (const [id, m] of Object.entries(raw.mine || {}))
-    if (/^[\w-]+$/.test(id) && m?.name) data.mine[id] = { name: okName(m.name), films: Array.isArray(m.films) ? m.films.filter(okGuid) : [] };
+    if (/^[\w-]+$/.test(id) && m?.name) {
+      data.mine[id] = { name: okName(m.name), films: Array.isArray(m.films) ? m.films.filter(okGuid) : [] };
+      if (okCover(m.cover)) data.mine[id].cover = m.cover;
+    }
   // Before 2.1.9 a film joined a collection of yours through `assign`; choices of TMDB or Plex series are dropped,
   // since Vanta no longer groups by series.
   for (const [g, a] of Object.entries(raw.assign || {})) {
@@ -82,6 +86,16 @@ function rename(key, name) {
   return get();
 }
 
+// Pick a collection's cover (null goes back to automatic: TMDB by name, else the first film's poster).
+function setCover(key, cover) {
+  const m = collection(key);
+  if (cover == null) delete m.cover;
+  else if (okCover(cover)) m.cover = cover;
+  else throw new Error('That picture can’t be used as a cover.');
+  save();
+  return get();
+}
+
 // Delete a collection. Its films stay in your libraries; only the grouping goes.
 function remove(key) {
   collection(key);
@@ -109,6 +123,7 @@ function merge(b) {
   for (const [id, m] of Object.entries(b.mine || {})) {
     if (!/^[\w-]+$/.test(id) || !m?.name) continue;
     const here = (data.mine[id] ??= { name: okName(m.name), films: [] });
+    if (!here.cover && okCover(m.cover)) here.cover = m.cover;
     const films = [...(Array.isArray(m.films) ? m.films : []), ...Object.entries(b.assign || {}).filter(([, a]) => a?.key === `mine:${id}`).map(([g]) => g)];
     const placed = new Set(Object.values(data.mine).flatMap((x) => x.films));
     for (const g of films) if (okGuid(g) && !placed.has(g)) here.films.push(g);
@@ -117,4 +132,4 @@ function merge(b) {
   return count(data) - before;
 }
 
-module.exports = { get, add, drop, rename, remove, reset, merge, count };
+module.exports = { get, add, drop, rename, setCover, remove, reset, merge, count };

@@ -239,9 +239,13 @@ put in it. Its tile, the Collections page and its own page carry a neon red edge
 
 - **Make one:** right-click a film (or press Y), choose **🗂 Add to collection**, type a name and press Enter. Pick the
   same collection from any other film's menu to add that film too.
-- **Many at once:** in a movie library, click **☑ Select**, tick the posters you want (or filter, then **Select all
-  shown**) and choose **🗂 Add to collection…**. Collections open up into single films while you select, so any film
-  can be ticked; films already in another collection move to the one you pick.
+- **Many at once:** in a movie library, click **☑ Select** (or right-click any film → **☑ Select…**), tick the posters
+  you want (or filter, then **Select all shown**) and choose **🗂 Add to collection…**. Collections open up into single
+  films while you select, so any film can be ticked; films already in another collection move to the one you pick.
+- **Suggestions, never automatic:** while you select, films of the same series from any movie library (*Movies* and
+  *New Arrivals* alike) are offered under the bar, with **Tick all**. The picker suggests a name for a new collection
+  and your collections that already hold the same series. They come from the titles alone, and nothing is added until
+  you click.
 - **One collection per film.** Picking another collection moves the film there; picking its own collection again
   takes it out.
 - **Across libraries.** Every film of every movie library in your sidebar counts, so a collection can hold films from
@@ -252,8 +256,11 @@ put in it. Its tile, the Collections page and its own page carry a neon red edge
 - **Rename or delete** a collection on its own page. Deleting removes only the grouping; the films stay in your
   library. **Settings → Library → Start collections from scratch** deletes every collection at once.
 - **Covers:** with a free [TMDB](https://www.themoviedb.org) key and **Official release posters** on, a collection
-  named like a TMDB collection (*Saw*, *Alien*) gets that collection's official cover. Only the cover comes from TMDB,
-  never which films are in it. Otherwise its first film's cover is used.
+  named like a TMDB collection (*Saw*, *Alien*) gets that collection's official cover. **🖼 Change cover** on a
+  collection's page offers the official covers of the TMDB collections its films belong to, whatever TMDB calls them
+  (your *House of 1,000 Corpses* finds TMDB's *Firefly Collection*), a TMDB search, and the films' own posters. Your
+  pick sticks, whatever the collection is called. Only the cover comes from TMDB, never which films are in it.
+  Otherwise its first film's cover is used.
 - **Nothing on your server changes.** Collections exist only in Vanta (`my-collections.json`, included in backups).
   No collections are created in Plex, and no files or folders are touched. Turn folding off in **Settings → Library**.
 

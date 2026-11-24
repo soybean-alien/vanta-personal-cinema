@@ -130,4 +130,60 @@ async function collectionPoster(name) {
   }
 }
 
-module.exports = { status, setKey, collectionPoster, call, hasKey: () => !!loadKey(), keyRejected: () => rejected, backupKey: () => loadKey(), backupCache: () => loadCache(), restore };
+// Cover choices for one of your collections, art only (nothing here decides what is in a collection): the TMDB
+// collections its films belong to, whatever TMDB calls them ("House of 1000 Corpses" sits in a collection of another
+// name), each with its alternative posters, plus TMDB collections found by text. Lookups are kept 30 days.
+//   films: [{ title, year }], query: text -> { choices: [{ name, poster }] } or { error }
+async function cached(k, get) {
+  const e = cache[k];
+  if (e && Date.now() - e.at < 30 * DAY) return e.v;
+  const v = await get();
+  cache[k] = { v, at: Date.now() };
+  return v;
+}
+async function coverChoices(films, query) {
+  if (!loadKey()) return { error: 'Add your TMDB key in Settings to pick official covers. Film posters still work.' };
+  loadCache();
+  const found = new Map();
+  try {
+    for (const f of (Array.isArray(films) ? films : []).slice(0, 20)) {
+      const title = String(f?.title || '').slice(0, 200);
+      const year = /^\d{4}$/.test(String(f?.year)) ? f.year : '';
+      if (!title) continue;
+      const c = await cached(`belongs:${title.toLowerCase()}|${year}`, async () => {
+        const r = await call(`/search/movie?query=${encodeURIComponent(title)}${year ? `&year=${year}` : ''}&language=en-US`);
+        const id = r?.results?.[0]?.id;
+        const m = id ? await call(`/movie/${id}?language=en-US`) : null;
+        const b = m?.belongs_to_collection;
+        return b ? { id: b.id, name: b.name, poster_path: b.poster_path } : null;
+      });
+      if (c && !found.has(c.id)) found.set(c.id, c);
+    }
+    const q = String(query || '').trim().slice(0, 100);
+    if (q) {
+      const r = await cached(`colsearch:${q.toLowerCase()}`, async () =>
+        ((await call(`/search/collection?query=${encodeURIComponent(q)}&language=en-US`))?.results || [])
+          .slice(0, 10)
+          .map((c) => ({ id: c.id, name: c.name, poster_path: c.poster_path })),
+      );
+      for (const c of r) if (!found.has(c.id)) found.set(c.id, c);
+    }
+    const choices = [];
+    const seen = new Set();
+    const push = (name, p) => p && !seen.has(p) && (seen.add(p), choices.push({ name, poster: posterUrl(p) }));
+    for (const c of found.values()) {
+      push(c.name, c.poster_path);
+      const more = await cached(`colposters:${c.id}`, async () =>
+        ((await call(`/collection/${c.id}/images?include_image_language=en,null`))?.posters || []).slice(0, 8).map((x) => x.file_path),
+      );
+      for (const p of more) push(c.name, p);
+    }
+    saveCache();
+    return { choices };
+  } catch (e) {
+    saveCache();
+    return { error: e.message };
+  }
+}
+
+module.exports = { status, setKey, collectionPoster, coverChoices, call, hasKey: () => !!loadKey(), keyRejected: () => rejected, backupKey: () => loadKey(), backupCache: () => loadCache(), restore };
