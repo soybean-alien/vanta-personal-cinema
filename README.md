@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/banner.png" alt="Vanta: a private cinema for your Plex library" width="100%"></p>
+<p align="center"><img src="docs/banner.png" alt="Vanta: a release file name struck out and turned into a clean film title (sample title)" width="100%"></p>
 
 <p align="center"><img src="docs/Vanta-Stack.svg" alt="Built with TypeScript 32.8%, JavaScript 32.4%, HTML 28.6%, CSS 6.0% (GitHub language breakdown)"></p>
 
@@ -556,7 +556,7 @@ npm run dist         # writes release/Vanta-Setup-<version>.exe
 
 Re-record the README media from demo mode with `node tools/demo/record.mjs` (writes `docs/demo.gif` and the
 screenshots). The banner is `tools/banner/banner.html`, in the Risograph style:
-`powershell -ExecutionPolicy Bypass -File toolsannerender.ps1` renders `docs/banner.png` and the social preview. Badge
+`powershell -ExecutionPolicy Bypass -File tools\banner\render.ps1` renders `docs/banner.png` and the social preview. Badge
 style explorations live in `design/badge-styles`. The app icon concepts live in `design/icons` (`node design/icons/build.mjs`).
 
 No Plex code or copyrighted media is included in this repository. The only artwork is the demo library's public-domain posters.
