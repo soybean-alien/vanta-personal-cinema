@@ -387,6 +387,9 @@ export function install() {
           req.names.filter((n) => PEOPLE[n]).map((n) => [n, { id: PEOPLE[n].id, birthday: PEOPLE[n].birthday, deathday: PEOPLE[n].deathday || null, place: PEOPLE[n].place }]),
         ),
       }),
+    // Ages above arrive in the final reply, so there are no one-by-one updates to send. Without this the details page
+    // crashed in demo mode.
+    onCastLife: () => () => {},
     watchLog: () => later({}),
     watchLogRecord: () => later(undefined),
     watchLogForget: () => later(undefined),

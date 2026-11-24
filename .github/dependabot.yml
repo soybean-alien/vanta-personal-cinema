@@ -1,5 +1,7 @@
 # Dependabot: weekly pull requests for npm packages and GitHub Actions.
-# Minor and patch updates are grouped; major updates (Electron included) arrive one per pull request.
+# React and Vite each arrive as one pull request, majors included, because their packages only install together
+# (react with react-dom and their types; vite with @vitejs/plugin-react). Other minor and patch updates are grouped;
+# other major updates (Electron included) arrive one per pull request.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -7,6 +9,10 @@ updates:
     schedule:
       interval: weekly
     groups:
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      vite:
+        patterns: ["vite", "@vitejs/plugin-react"]
       npm-minor-and-patch:
         update-types: [minor, patch]
 
