@@ -407,15 +407,16 @@ export function install() {
     deleteItem: () => later({ error: 'Deleting is off in demo mode.' }),
     canDelete: () => later(null),
     myCollections: () => later(structuredClone(demoMine)),
-    myCollectionAdd: (guid: string, key: string | null, name: string) => {
+    myCollectionAdd: (guid: string | string[], key: string | null, name: string) => {
       if (!key) {
         const found = Object.entries(demoMine.mine).find(([, m]) => m.name.toLowerCase() === name.toLowerCase());
         key = `mine:${found ? found[0] : Date.now().toString(36)}`;
         if (!found) demoMine.mine[key.slice(5)] = { name, films: [] };
       }
       const m = demoMine.mine[key.slice(5)];
-      for (const o of Object.values(demoMine.mine)) if (o !== m) o.films = o.films.filter((g) => g !== guid);
-      if (m && !m.films.includes(guid)) m.films.push(guid);
+      const moving = new Set(Array.isArray(guid) ? guid : [guid]);
+      for (const o of Object.values(demoMine.mine)) if (o !== m) o.films = o.films.filter((g) => !moving.has(g));
+      if (m) for (const g of moving) if (!m.films.includes(g)) m.films.push(g);
       return later(structuredClone(demoMine));
     },
     myCollectionDrop: (guid: string, key: string) => {

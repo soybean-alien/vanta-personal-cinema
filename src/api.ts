@@ -451,7 +451,7 @@ declare global {
       subsStatus(): Promise<{ found: number; none: number; queued: number; enabled: boolean }>;
       subsImport(meta: { guid?: string; title: string }): Promise<{ ok?: boolean; canceled?: boolean; name?: string; error?: string }>;
       myCollections(): Promise<MyCollections>;
-      myCollectionAdd(guid: string, key: string | null, name: string): Promise<MyCollections | { error: string }>;
+      myCollectionAdd(guid: string | string[], key: string | null, name: string): Promise<MyCollections | { error: string }>;
       myCollectionDrop(guid: string, key: string): Promise<MyCollections | { error: string }>;
       myCollectionRename(key: string, name: string): Promise<MyCollections | { error: string }>;
       myCollectionDelete(key: string): Promise<MyCollections | { error: string }>;

@@ -35,7 +35,7 @@ import {
   loadWatchLog,
   TraktStatus,
 } from './api';
-import { askDelete, BackupPanel, Choice, Modal, Poster, PosterSize, THEMES, applyTheme, navEntries, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
+import { AddToCollection, askDelete, BackupPanel, Choice, Modal, Poster, PosterSize, THEMES, applyTheme, navEntries, Switch, Toggle, playFolder, useApp, useAutoFocus, useUpdate } from './components';
 import { CHIMES, playChime, previewBadgeToast } from './badges';
 import { CastAndCrew, FileInfo, Scores, useTitleIds } from './details';
 import { SpotifySettings } from './music';
@@ -61,6 +61,12 @@ export function Library({ section, initial, pinId }: { section: Section; initial
   const [decades, setDecades] = useState<{ key: string; title: string }[]>([]);
   const [text, setText] = useState('');
   const [pick, setPick] = useState<Item | null>(null);
+  // Select mode (movie libraries): tick several films, then put them all in one collection at once.
+  const [selecting, setSelecting] = useState(false);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState(false);
+  const stopSelecting = () => (setSelecting(false), setSel(new Set()));
+  useEffect(stopSelecting, [section.key]);
 
   const update = (patch: Partial<Filters>) => {
     const nf = { ...f, ...patch };
@@ -112,7 +118,7 @@ export function Library({ section, initial, pinId }: { section: Section; initial
   }, [grouping, ctx.refresh, ctx.prefs.ui.hiddenLibs]);
   const tiles = useMemo((): { item: Item; folder?: Folder }[] | undefined => {
     if (!shown) return undefined;
-    if (!grouping || !folders || text.trim()) return shown.map((item) => ({ item }));
+    if (!grouping || !folders || text.trim() || selecting) return shown.map((item) => ({ item }));
     const placed = new Set<Folder>();
     const out: { item: Item; folder?: Folder }[] = [];
     for (const i of shown) {
@@ -124,7 +130,14 @@ export function Library({ section, initial, pinId }: { section: Section; initial
       }
     }
     return out;
-  }, [shown, folders, grouping, text]);
+  }, [shown, folders, grouping, text, selecting]);
+  const picked = (shown || []).filter((i) => sel.has(i.ratingKey));
+  const toggleSel = (rk: string) =>
+    setSel((s) => {
+      const n = new Set(s);
+      if (!n.delete(rk)) n.add(rk);
+      return n;
+    });
   const folded = tiles?.filter((t) => t.folder).length ?? 0;
   const filtered = f.genre || f.decade || f.unwatched || text;
   useAutoFocus(!!shown);
@@ -171,6 +184,11 @@ export function Library({ section, initial, pinId }: { section: Section; initial
         <button className="tool" data-nav onClick={() => ctx.open({ kind: 'collections', section })}>
           🗂 Collections
         </button>
+        {section.type === 'movie' && !selecting && (
+          <button className="tool" data-nav title="Tick several films and put them in a collection at once" onClick={() => setSelecting(true)}>
+            ☑ Select
+          </button>
+        )}
         {!pinId && (
           <button
             className="tool"
@@ -204,6 +222,27 @@ export function Library({ section, initial, pinId }: { section: Section; initial
         </span>
         <PosterSize />
       </header>
+      {selecting && (
+        <div className="select-bar" data-nav-scope>
+          <span>
+            <b>{sel.size}</b> {sel.size === 1 ? 'film' : 'films'} selected. Click posters to tick them; collections are opened up while you select.
+          </span>
+          <button className="tool primary" data-nav disabled={!picked.length} onClick={() => setAdding(true)}>
+            🗂 Add to collection…
+          </button>
+          <button className="tool" data-nav onClick={() => setSel(new Set((shown || []).map((i) => i.ratingKey)))}>
+            Select all shown
+          </button>
+          {sel.size > 0 && (
+            <button className="tool" data-nav onClick={() => setSel(new Set())}>
+              Clear
+            </button>
+          )}
+          <button className="tool" data-nav onClick={stopSelecting}>
+            Done
+          </button>
+        </div>
+      )}
       {!tiles ? (
         <p className="muted">Loading...</p>
       ) : !tiles.length ? (
@@ -214,12 +253,21 @@ export function Library({ section, initial, pinId }: { section: Section; initial
             folder ? (
               <Poster key={i.ratingKey} item={i} folder={folder} money={section.type === 'movie'} />
             ) : (
-              <Poster key={i.ratingKey} item={i} res={i.type === 'show' ? showRes[i.ratingKey] : resolutionOf(i.Media)} money={i.type === 'movie'} noYear={i.type === 'show'} />
+              <Poster
+                key={i.ratingKey}
+                item={i}
+                res={i.type === 'show' ? showRes[i.ratingKey] : resolutionOf(i.Media)}
+                money={i.type === 'movie'}
+                noYear={i.type === 'show'}
+                selected={selecting ? sel.has(i.ratingKey) : undefined}
+                onClick={selecting ? () => toggleSel(i.ratingKey) : undefined}
+              />
             ),
           )}
         </div>
       )}
       {pick && <RandomPick item={pick} onAnother={randomPick} onClose={() => setPick(null)} />}
+      {adding && <AddToCollection items={picked} onClose={() => setAdding(false)} onDone={stopSelecting} />}
     </>
   );
 }
