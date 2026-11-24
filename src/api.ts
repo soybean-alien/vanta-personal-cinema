@@ -71,6 +71,7 @@ export interface Stream {
   streamType: number; // 1 video, 2 audio, 3 subtitles
   codec?: string;
   language?: string;
+  languageCode?: string;
   displayTitle?: string;
   extendedDisplayTitle?: string;
   title?: string;
@@ -218,6 +219,8 @@ export interface Life {
   place: string | null;
   src?: string | null; // where the birthday came from: TMDB, Wikidata, Trakt or TVmaze
   deathSrc?: string | null; // set only when the death came from a different source than TMDB
+  birthYear?: number | null; // only when no source has the exact birthday; ages from it are shown as estimated
+  yearSrc?: string | null;
 }
 
 // A title's IMDb and TMDB ids, from Plex's Guid list.
@@ -233,14 +236,21 @@ export function externalIds(i: Item): { imdb?: string; tmdb?: string } {
 // Movie grid folders, built from two read-only sources (nothing is written to Plex):
 //  - the collections Plex already has (smart collections are saved filters, not franchises, so they're skipped)
 //  - TMDB's franchise collections, when a TMDB key is set (looked up by the main process, cached on this PC)
-// A film in several collections goes into the smallest one (the most specific, e.g. a trilogy over a 30-film
-// universe). Collections that end up with fewer than 2 films stay as plain posters. Cached per library and refresh.
+// A film in several collections goes into the smallest one that holds 2 or more of your films (the most specific,
+// e.g. a trilogy over a 30-film universe). A collection counts only when 2 or more of its films are in the library,
+// or when you put a film in it yourself (Add to collection): one film of a series you don't otherwise own stays a
+// plain poster. Cached per library and refresh.
 export interface Folder {
   key: string; // 'plex:<ratingKey>' | 'tmdb:<id>' | 'mine:<id>' (what "Add to collection" remembers)
   col: Item; // a Plex collection, or a stand-in for a TMDB one ('tmdb-<id>') or one of yours ('mine-<id>')
   films: Item[]; // release order
   source: 'plex' | 'tmdb' | 'mine';
+  poster?: string; // TMDB's poster for the series its films belong to, when most of them share one
 }
+// A collection's cover: the series' official TMDB poster (with Official release posters on), else the collection's
+// own poster in Plex, else its first film's.
+export const folderCover = (f: Folder, official: boolean) =>
+  (official ? f.poster || f.col.thumb : f.col.thumb || f.poster) || f.films[0]?.thumb;
 // "Add to collection" choices (electron/my-collections.cjs), keyed by film guid.
 export interface MyCollections {
   assign: Record<string, { key: string; name: string }>;
@@ -249,7 +259,7 @@ export interface MyCollections {
 export interface Folders {
   byFilm: Record<string, Folder>;
   list: Folder[];
-  all: Folder[]; // every collection, including ones with a single film (the Collections page)
+  all: Folder[]; // every collection, including ones with a single film (the Add to collection picker)
   tmdb?: { looked: number; failed: number; error?: string };
 }
 const folderCache = new Map<string, { refresh: number; p: Promise<Folders> }>();
@@ -258,7 +268,7 @@ export function collectionFolders(sectionKey: string, refresh: number): Promise<
   if (hit && hit.refresh === refresh) return hit.p;
   const p = (async () => {
     const cols = (await items(`/library/sections/${sectionKey}/collections`)).filter((c) => !Number(c.smart) && c.smart !== true);
-    const all: { key: string; col: Item; films: Item[]; source: Folder['source'] }[] = await Promise.all(
+    const all: { key: string; col: Item; films: Item[]; source: Folder['source']; poster?: string }[] = await Promise.all(
       cols.map(async (col) => ({
         key: `plex:${col.ratingKey}`,
         col,
@@ -269,6 +279,7 @@ export function collectionFolders(sectionKey: string, refresh: number): Promise<
     let movies: Item[] = [];
     // Always asked: without a key, the main process answers from its cache only.
     let tmdb: Folders['tmdb'];
+    let tmdbOf: Record<string, { id: number; name: string; poster?: string | null }> = {};
     {
       movies = await items(`/library/sections/${sectionKey}/all?type=1&includeGuids=1`);
       const refs: Record<string, string> = {};
@@ -280,15 +291,22 @@ export function collectionFolders(sectionKey: string, refresh: number): Promise<
       if ('error' in r) tmdb = { looked: 0, failed: 0, error: r.error };
       else {
         tmdb = { looked: r.looked, failed: r.failed };
-        const groups = new Map<number, { name: string; films: Item[] }>();
+        tmdbOf = r.byFilm;
+        const groups = new Map<number, { name: string; films: Item[]; poster?: string }>();
         for (const m of movies) {
           const c = r.byFilm[m.ratingKey];
           if (!c) continue;
-          if (!groups.has(c.id)) groups.set(c.id, { name: c.name, films: [] });
+          if (!groups.has(c.id)) groups.set(c.id, { name: c.name, films: [], poster: c.poster ? `https://image.tmdb.org/t/p/w500${c.poster}` : undefined });
           groups.get(c.id)!.films.push(m);
         }
         for (const [id, g] of groups)
-          all.push({ key: `tmdb:${id}`, col: { ratingKey: `tmdb-${id}`, key: '', type: 'collection', title: g.name }, films: g.films, source: 'tmdb' });
+          all.push({
+            key: `tmdb:${id}`,
+            col: { ratingKey: `tmdb-${id}`, key: '', type: 'collection', title: g.name },
+            films: g.films,
+            source: 'tmdb',
+            poster: g.poster,
+          });
       }
     }
     // Your own choices win over Plex and TMDB: a film you put in a collection lives there.
@@ -310,20 +328,40 @@ export function collectionFolders(sectionKey: string, refresh: number): Promise<
       chosen[m.ratingKey] = target;
     }
     const home: Record<string, (typeof all)[number]> = { ...chosen };
+    const rank = (c: (typeof all)[number]) => (c.films.length >= 2 ? 0 : 1e6) + c.films.length; // smallest real series first
     for (const c of all)
-      for (const f of c.films) if (!chosen[f.ratingKey] && (!home[f.ratingKey] || c.films.length < home[f.ratingKey].films.length)) home[f.ratingKey] = c;
+      for (const f of c.films) if (!chosen[f.ratingKey] && (!home[f.ratingKey] || rank(c) < rank(home[f.ratingKey]))) home[f.ratingKey] = c;
+    // The TMDB series poster most of a collection's films share (a Plex "Star Wars" collection gets TMDB's).
+    const posterOf = (films: Item[]) => {
+      const n = new Map<string, number>();
+      for (const f of films) {
+        const p = tmdbOf[f.ratingKey]?.poster;
+        if (p) n.set(p, (n.get(p) || 0) + 1);
+      }
+      const [p, k] = [...n].sort((a, b) => b[1] - a[1])[0] || [];
+      return p && k! * 2 >= films.length ? `https://image.tmdb.org/t/p/w500${p}` : undefined;
+    };
     const list: Folder[] = [];
     const every: Folder[] = [];
     const byFilm: Record<string, Folder> = {};
     for (const c of all) {
       const films = releaseOrder(c.films.filter((f) => home[f.ratingKey] === c));
       if (!films.length) continue;
-      const folder = { key: c.key, col: c.col, films, source: c.source };
+      const folder: Folder = { key: c.key, col: c.col, films, source: c.source, poster: c.poster || posterOf(films) };
       every.push(folder);
-      if (films.length < 2) continue;
+      if (films.length < 2 && !films.some((f) => chosen[f.ratingKey] === c)) continue;
       list.push(folder);
       for (const f of films) byFilm[f.ratingKey] = folder;
     }
+    // Your collections and Plex's without a TMDB series behind them: TMDB's poster for a collection of that name.
+    await Promise.all(
+      list
+        .filter((f) => !f.poster)
+        .map(async (f) => {
+          f.poster = (await window.plex.tmdbCollectionPoster(f.col.title).catch(() => null)) || undefined;
+        }),
+    );
+    list.sort((a, b) => a.col.title.localeCompare(b.col.title));
     every.sort((a, b) => a.col.title.localeCompare(b.col.title));
     return { byFilm, list, all: every, tmdb };
   })();
@@ -365,6 +403,7 @@ export interface UiPrefs {
   hiddenLibs: string[];
   showPlaylists: boolean;
   groupCollections: boolean;
+  officialCovers?: boolean; // TMDB's main poster for every movie and show instead of Plex's (default on)
   pins: Pin[];
   navOrder?: string[]; // sidebar order: 'continue', 'music', 'lib:<key>' (components.tsx navEntries)
   theme?: string; // color theme id (components.tsx THEMES); unset = Vanta Gold
@@ -441,6 +480,8 @@ declare global {
       signIn(): Promise<ConnectResult>;
       signOut(): Promise<ConnectResult>;
       get(path: string): Promise<any>;
+      deleteItem(ratingKey: string): Promise<{ ok: true } | { error: string }>;
+      canDelete(): Promise<boolean | null | { error: string }>;
       getPrefs(): Promise<Prefs>;
       setPrefs(patch: { player?: Partial<PlayerPrefs>; ui?: Partial<UiPrefs> }): Promise<Prefs>;
       play(ratingKey: string, opts?: PlayOpts): Promise<{ ok?: boolean; title?: string; error?: string }>;
@@ -457,9 +498,10 @@ declare global {
       avatar(): Promise<string | null | { error: string }>;
       tmdbStatus(): Promise<TmdbStatus>;
       tmdbSetKey(key: string): Promise<TmdbStatus | { error: string }>;
+      tmdbCollectionPoster(name: string): Promise<string | null>;
       tmdbCollections(
         refs: Record<string, string>,
-      ): Promise<{ byFilm: Record<string, { id: number; name: string }>; looked: number; failed: number } | { error: string }>;
+      ): Promise<{ byFilm: Record<string, { id: number; name: string; poster?: string | null }>; looked: number; failed: number } | { error: string }>;
       detailsStatus(): Promise<DetailsStatus>;
       detailsSetKey(service: 'trakt' | 'omdb', key: string): Promise<DetailsStatus | { error: string }>;
       liveScores(ids: { kind: 'movie' | 'show'; imdb?: string; tmdb?: string }): Promise<LiveScores | { error: string }>;
@@ -513,7 +555,9 @@ declare global {
       spotifyDevices(): Promise<any>;
       spotifyPlay(uri: string, deviceId?: string): Promise<{ ok?: boolean; error?: string }>;
       spotifyControl(action: 'pause' | 'resume' | 'next' | 'previous'): Promise<{ ok?: boolean; error?: string }>;
-      castLives(req: { kind: 'movie' | 'show'; tmdb?: string; names: string[] }): Promise<{ people: Record<string, Life>; noKey?: boolean } | { error: string }>;
+      castLives(req: { kind: 'movie' | 'show'; tmdb?: string; names: string[]; token?: string }): Promise<{ people: Record<string, Life>; noKey?: boolean; keyRejected?: boolean } | { error: string }>;
+      onCastLife(cb: (token: string, name: string, life: Life) => void): () => void;
+      titleLanguage(ids: { kind: 'movie' | 'show'; tmdb?: string }): Promise<{ lang: string | null } | { error: string }>;
       // File details read from the file itself when Plex never analyzed it (null when Plex already has them).
       fileDetails?(ratingKey: string): Promise<Media[] | null | { error: string }>;
       // Budget, US opening weekend and worldwide gross in dollars (null where unknown), for the movie grid.
@@ -665,14 +709,41 @@ export async function nextEpisode(i: Item): Promise<Item | undefined> {
   return leaves.find((e) => !e.viewCount) || leaves[0];
 }
 
+// Part of every artwork URL, so switching Official release posters reloads the covers instead of reusing old ones.
+let coverMode = '';
+export const setCoverMode = (official: boolean) => {
+  coverMode = official ? '' : '&plex=1';
+};
+// Titles Plex took from a file name ("Antichrist.2009.1080p.BluRay.x265-RARBG") shown as the name alone ("Antichrist").
+// Only names that look like release files are touched: real titles with years in them ("Blade Runner 2049", "1917")
+// stay as they are.
+const RELEASE_TAG =
+  /^(\d{3,4}p|4k|uhd|hdr\d*|dv|dovi|sdr|blu-?ray|bdrip|brrip|bdremux|remux|web(-?dl|-?rip)?|hdrip|dvd(rip|scr)?|hdtv|x26[45]|h\.?26[45]|hevc|avc|xvid|divx|aac\d*|ac3|e?ac-?3|dts(-?hd)?|truehd|atmos|ddp?\d*|\d\.\d|10bit|8bit|proper|repack|extended|unrated|uncut|remastered|imax|yify|yts|rarbg|mkv|mp4|avi)$/i;
+export function cleanTitle(title: string | undefined) {
+  const t = String(title || '').trim();
+  const words = t.split(/[._\s]+/).filter(Boolean);
+  const fileLike = /[._]/.test(t) && !/\s/.test(t.replace(/[._]/g, '')) && words.length > 1;
+  if (!fileLike || !words.some((w) => RELEASE_TAG.test(w) || /^[([]?(19|20)\d{2}[)\]]?$/.test(w))) return t;
+  const firstTag = words.findIndex((w) => RELEASE_TAG.test(w.replace(/-.*$/, '')));
+  const head = firstTag > 0 ? words.slice(0, firstTag) : words;
+  const now = new Date().getFullYear() + 1;
+  // The release year is the last year-shaped word with a name before it.
+  let cut = head.length;
+  head.forEach((w, i) => {
+    const y = Number(w.replace(/[()[\]]/g, ''));
+    if (i > 0 && /^[([]?\d{4}[)\]]?$/.test(w) && y >= 1900 && y <= now) cut = i;
+  });
+  return head.slice(0, cut).join(' ').replace(/\s*-\s*$/, '') || t;
+}
+
 export const img = (thumb: string | undefined, w: number, h: number) =>
   // Plex artwork paths start with '/', and cast photos live on Plex's metadata host; both go through the server's
   // transcoder. Anything else (demo-mode bundled posters) is already a usable URL.
   !thumb
     ? undefined
-    : !thumb.startsWith('/') && !thumb.startsWith('https://metadata-static.plex.tv/')
+    : !thumb.startsWith('/') && !thumb.startsWith('https://metadata-static.plex.tv/') && !thumb.startsWith('https://image.tmdb.org/t/p/')
       ? thumb
-      : `plximg://img/?u=${encodeURIComponent(thumb)}&w=${w}&h=${h}`;
+      : `plximg://img/?u=${encodeURIComponent(thumb)}&w=${w}&h=${h}${coverMode}`;
 
 export const minutes = (ms?: number) => (ms ? `${Math.round(ms / 60000)} min` : '');
 

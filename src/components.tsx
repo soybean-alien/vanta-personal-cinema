@@ -1,6 +1,6 @@
 // Vanta by soybean_alien
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BoxOffice, collectionFolders, Filters, Folder, Item, items, MyCollections, PlayOpts, Prefs, ResTier, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState, watchedOn } from './api';
+import { cleanTitle, collectionFolders, folderCover, Filters, Folder, Item, items, MyCollections, PlayOpts, Prefs, ResTier, Section, episodeLabel, img, isWatched, markWatched, minutes, playable, UpdateState, watchedOn } from './api';
 import { focusEl, focusFirst, focusLost } from './nav';
 
 // When a view finishes loading and nothing useful has focus (keyboard/controller just opened it),
@@ -92,6 +92,8 @@ export function itemMenu(ctx: Ctx, item: Item): MenuEntry[] {
     });
   if (item.type === 'movie' && item.guid)
     e.push({ label: '🗂 Add to collection…', action: () => window.dispatchEvent(new CustomEvent('vanta:add-to-collection', { detail: item })) });
+  if (item.type === 'movie' || item.type === 'episode')
+    e.push({ label: '🗑 Delete from disk…', action: () => askDelete(item) });
   if (item.type === 'episode' && item.grandparentRatingKey)
     e.push({ label: '📺 Go to show', action: () => ctx.open({ kind: 'item', ratingKey: item.grandparentRatingKey! }) });
   if (item.type === 'episode' && item.parentRatingKey)
@@ -138,7 +140,7 @@ export function Poster({
   sub?: string;
   res?: ResTier | null; // file resolution tag (library grid only)
   folder?: Folder; // a collection folded into the movie grid: stacked first-film poster
-  money?: boolean; // movie library grid: box office line under the cover, centered title, no year
+  money?: boolean; // movie library grid: centered title, no year
   noYear?: boolean; // TV library grid: centered title, no year (no box office)
 }) {
   const ctx = useApp();
@@ -147,7 +149,7 @@ export function Poster({
   const unwatchedEps = group && item.leafCount ? item.leafCount - (item.viewedLeafCount || 0) : 0;
   const progress = item.viewOffset && item.duration ? item.viewOffset / item.duration : 0;
   const thumb = folder
-    ? folder.films[0].thumb || item.thumb
+    ? folderCover(folder, ctx.prefs.ui.officialCovers !== false)
     : wide
     ? item.type === 'movie'
       ? item.art || item.thumb
@@ -159,7 +161,7 @@ export function Poster({
     onClick || (() => ctx.open(folder ? { kind: 'folder', folder } : { kind: 'item', ratingKey: item.ratingKey }));
   return (
     <div
-      className={`poster ${wide ? 'wide' : ''} ${folder ? 'folder' : ''} ${money ? 'money' : ''} ${noYear ? 'centered' : ''}`}
+      className={`poster ${wide ? 'wide' : ''} ${folder ? 'folder' : ''} ${folder || item.type === 'collection' ? 'col-edge' : ''} ${money ? 'money' : ''} ${noYear ? 'centered' : ''}`}
       tabIndex={0}
       data-nav
       data-rk={item.ratingKey}
@@ -182,10 +184,9 @@ export function Poster({
           </div>
         )}
       </div>
-      {money && <BoxOfficeLine films={folder ? folder.films : [item]} total={!!folder} />}
-      <div className="title" title={money || noYear ? item.title : undefined}>{title ?? item.title}</div>
+      <div className="title" title={money || noYear ? cleanTitle(item.title) : undefined}>{title ?? cleanTitle(item.title)}</div>
       {money && folder ? (
-        <div className="sub">{folder.films.length} films</div>
+        <div className="sub">{folder.films.length} film{folder.films.length === 1 ? '' : 's'}</div>
       ) : money || noYear ? (
         watchedOn(item) && (
           <div className="sub">
@@ -203,7 +204,7 @@ export function Poster({
             : wide
               ? minutes(item.duration)
               : folder
-                ? `${folder.films.length} films`
+                ? `${folder.films.length} film${folder.films.length === 1 ? '' : 's'}`
                 : item.type === 'collection'
                 ? `${item.childCount ?? ''} items`
                 : (item.year ?? ''))}
@@ -218,65 +219,6 @@ export function Poster({
     </div>
   );
 }
-
-// The box office box under a movie cover: "13M - 21M - 64M" = budget - US opening weekend - worldwide gross, with
-// unknown numbers left out (the box keeps its full width either way). A collection folder's box shows the worldwide
-// gross of all its films together. Looked up once the poster scrolls near the screen.
-// Under $1,000 is a placeholder some databases store, not a real figure.
-const known = (n: number | null): n is number => !!n && n >= 1000;
-const money = (n: number) => (n >= 1e9 ? `${+(n / 1e9).toFixed(1)}B` : n >= 1e7 ? `${Math.round(n / 1e6)}M` : n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : `${Math.round(n / 1e3)}K`);
-const dollarsLong = (n: number | null) => (known(n) ? `$${n.toLocaleString()}` : 'unknown');
-
-function BoxOfficeLine({ films, total }: { films: Item[]; total: boolean }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [bo, setBo] = useState<(BoxOffice | null)[]>();
-  const keys = films.map((f) => f.ratingKey).join(',');
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !window.plex.boxOffice) return;
-    let alive = true;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        io.disconnect();
-        Promise.all(
-          keys.split(',').map((k) =>
-            window.plex.boxOffice!(k).then(
-              (r) => (r && !('error' in r) ? r : null),
-              () => null,
-            ),
-          ),
-        ).then((r) => alive && setBo(r));
-      },
-      { rootMargin: '400px' },
-    );
-    io.observe(el);
-    return () => {
-      alive = false;
-      io.disconnect();
-    };
-  }, [keys]);
-  if (!window.plex.boxOffice) return null;
-
-  let text = '';
-  let tip = total ? 'Worldwide gross of the whole collection' : 'Budget - opening weekend (US) - worldwide gross';
-  if (bo && total) {
-    const each = films.map((f, i) => ({ title: f.title, n: bo[i]?.worldwide ?? null }));
-    const sum = each.reduce((a, x) => a + (known(x.n) ? x.n : 0), 0);
-    text = known(sum) ? money(sum) : '';
-    tip = `Worldwide gross of the collection: ${dollarsLong(sum)}\n${each.map((x) => `${x.title}: ${dollarsLong(x.n)}`).join('\n')}`;
-  } else if (bo?.[0]) {
-    const b = bo[0];
-    text = [b.budget, b.opening, b.worldwide].filter(known).map(money).join(' - ');
-    tip = `Budget: ${dollarsLong(b.budget)}\nOpening weekend (US): ${dollarsLong(b.opening)}\nWorldwide gross: ${dollarsLong(b.worldwide)}${b.src.length ? `\nFrom ${b.src.join(' and ')}` : ''}`;
-  }
-  return (
-    <div ref={ref} className={`box-office ${bo === undefined ? 'loading' : ''}`} title={tip}>
-      {bo === undefined ? '· · ·' : text || ' '}
-    </div>
-  );
-}
-
 
 export function Menu({ x, y, entries, onClose }: { x: number; y: number; entries: MenuEntry[]; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -511,7 +453,7 @@ export function AddToCollection({ item, onClose }: { item: Item; onClose: () => 
           ) : (
             shown.map((f) => (
               <button key={f.key} className={`add-col-row ${inNow?.key === f.key ? 'on' : ''}`} data-nav onClick={() => pick(f)}>
-                {f.films[0]?.thumb && <img src={img(f.films[0].thumb, 60, 90)} />}
+                {folderCover(f, ctx.prefs.ui.officialCovers !== false) && <img src={img(folderCover(f, ctx.prefs.ui.officialCovers !== false), 60, 90)} />}
                 <span className="add-col-name">{f.col.title}</span>
                 <span className="muted small">
                   {f.films.length} {f.films.length === 1 ? 'film' : 'films'} · {f.source === 'mine' ? 'Yours' : f.source === 'tmdb' ? 'TMDB' : 'Plex'}
@@ -530,6 +472,80 @@ export function AddToCollection({ item, onClose }: { item: Item; onClose: () => 
           </button>
         )}
         {msg && <p className="music-msg">{msg}</p>}
+      </div>
+    </Modal>
+  );
+}
+
+// Deleting a movie or episode takes two clicks: "Delete from disk" (item menu or details page) opens this dialog,
+// and here the title has to be typed (any case) before "Yes, delete it" works. Plex removes it from the library and
+// deletes its files from the server's storage (electron/plex.cjs deleteItem).
+export const askDelete = (item: Item) => window.dispatchEvent(new CustomEvent('vanta:delete', { detail: item }));
+export function DeleteDialog({ item, onClose, onDeleted }: { item: Item; onClose: () => void; onDeleted: () => void }) {
+  const [files, setFiles] = useState<string[]>();
+  const [allowed, setAllowed] = useState<boolean | null>();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    items(`/library/metadata/${item.ratingKey}`).then(
+      ([m]) => setFiles((m?.Media || []).flatMap((x) => (x.Part || []).map((p) => p.file || '')).filter(Boolean)),
+      () => setFiles([]),
+    );
+    window.plex.canDelete().then((r) => setAllowed(typeof r === 'boolean' ? r : null), () => setAllowed(null));
+  }, [item.ratingKey]);
+  const name = item.type === 'episode' ? `${item.grandparentTitle} · ${episodeLabel(item)} · ${item.title}` : cleanTitle(item.title);
+  // Step 2: type the title (the episode's own title for an episode), any case, to unlock the delete button.
+  const want = item.type === 'episode' ? item.title : cleanTitle(item.title);
+  const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+  const [typed, setTyped] = useState('');
+  const match = !!want && norm(typed) === norm(want);
+  const del = async () => {
+    if (!match || busy || allowed === false) return;
+    setBusy(true);
+    setMsg('');
+    const r = await window.plex.deleteItem(item.ratingKey);
+    setBusy(false);
+    if ('error' in r) return setMsg(r.error);
+    onDeleted();
+    onClose();
+  };
+  return (
+    <Modal onClose={onClose}>
+      <div className="add-col delete-dialog" data-nav-scope>
+        <h2>Delete “{name}”?</h2>
+        <p>
+          This removes it from your library <b>and deletes {files && files.length > 1 ? `its ${files.length} files` : 'its file'} from the server’s storage</b>. It
+          can’t be undone.
+        </p>
+        <div className="delete-files">{files === undefined ? 'Finding the file...' : files.length ? files.map((f) => <div key={f}>{f}</div>) : 'No file listed for this item.'}</div>
+        {allowed === false && (
+          <p className="music-msg">
+            Your Plex server doesn’t allow deleting media yet. Turn on “Allow media deletion” in the server’s Settings → Library, then try again.
+          </p>
+        )}
+        <label className="delete-confirm">
+          <span>
+            Type <b>{want}</b> to confirm:
+          </span>
+          <input
+            data-nav
+            data-autofocus
+            value={typed}
+            placeholder={want}
+            spellCheck={false}
+            onChange={(e) => setTyped(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && del()}
+          />
+        </label>
+        {msg && <p className="music-msg">{msg}</p>}
+        <div className="delete-actions">
+          <button className="tool" data-nav onClick={onClose}>
+            Cancel
+          </button>
+          <button className="tool danger" data-nav disabled={!match || busy || allowed === false} onClick={del}>
+            {busy ? 'Deleting...' : '🗑 Yes, delete it'}
+          </button>
+        </div>
       </div>
     </Modal>
   );

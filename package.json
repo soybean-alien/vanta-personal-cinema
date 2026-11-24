@@ -1,8 +1,8 @@
 {
   "name": "vanta",
-  "version": "2.1.5",
+  "version": "2.1.7",
   "private": true,
-  "description": "Vanta Personal Cinema: a media library viewer (not a manager) for Plex. Browse and watch your own Plex library.",
+  "description": "Vanta Personal Cinema: a media library viewer for Plex. Browse and watch your own Plex library.",
   "author": "soybean_alien",
   "license": "GPL-3.0-only",
   "homepage": "https://github.com/soybean-alien/vanta-personal-cinema",

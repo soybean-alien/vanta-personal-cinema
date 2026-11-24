@@ -133,7 +133,7 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .poster:hover .art { outline: 2px solid var(--accent); }
 .kbd .poster:focus .art { outline: 3px solid var(--focus); outline-offset: 2px; }
 .kbd .poster:focus .title { color: var(--focus); font-weight: 600; }
-.poster .title { margin-top: 6px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poster .title { margin-top: 6px; font-size: 14px; color: #fff; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .poster .sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Movie library grid: the box office line under the cover, then the title, both centered and sized by the tile's own
    width (cqi), so they grow and shrink with the poster size slider and always fit on one line. */
@@ -141,8 +141,6 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 /* TV library grid: the same centered, slider-sized title without the year. */
 .poster.centered .title { text-align: center; font-size: clamp(10px, 7.4cqi, 22px); }
 .poster.centered .sub { text-align: center; font-size: clamp(9px, 6.2cqi, 17px); }
-.poster.money .box-office { margin-top: 6px; padding: 0.35em 0.3em; text-align: center; font-weight: 800; font-size: clamp(8px, 8.6cqi, 26px); letter-spacing: 0.01em; color: #fff; background: #000; border: 1.5px solid #e5c228; border-radius: 4px; white-space: nowrap; overflow: hidden; line-height: 1.15; }
-.poster.money .box-office.loading { color: #6d6340; }
 .poster.money .title { text-align: center; font-size: clamp(10px, 7.4cqi, 22px); }
 .poster.money .sub { text-align: center; font-size: clamp(9px, 6.2cqi, 17px); }
 .poster .dot { position: absolute; top: 0; right: 0; border-style: solid; border-width: 0 24px 24px 0; filter: drop-shadow(-1px 1px 2px rgba(0, 0, 0, 0.55)); border-color: transparent var(--accent) transparent transparent; }
@@ -156,9 +154,11 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .poster .res-1080 { background: #2f63e8; }
 .poster .res-720 { background: #2a9a4b; }
 .poster .res-low { background: #d63a3a; }
-/* A collection folded into the movie grid: two cards peeking out behind the first film's poster. */
-.poster.folder .art { overflow: visible; box-shadow: 5px -5px 0 -1px #6a6a74, 10px -10px 0 -2px #45454d; }
-.poster.folder .art img { border-radius: 6px; }
+/* Every collection (a folder in the movie grid, the Collections pages, Plex collections) and its own page: a neon
+   red edge on the right and bottom. */
+.poster.col-edge .art { overflow: visible; box-shadow: 3px 3px 0 0 #ff2340, 7px 7px 14px -3px rgba(255, 35, 64, 0.9); }
+.poster.col-edge .art img { border-radius: 6px; }
+.item-detail .cover.collection-cover, .cover.collection-cover { box-shadow: 3px 3px 0 0 #ff2340, 7px 7px 14px -3px rgba(255, 35, 64, 0.9); }
 .poster.folder:hover img, .kbd .poster.folder:focus img { transform: none; }
 .poster .stack-count { position: absolute; left: 6px; bottom: 8px; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 800; color: #fff; background: rgba(0, 0, 0, 0.75); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
 
@@ -344,9 +344,9 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .tech.acodec { background: #e0408f; border-color: #e0408f; color: #fff; }
 .tech.container { background: #8e3be6; border-color: #8e3be6; color: #fff; }
 .tech.size { background: #2a9a4b; border-color: #2a9a4b; color: #fff; }
-/* Movie and show details page only: bright yellow track info, a red Play button, and a glowing gold frame on the
-   cover's right and bottom edges. */
-.item-detail .specs dd, .item-detail .tracks .main { color: #ffe14a; }
+/* Movie and show details page only: plain white track info (user, 11/24/2026), a red Play button, and a glowing gold
+   frame on the cover's right and bottom edges. */
+.item-detail .specs dt, .item-detail .specs dd, .item-detail .tracks .main, .item-detail .tracks .more { color: #fff; text-shadow: none; }
 .item-detail .play { background: #d62828; color: #fff; }
 .item-detail .play:hover { background: #e63b3b; }
 /* Titles in shiny gold with a black edge on the top and left (drop-shadow, since the gradient fill is clipped). */
@@ -360,7 +360,7 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 }
 .item-detail .credits-line b.director { color: #3fe0f0; }
 /* Video / Audio / Subtitles labels: bold black on a thin white glow, tight enough not to blur into the next letter. */
-.item-detail .specs dt { color: #000; font-weight: 700; letter-spacing: 1px; text-shadow: 0 0 1px #fff, 0 0 1px #fff, 0 0 2.5px rgba(255, 255, 255, 0.7); }
+.item-detail .specs dt { font-weight: 700; letter-spacing: 1px; }
 .item-detail .file-reading { align-self: center; }
 .item-detail .cover { box-shadow: 3px 3px 0 0 #ffd23f, 7px 7px 12px -3px rgba(255, 196, 40, 0.85); }
 .specs { display: grid; grid-template-columns: 92px 1fr; gap: 7px 14px; margin: 0; font-size: 14px; }
@@ -501,6 +501,13 @@ h2 { font-size: 18px; margin: 4px 0 12px; }
 .add-col-row.new { color: var(--accent); font-weight: 600; }
 .add-col-row img { width: 30px; height: 45px; object-fit: cover; border-radius: 3px; }
 .add-col-name { flex: 1; }
+.delete-dialog p { margin: 0; line-height: 1.45; }
+.delete-files { font-family: Consolas, monospace; font-size: 12px; color: var(--muted, #aaa); background: var(--raised); border-radius: 6px; padding: 8px 10px; word-break: break-all; }
+.delete-confirm { display: flex; flex-direction: column; gap: 6px; }
+.delete-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.tool.danger { background: #c4182c; border-color: #c4182c; color: #fff; font-weight: 700; }
+.tool.danger:hover:not(:disabled) { background: #e01f36; }
+.tool.danger:disabled { opacity: 0.45; }
 .splash-restore { margin-top: 26px; max-width: 460px; padding-top: 18px; border-top: 1px solid var(--line); }
 .backup .pin-row input { width: 340px; }
 .trakt-code { align-self: flex-start; margin: 8px 0 4px; padding: 10px 22px; border-radius: 10px; background: var(--raised); border: 1px solid #ed1c24; color: #fff; font-family: 'Jost Variable', 'Jost', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: 0.24em; cursor: copy; box-shadow: 0 0 24px rgba(237, 28, 36, 0.25); }

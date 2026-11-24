@@ -149,7 +149,32 @@ function bestMedia(media?: Media[]): Media | undefined {
   return media?.find((m) => resolutionOf([m])?.label === res?.label) ?? media?.[0];
 }
 
-export function FileInfo({ item }: { item: Item }) {
+// Settings → Subtitle language as the words a track's language can be written in ('english' → English, eng, en).
+const SUB_LANG: Record<string, string[]> = {
+  english: ['english', 'eng', 'en'], japanese: ['japanese', 'jpn', 'ja'], spanish: ['spanish', 'spa', 'es'], french: ['french', 'fre', 'fra', 'fr'],
+  german: ['german', 'ger', 'deu', 'de'], italian: ['italian', 'ita', 'it'], korean: ['korean', 'kor', 'ko'], chinese: ['chinese', 'chi', 'zho', 'zh'],
+  portuguese: ['portuguese', 'por', 'pt'], russian: ['russian', 'rus', 'ru'],
+};
+const langNames = new Intl.DisplayNames(['en'], { type: 'language' });
+
+export function FileInfo({ item, ids }: { item: Item; ids?: ReturnType<typeof useTitleIds> }) {
+  const ctx = useApp();
+  // For audio tracks the file doesn't name a language for: the film's original language, from TMDB.
+  const [origLang, setOrigLang] = useState<string | null>(null);
+  useEffect(() => {
+    setOrigLang(null);
+    if (!ids?.tmdb || !window.plex.titleLanguage) return;
+    let alive = true;
+    window.plex.titleLanguage({ kind: ids.kind, tmdb: ids.tmdb }).then((r) => {
+      if (!alive || 'error' in r || !r.lang) return;
+      try {
+        setOrigLang(langNames.of(r.lang) || null);
+      } catch {}
+    });
+    return () => {
+      alive = false;
+    };
+  }, [ids?.kind, ids?.tmdb]);
   // Files Plex never analyzed have no tracks in its metadata: Vanta reads them from the file itself (probe.cjs).
   const missing = !!item.Media?.length && item.Media.some((x) => !x.Part?.[0]?.Stream?.length);
   const [probed, setProbed] = useState<Media[] | null>();
@@ -186,6 +211,27 @@ export function FileInfo({ item }: { item: Item }) {
     part?.size && { t: gb(part.size), cls: 'size' },
   ].filter(Boolean) as { t: string; cls?: string }[];
   const trackName = (s: Stream) => s.extendedDisplayTitle || s.displayTitle || s.language || 'Unknown';
+  // An audio track with no language tag: named by the film's original language (said so in its tooltip), else by
+  // its format, never "Unknown".
+  const untagged = (s: Stream) => !s.language && !s.languageCode;
+  const audioTrack = (s: Stream) => {
+    const base = trackName(s);
+    const format = `${audioName(s)} ${channels(s)}`.trim();
+    if (!untagged(s) && !/^unknown\b/i.test(base)) return { name: base };
+    if (origLang)
+      return {
+        name: /^unknown\b/i.test(base) ? base.replace(/^unknown\b/i, origLang) : `${origLang} (${format})`,
+        tip: `The file doesn't name this track's language. ${origLang} is the film's original language (TMDB).`,
+      };
+    const rest = base.replace(/^unknown\b\s*/i, '').replace(/^\((.*)\)$/, '$1');
+    return { name: rest || format || 'Audio', tip: "The file doesn't name this track's language." };
+  };
+  // Subtitles: the track in your subtitle language (Settings, English by default) is the one marked, and listed first.
+  const subWords = SUB_LANG[ctx.prefs.player.subLang] || SUB_LANG.english;
+  const inSubLang = (s: Stream) => [s.languageCode, s.language].some((x) => x && subWords.includes(x.toLowerCase()));
+  const subMain =
+    subs.find((s) => inSubLang(s) && !s.forced && !s.hearingImpaired) || subs.find((s) => inSubLang(s) && !s.forced) || subs.find(inSubLang) || subs.find((s) => s.selected);
+  const subsOrdered = subMain ? [subMain, ...subs.filter((s) => s !== subMain)] : subs;
 
   return (
     <div className="file-info">
@@ -211,7 +257,7 @@ export function FileInfo({ item }: { item: Item }) {
         <dt>Audio</dt>
         <dd>
           {audio.length ? (
-            <TrackList list={audio.map((s) => ({ name: trackName(s), main: s === mainAudio }))} />
+            <TrackList list={audio.map((s) => ({ ...audioTrack(s), main: s === mainAudio }))} />
           ) : (
             <span className="muted">None</span>
           )}
@@ -219,7 +265,7 @@ export function FileInfo({ item }: { item: Item }) {
         <dt>Subtitles</dt>
         <dd>
           {subs.length ? (
-            <TrackList list={subs.map((s) => ({ name: `${trackName(s)}${s.forced ? ' · Forced' : ''}${s.hearingImpaired ? ' · SDH' : ''}`, main: !!s.selected }))} />
+            <TrackList list={subsOrdered.map((s) => ({ name: `${trackName(s)}${s.forced ? ' · Forced' : ''}${s.hearingImpaired ? ' · SDH' : ''}`, main: s === subMain }))} />
           ) : (
             <span className="muted">None</span>
           )}
@@ -230,13 +276,13 @@ export function FileInfo({ item }: { item: Item }) {
 }
 
 // The first three tracks, then "+N more" with the rest in its tooltip.
-function TrackList({ list }: { list: { name: string; main: boolean }[] }) {
+function TrackList({ list }: { list: { name: string; main: boolean; tip?: string }[] }) {
   const shown = list.slice(0, 3);
   const rest = list.slice(3);
   return (
     <span className="tracks">
       {shown.map((t, i) => (
-        <span key={i} className={t.main ? 'main' : ''}>
+        <span key={i} className={t.main ? 'main' : ''} title={t.tip}>
           {t.name}
         </span>
       ))}
@@ -262,6 +308,8 @@ export const ageOn = (birth: string, on: Date) => {
   if (on.getMonth() < b.getMonth() || (on.getMonth() === b.getMonth() && on.getDate() < b.getDate())) a--;
   return a;
 };
+// Age from a birth year alone: one of two numbers, shown as "41 or 42".
+export const yearAge = (year: number, on: Date) => `${on.getFullYear() - year - 1} or ${on.getFullYear() - year}`;
 export const longDate = (s: string) => day(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 const isBirthdayToday = (birth: string) => {
   const b = day(birth);
@@ -288,20 +336,31 @@ export function CastAndCrew({ item, ids }: { item: Item; ids: ReturnType<typeof 
     [item],
   );
   const [lives, setLives] = useState<Record<string, Life>>();
+  const [livesDone, setLivesDone] = useState(false);
   const [noKey, setNoKey] = useState(false);
+  const [keyRejected, setKeyRejected] = useState(false);
   useEffect(() => {
     setLives(undefined);
+    setLivesDone(false);
     if (!ids?.ready || !credits.length) return;
-    if (!ids.tmdb) return setLives({});
+    if (!ids.tmdb) return (setLives({}), setLivesDone(true));
     let alive = true;
-    window.plex.castLives({ kind: ids.kind, tmdb: ids.tmdb, names: [...new Set(credits.map((c) => c.person.tag))] }).then((r) => {
+    // Ages arrive one by one as they are found; the final reply has them all.
+    const token = Math.random().toString(36).slice(2);
+    const off = window.plex.onCastLife((t, name, life) => {
+      if (alive && t === token) setLives((l) => ({ ...l, [name]: life }));
+    });
+    window.plex.castLives({ kind: ids.kind, tmdb: ids.tmdb, names: [...new Set(credits.map((c) => c.person.tag))], token }).then((r) => {
       if (!alive) return;
-      if ('error' in r) return setLives({});
+      setLivesDone(true);
+      if ('error' in r) return setLives((l) => l || {});
       setNoKey(!!r.noKey);
+      setKeyRejected(!!r.keyRejected);
       setLives(r.people);
     });
     return () => {
       alive = false;
+      off();
     };
   }, [ids?.ready, ids?.tmdb, credits]);
 
@@ -313,6 +372,7 @@ export function CastAndCrew({ item, ids }: { item: Item; ids: ReturnType<typeof 
       <div className="cast-head">
         <h2>Cast &amp; Crew</h2>
         {noKey && <span className="muted small">Add a TMDB key in Settings → Library to see birthdays and ages.</span>}
+        {keyRejected && <span className="muted small">TMDB no longer accepts your key, so new ages can't be looked up. Paste a new key in Settings → Library.</span>}
       </div>
       <ScrollRow className="cast-row" trackClass="cast-track" count={credits.length}>
         {credits.map((c, i) => (
@@ -320,7 +380,7 @@ export function CastAndCrew({ item, ids }: { item: Item; ids: ReturnType<typeof 
             key={`${c.job}-${c.person.tag}-${i}`}
             credit={c}
             life={lives?.[c.person.tag]}
-            loading={!lives && !!ids?.tmdb}
+            loading={!livesDone && !lives?.[c.person.tag] && !!ids?.tmdb}
             release={release}
             inThis={inThis}
             onOpen={() => ctx.open({ kind: 'person', person: c.person, job: c.job, life: lives?.[c.person.tag] })}
@@ -350,11 +410,14 @@ function CastCard({ credit, life, loading, release, inThis, onOpen }: { credit: 
   const ageAtDeath = birth && dead ? ageOn(birth, day(life!.deathday!)) : undefined;
   const ageThen = birth && release && release >= day(birth) ? ageOn(birth, release) : undefined;
   const bday = birth && !dead && isBirthdayToday(birth);
+  const year = !birth ? life?.birthYear : undefined;
+  const yearThen = year && release && release.getFullYear() > year ? yearAge(year, release) : undefined;
   const tip = [
     person.tag,
     label,
     life?.place && `Born in ${life.place}`,
     birth && life?.src && `Birthday from ${life.src}`,
+    year && `Only the birth year is known (${life?.yearSrc || 'unknown source'}), so ages are estimated`,
     dead && life?.deathSrc && `Death from ${life.deathSrc}`,
   ]
     .filter(Boolean)
@@ -388,6 +451,22 @@ function CastCard({ credit, life, loading, release, inThis, onOpen }: { credit: 
             {ageThen !== undefined && (
               <span className="then">
                 {ageThen} {inThis}
+              </span>
+            )}
+          </>
+        ) : year ? (
+          <>
+            <span className="born">Born {year}</span>
+            {dead ? (
+              <span className="died">
+                † {longDate(life!.deathday!)} · aged {yearAge(year, day(life!.deathday!))} (estimated)
+              </span>
+            ) : (
+              <span className="now">Age {yearAge(year, new Date())} (estimated)</span>
+            )}
+            {yearThen && (
+              <span className="then">
+                {yearThen} {inThis} (estimated)
               </span>
             )}
           </>
@@ -429,6 +508,15 @@ export function PersonView({ person, job, life }: { person: Person; job: 'actor'
               {dead ? ` · Died ${longDate(life.deathday!)}, aged ${ageOn(life.birthday, day(life.deathday!))}` : ` · Age ${ageOn(life.birthday, new Date())}`}
             </p>
           )}
+          {!life?.birthday && life?.birthYear && (
+            <p className="person-life">
+              Born {life.birthYear}
+              {life.place ? ` in ${life.place}` : ''}
+              {dead
+                ? ` · Died ${longDate(life.deathday!)}, aged ${yearAge(life.birthYear, day(life.deathday!))} (estimated)`
+                : ` · Age ${yearAge(life.birthYear, new Date())} (estimated from the birth year)`}
+            </p>
+          )}
           <p className="muted">
             {list ? `${word} ${person.tag}: ${list.length} ${list.length === 1 ? 'title' : 'titles'} in your library` : 'Looking through your library...'}
           </p>
@@ -449,7 +537,9 @@ export function PersonView({ person, job, life }: { person: Person; job: 'actor'
 function PersonPoster({ item, life }: { item: Item; life?: Life }) {
   const r = releaseOf(item);
   const age = life?.birthday && r && r >= day(life.birthday) ? ageOn(life.birthday, r) : undefined;
-  return <Poster item={item} res={resolutionOf(item.Media)} sub={age !== undefined ? `${item.year ?? ''} · age ${age}` : undefined} />;
+  const est = !life?.birthday && life?.birthYear && r && r.getFullYear() > life.birthYear ? yearAge(life.birthYear, r) : undefined;
+  const sub = age !== undefined ? `${item.year ?? ''} · age ${age}` : est ? `${item.year ?? ''} · age ${est}, estimated` : undefined;
+  return <Poster item={item} res={resolutionOf(item.Media)} sub={sub} />;
 }
 
 export type { DetailsStatus };

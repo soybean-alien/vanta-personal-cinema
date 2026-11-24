@@ -135,7 +135,7 @@ app.whenReady().then(() => {
     const u = new URL(req.url);
     const thumb = u.searchParams.get('u');
     // Library artwork ('/library/...'), or Plex's own cast and crew photos, which the server's transcoder fetches.
-    if (!thumb || !(thumb.startsWith('/') || /^https:\/\/metadata-static\.plex\.tv\//.test(thumb))) return new Response(null, { status: 400 });
+    if (!thumb || !(thumb.startsWith('/') || /^https:\/\/(metadata-static\.plex\.tv|image\.tmdb\.org\/t\/p)\//.test(thumb))) return new Response(null, { status: 400 });
     return plex.image(thumb, u.searchParams.get('w') || '300', u.searchParams.get('h') || '450');
   });
 
@@ -157,6 +157,8 @@ app.whenReady().then(() => {
   if (!app.isPackaged) handle('health:simulate', (level) => health.simulate(level));
   handle('auth:signOut', () => plex.signOut());
   handle('pms:get', (p) => plex.pms(p));
+  handle('pms:delete', (rk) => plex.deleteItem(rk));
+  handle('pms:can-delete', () => plex.canDelete());
   handle('user:avatar', () => plex.avatar());
   handle('prefs:get', () => plex.getPrefs());
   handle('prefs:set', (patch) => {
@@ -167,10 +169,19 @@ app.whenReady().then(() => {
   handle('tmdb:status', () => tmdb.status());
   handle('tmdb:setKey', (k) => tmdb.setKey(k));
   handle('tmdb:collections', (refs) => tmdb.collections(refs || {}));
+  handle('tmdb:collection-poster', (name) => tmdb.collectionPoster(String(name || '')));
   handle('details:status', () => details.status());
   handle('details:setKey', (service, k) => details.setKey(service, k));
   handle('details:scores', (ids) => details.liveScores(ids || {}));
-  handle('details:cast', (req) => details.cast(req));
+  handle('details:lang', (ids) => details.titleLanguage(ids));
+  // Each person is sent to the page as soon as they are found ('details:cast-life'); the reply is the full list.
+  ipcMain.handle('details:cast', async (e, req) => {
+    try {
+      return await details.cast(req, (name, life) => !e.sender.isDestroyed() && e.sender.send('details:cast-life', req?.token, name, life));
+    } catch (err) {
+      return { error: err.message || String(err) };
+    }
+  });
   handle('details:file', (ratingKey) => probe.fileDetails(String(ratingKey)));
   handle('details:boxOffice', (ratingKey) => boxoffice.boxOffice(String(ratingKey)));
   handle('history:all', () => history.all());

@@ -7,6 +7,8 @@ if (!new URLSearchParams(location.search).has('demo')) contextBridge.exposeInMai
   signIn: () => ipcRenderer.invoke('auth:signIn'),
   signOut: () => ipcRenderer.invoke('auth:signOut'),
   get: (path) => ipcRenderer.invoke('pms:get', path),
+  deleteItem: (ratingKey) => ipcRenderer.invoke('pms:delete', ratingKey),
+  canDelete: () => ipcRenderer.invoke('pms:can-delete'),
   getPrefs: () => ipcRenderer.invoke('prefs:get'),
   setPrefs: (patch) => ipcRenderer.invoke('prefs:set', patch),
   play: (ratingKey, opts) => ipcRenderer.invoke('player:play', ratingKey, opts),
@@ -19,10 +21,17 @@ if (!new URLSearchParams(location.search).has('demo')) contextBridge.exposeInMai
   tmdbStatus: () => ipcRenderer.invoke('tmdb:status'),
   tmdbSetKey: (key) => ipcRenderer.invoke('tmdb:setKey', key),
   tmdbCollections: (refs) => ipcRenderer.invoke('tmdb:collections', refs),
+  tmdbCollectionPoster: (name) => ipcRenderer.invoke('tmdb:collection-poster', name),
   detailsStatus: () => ipcRenderer.invoke('details:status'),
   detailsSetKey: (service, key) => ipcRenderer.invoke('details:setKey', service, key),
   liveScores: (ids) => ipcRenderer.invoke('details:scores', ids),
   castLives: (req) => ipcRenderer.invoke('details:cast', req),
+  titleLanguage: (ids) => ipcRenderer.invoke('details:lang', ids),
+  onCastLife: (cb) => {
+    const listener = (_e, token, name, life) => cb(token, name, life);
+    ipcRenderer.on('details:cast-life', listener);
+    return () => ipcRenderer.removeListener('details:cast-life', listener);
+  },
   fileDetails: (ratingKey) => ipcRenderer.invoke('details:file', ratingKey),
   boxOffice: (ratingKey) => ipcRenderer.invoke('details:boxOffice', ratingKey),
   watchLog: () => ipcRenderer.invoke('history:all'),

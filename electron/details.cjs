@@ -13,7 +13,8 @@ const traktApp = require('./trakt.cjs');
 
 const file = (name) => path.join(app.getPath('userData'), name);
 const SCORES_TTL = 12 * 3600 * 1000;
-const PEOPLE_TTL = 30 * 24 * 3600 * 1000;
+const DAY = 24 * 3600 * 1000;
+const PEOPLE_TTL = 30 * DAY;
 const CREDITS_TTL = 7 * 24 * 3600 * 1000;
 
 // --- keys -------------------------------------------------------------------------------------------------------
@@ -76,6 +77,7 @@ function jsonCache(name) {
     },
   };
 }
+const langCache = jsonCache('title-lang-cache.json'); // { 'movie:603': 'en' }, a film's original language from TMDB
 const peopleCache = jsonCache('people-cache.json'); // { [tmdbPersonId]: { p: {...}, at } }
 const creditsCache = jsonCache('credits-cache.json'); // { ['movie:603']: { cast: [...], crew: [...], at } }
 let scores = {}; // in memory: { [key]: { v, at } }
@@ -166,7 +168,13 @@ async function credits(kind, id) {
   const ref = `${kind}:${id}`;
   const c = creditsCache.get();
   if (c[ref] && Date.now() - c[ref].at < CREDITS_TTL) return c[ref];
-  const r = await tmdb.call(kind === 'show' ? `/tv/${encodeURIComponent(id)}/aggregate_credits` : `/movie/${encodeURIComponent(id)}/credits`);
+  let r;
+  try {
+    r = await tmdb.call(kind === 'show' ? `/tv/${encodeURIComponent(id)}/aggregate_credits` : `/movie/${encodeURIComponent(id)}/credits`);
+  } catch (e) {
+    if (c[ref]) return c[ref]; // TMDB down or the key rejected: an old cast list is better than none
+    throw e;
+  }
   const cast = (r?.cast || []).map((p) => ({ id: p.id, name: p.name, character: p.character ?? p.roles?.[0]?.character }));
   const crew = (r?.crew || []).map((p) => ({ id: p.id, name: p.name, job: p.job ?? p.jobs?.[0]?.job }));
   c[ref] = { cast, crew, at: Date.now() };
@@ -205,36 +213,76 @@ async function wikidataLife(wikidataId, imdbId) {
     const v = (list.find((c) => c.rank === 'preferred') || list[0])?.mainsnak?.datavalue?.value;
     return v?.precision === 11 ? day(String(v.time).replace(/^\+/, '')) : null;
   };
-  return { birthday: date('P569'), deathday: date('P570') };
+  // When only the birth year is known (precision 9), the details page shows an estimated age from it.
+  const year = (prop) => {
+    const list = (claims[prop] || []).filter((c) => c.rank !== 'deprecated');
+    const v = (list.find((c) => c.rank === 'preferred') || list[0])?.mainsnak?.datavalue?.value;
+    const y = v?.precision === 9 ? Number(/^\+?(\d{4})-/.exec(String(v.time))?.[1]) : NaN;
+    return y > 1800 ? y : null;
+  };
+  return { birthday: date('P569'), deathday: date('P570'), birthYear: year('P569') };
 }
 
-// TVmaze allows about 20 requests per 10 seconds: one at a time, spaced out.
-let tvmazeChain = Promise.resolve();
-function tvmazeLife(name) {
-  const job = tvmazeChain.then(async () => {
-    await new Promise((r) => setTimeout(r, 550));
-    const list = await fetch(`https://api.tvmaze.com/search/people?q=${encodeURIComponent(name)}`, { headers: UA, signal: AbortSignal.timeout(15000) }).then((r) =>
-      r.ok ? r.json() : [],
-    );
-    const same = (list || []).map((x) => x.person).filter((p) => p && norm(p.name) === norm(name));
-    return same.length === 1 && day(same[0].birthday) ? { birthday: day(same[0].birthday), deathday: day(same[0].deathday) } : null;
-  });
-  tvmazeChain = job.catch(() => {});
-  return job;
+// TVmaze allows about 20 requests per 10 seconds. Vanta sends up to 18 in any 10 seconds at once and waits only
+// when it reaches that, instead of spacing every request out.
+const tvmazeSent = [];
+async function tvmazeSlot() {
+  for (;;) {
+    const now = Date.now();
+    while (tvmazeSent.length && now - tvmazeSent[0] >= 10000) tvmazeSent.shift();
+    if (tvmazeSent.length < 18) return void tvmazeSent.push(now);
+    await new Promise((r) => setTimeout(r, tvmazeSent[0] + 10000 - now + 50));
+  }
+}
+async function tvmazeLife(name) {
+  await tvmazeSlot();
+  const res = await fetch(`https://api.tvmaze.com/search/people?q=${encodeURIComponent(name)}`, { headers: UA, signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`TVmaze error ${res.status}`);
+  const same = ((await res.json()) || []).map((x) => x.person).filter((p) => p && norm(p.name) === norm(name));
+  return same.length === 1 && day(same[0].birthday) ? { birthday: day(same[0].birthday), deathday: day(same[0].deathday) } : null;
 }
 
-async function person(id, name) {
+// A person is looked up in two steps, so the details page can show every age TMDB knows before the slower sources
+// answer for the rest. Step 1: the cache, else TMDB. Returns { life } when nothing more is needed.
+async function personTmdb(id) {
   const c = peopleCache.get();
   const e = c[id];
   // Birthdays don't change; only the living are re-checked (for a death) once the entry is a month old.
-  // Entries from before the extra sources (no `v`) and still missing a birthday are looked up again once.
-  // Older entries' birthdays all came from TMDB.
-  if (e && (e.p.v || e.p.birthday) && (e.p.deathday || Date.now() - e.at < PEOPLE_TTL)) return e.p.v ? e.p : { ...e.p, src: e.p.birthday ? 'TMDB' : null };
-  const r = await tmdb.call(`/person/${encodeURIComponent(id)}?append_to_response=external_ids`);
-  const p = { birthday: r?.birthday || null, deathday: r?.deathday || null, place: r?.place_of_birth || null, src: r?.birthday ? 'TMDB' : null, v: 2 };
-  const ext = r?.external_ids || {};
+  // Older entries' birthdays all came from TMDB. Entries from before birth years (v < 3) without a birthday are
+  // looked up again once, for a birth year. An entry saved after a source failed is retried after a day.
+  const cachedLife = () => (e.p.v ? e.p : { ...e.p, src: e.p.birthday ? 'TMDB' : null });
+  if (e && (e.p.v >= 3 || e.p.birthday) && (e.p.deathday || Date.now() - e.at < (e.retry ? DAY : PEOPLE_TTL))) return { life: cachedLife() };
+  let r;
+  try {
+    r = await tmdb.call(`/person/${encodeURIComponent(id)}?append_to_response=external_ids`);
+  } catch (err) {
+    if (e) return { life: cachedLife() }; // keep showing the age already known
+    throw err;
+  }
+  const p = { birthday: r?.birthday || null, deathday: r?.deathday || null, place: r?.place_of_birth || null, src: r?.birthday ? 'TMDB' : null, v: 3 };
+  const born = Number((p.birthday || '').slice(0, 4));
+  const more = !p.birthday || (!p.deathday && born && born < 1965);
+  if (!more) save(id, p, false);
+  return more ? { life: p, more: { ext: r?.external_ids || {}, imdb: r?.imdb_id, name: r?.name } } : { life: p };
+}
+
+function save(id, p, failed) {
+  peopleCache.get()[id] = failed ? { p, at: Date.now(), retry: true } : { p, at: Date.now() };
+  peopleCache.save();
+}
+
+// Step 2, for people TMDB has no birthday for (or, if born before 1965, no death): Wikidata and Trakt at the same
+// time, then TVmaze if neither knows the birthday.
+async function personMore(id, name, p, more) {
+  p = { ...p };
+  let failed = false;
+  const fail = () => ((failed = true), null);
   const fill = (life, src) => {
-    if (!life) return false;
+    if (!life) return;
+    if (!p.birthday && !life.birthday && life.birthYear && !p.birthYear) {
+      p.birthYear = life.birthYear;
+      p.yearSrc = src;
+    }
     if (!p.birthday && life.birthday) {
       p.birthday = life.birthday;
       p.src = src;
@@ -243,14 +291,15 @@ async function person(id, name) {
       p.deathday = life.deathday;
       p.deathSrc = src;
     }
-    return !!p.birthday;
   };
-  const born = Number((p.birthday || '').slice(0, 4));
-  if (!p.birthday || (!p.deathday && born && born < 1965)) fill(await wikidataLife(ext.wikidata_id, ext.imdb_id || r?.imdb_id).catch(() => null), 'Wikidata');
-  if (!p.birthday) fill(await traktApp.personLife(id).catch(() => null), 'Trakt');
-  if (!p.birthday && (name || r?.name)) fill(await tvmazeLife(name || r.name).catch(() => null), 'TVmaze');
-  c[id] = { p, at: Date.now() };
-  peopleCache.save();
+  const [wd, tr] = await Promise.all([
+    wikidataLife(more.ext.wikidata_id, more.ext.imdb_id || more.imdb).catch(fail),
+    p.birthday ? null : traktApp.personLife(id).catch(fail),
+  ]);
+  fill(wd, 'Wikidata');
+  fill(tr, 'Trakt');
+  if (!p.birthday && (name || more.name)) fill(await tvmazeLife(name || more.name).catch(fail), 'TVmaze');
+  save(id, p, failed && !p.birthday);
   return p;
 }
 
@@ -261,29 +310,63 @@ const norm = (s) =>
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
 
+// Runs fn over list, at most n at a time.
+async function pool(list, n, fn) {
+  let i = 0;
+  const worker = async () => {
+    while (i < list.length) await fn(list[i++]);
+  };
+  await Promise.all(Array.from({ length: Math.min(n, list.length) }, worker));
+}
+
 // req: { kind: 'movie' | 'show', tmdb: '840326', names: ['Jorma Tommila', ...] }
 // -> { people: { [name]: { id, birthday, deathday, place } } } for the names TMDB's credits know.
-async function cast(req) {
+// onLife(name, life) is called as each person is found, so the page can show ages before the slowest one is done.
+async function cast(req, onLife = () => {}) {
   if (!tmdb.hasKey()) return { people: {}, noKey: true };
   if (!req?.tmdb) return { people: {} };
-  const cr = await credits(req.kind, req.tmdb);
+  let cr;
+  try {
+    cr = await credits(req.kind, req.tmdb);
+  } catch (e) {
+    if (tmdb.keyRejected()) return { people: {}, keyRejected: true };
+    throw e;
+  }
   const byName = new Map();
   for (const p of [...cr.cast, ...cr.crew]) if (!byName.has(norm(p.name))) byName.set(norm(p.name), p.id);
   const wanted = (req.names || []).map((n) => [n, byName.get(norm(n))]).filter(([, id]) => id);
   const people = {};
-  let i = 0;
-  const worker = async () => {
-    while (i < wanted.length) {
-      const [name, id] = wanted[i++];
-      try {
-        people[name] = { id, ...(await person(id, name)) };
-      } catch (e) {
-        if (e.message === 'TMDB rejected the key.') throw e;
-      }
-    }
+  const found = (name, id, life) => {
+    people[name] = { id, ...life };
+    onLife(name, people[name]);
   };
-  await Promise.all(Array.from({ length: Math.min(8, wanted.length) }, worker));
-  return { people };
+  const rest = [];
+  await pool(wanted, 8, async ([name, id]) => {
+    try {
+      const s = await personTmdb(id);
+      found(name, id, s.life);
+      if (s.more) rest.push([name, id, s]);
+    } catch {}
+  });
+  await pool(rest, 8, async ([name, id, s]) => {
+    try {
+      found(name, id, await personMore(id, name, s.life, s.more));
+    } catch {}
+  });
+  return tmdb.keyRejected() ? { people, keyRejected: true } : { people };
+}
+
+// The title's original language (ISO 639-1, 'en'), for audio tracks the file doesn't name a language for.
+async function titleLanguage(ids) {
+  if (!ids?.tmdb || !tmdb.hasKey()) return { lang: null };
+  const key = `${ids.kind}:${ids.tmdb}`;
+  const c = langCache.get();
+  if (c[key]) return { lang: c[key] };
+  const m = await tmdb.call(`/${ids.kind === 'show' ? 'tv' : 'movie'}/${encodeURIComponent(ids.tmdb)}`).catch(() => null);
+  if (!m?.original_language) return { lang: null };
+  c[key] = m.original_language;
+  langCache.save();
+  return { lang: c[key] };
 }
 
 // For backups: the Trakt and OMDb keys, and the cast caches.
@@ -302,4 +385,4 @@ function restoreCaches(c) {
   if (c?.credits) Object.assign(creditsCache.get(), { ...c.credits, ...creditsCache.get() }), creditsCache.save();
 }
 
-module.exports = { status, setKey, liveScores, cast, backupKeys, restoreKeys, backupCaches, restoreCaches };
+module.exports = { status, setKey, liveScores, cast, titleLanguage, backupKeys, restoreKeys, backupCaches, restoreCaches };

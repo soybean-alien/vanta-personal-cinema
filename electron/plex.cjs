@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const safefile = require('./safefile.cjs');
+const posters = require('./posters.cjs');
 
 const PRODUCT = 'Vanta';
 const VERSION = require('../package.json').version;
@@ -57,6 +58,7 @@ const DEFAULT_PREFS = {
     hiddenLibs: [],
     showPlaylists: true,
     groupCollections: true, // fold each Plex collection's films into one folder poster in the movie grid
+    officialCovers: true, // TMDB's main poster for every movie and show instead of Plex's (posters.cjs)
     traktAutoSync: true, // when Trakt is connected, send each watch to Trakt as it happens (trakt.cjs)
     pins: [],
   },
@@ -103,6 +105,30 @@ function loadToken() {
 function clearToken() {
   try {
     fs.unlinkSync(file('auth.bin'));
+  } catch {}
+  clearSession();
+}
+
+// The last working server connection, kept encrypted in session.bin so the next start can skip the two plex.tv
+// round trips (about a second) when the server still answers at the same address. plex.tv is asked afterwards.
+const tokenTag = (token) => crypto.createHash('sha256').update(token).digest('hex').slice(0, 16);
+function saveSession(token) {
+  try {
+    const data = { acct: tokenTag(token), pref: preferredUser(), session };
+    fs.writeFileSync(file('session.bin'), safeStorage.encryptString(JSON.stringify(data)));
+  } catch {}
+}
+function loadSession(token) {
+  try {
+    const d = JSON.parse(safeStorage.decryptString(fs.readFileSync(file('session.bin'))));
+    return d.acct === tokenTag(token) && d.pref === preferredUser() && d.session?.server?.uri ? d.session : null;
+  } catch {
+    return null;
+  }
+}
+function clearSession() {
+  try {
+    fs.unlinkSync(file('session.bin'));
   } catch {}
 }
 
@@ -169,8 +195,8 @@ function signOut() {
   return { state: 'signedOut' };
 }
 
-async function probe(uri, token) {
-  const res = await fetch(uri + '/identity', { headers: headers(token), signal: AbortSignal.timeout(3000) });
+async function probe(uri, token, ms = 3000) {
+  const res = await fetch(uri + '/identity', { headers: headers(token), signal: AbortSignal.timeout(ms) });
   if (!res.ok) throw new Error(`probe ${res.status}`);
   return uri;
 }
@@ -206,9 +232,24 @@ async function reconnect() {
 }
 
 async function connect() {
-  let token = loadToken();
+  const token = loadToken();
   if (!token) return { state: 'signedOut' };
 
+  // Fast start: if the server still answers where it did last time, use that and check with plex.tv in the background.
+  const cached = loadSession(token);
+  if (cached) {
+    try {
+      await probe(cached.server.uri, cached.server.token, 1500);
+      session = cached;
+      fullConnect(token).catch((e) => console.warn('Background Plex refresh failed:', e.message));
+      return { state: 'ready', user: session.user, server: { name: session.server.name } };
+    } catch {}
+  }
+  return fullConnect(token);
+}
+
+async function fullConnect(token) {
+  const accountToken = token;
   let user;
   try {
     user = await tv('GET', '/api/v2/user', token);
@@ -257,6 +298,7 @@ async function connect() {
     };
     settings.serverId = s.clientIdentifier;
     saveSettings();
+    saveSession(accountToken);
     return { state: 'ready', user: session.user, server: { name: s.name } };
   }
   throw new Error('Signed in, but your Plex server could not be reached. Is it on and on the same network?');
@@ -275,10 +317,93 @@ async function pms(p, method = 'GET') {
 }
 
 // Resized artwork through the server's photo transcoder (served to the UI via the plximg: protocol).
-async function image(thumbPath, w, h) {
-  if (!session) return new Response(null, { status: 503 });
+function transcode(thumbPath, w, h) {
   const q = new URLSearchParams({ width: w, height: h, minSize: '1', upscale: '1', url: thumbPath });
   return fetch(`${session.server.uri}/photo/:/transcode?${q}`, { headers: headers(session.server.token) });
+}
+
+// Some selected posters and backdrops are files the server itself can no longer read (its transcoder answers 500).
+// Then Vanta shows the first poster or backdrop Plex lists from an online source (TMDB and others) instead.
+// Read-only: the artwork chosen in Plex is left as it is. The pick is remembered until the app restarts.
+const altArt = new Map(); // thumb path -> Promise<url | null>
+function altFor(id, kind) {
+  return pms(`/library/metadata/${id}/${kind === 'art' ? 'arts' : 'posters'}`)
+    .then((j) => (j.MediaContainer?.Metadata || []).find((p) => p.provider !== 'local' && /^https:\/\//.test(p.key || ''))?.key || null)
+    .catch(() => null);
+}
+// TMDB serves ready-made sizes; anything else goes through the server's transcoder like normal artwork.
+function fetchAlt(url, w, h) {
+  if (posters.isWikimedia(url)) return posters.fetchPoster(url);
+  const tmdbFile = /^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+\/([^/?#]+)$/.exec(url);
+  if (tmdbFile) return posters.fetchPoster(`https://image.tmdb.org/t/p/${Number(w) > 500 ? 'w780' : 'w500'}/${tmdbFile[1]}`);
+  return transcode(url, w, h);
+}
+
+// Width and height of a JPEG or PNG, or null.
+function imageSize(b) {
+  if (b.length > 24 && b.readUInt32BE(0) === 0x89504e47) return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+  if (b[0] !== 0xff || b[1] !== 0xd8) return null;
+  let i = 2;
+  while (i + 9 < b.length) {
+    if (b[i] !== 0xff) {
+      i++;
+      continue;
+    }
+    const mk = b[i + 1];
+    if (mk >= 0xc0 && mk <= 0xcf && mk !== 0xc4 && mk !== 0xc8 && mk !== 0xcc) return { h: b.readUInt16BE(i + 5), w: b.readUInt16BE(i + 7) };
+    i += mk === 0x01 || (mk >= 0xd0 && mk <= 0xd8) ? 2 : 2 + b.readUInt16BE(i + 2);
+  }
+  return null;
+}
+
+const metaOf = (id) => pms(`/library/metadata/${id}?includeGuids=1`).then((j) => j?.MediaContainer?.Metadata?.[0] || null, () => null);
+// A movie or show Plex never matched has no poster, only a wide frame from the video: find a real one (posters.cjs).
+async function posterFor(id) {
+  const md = await metaOf(id);
+  return md && (md.type === 'movie' || md.type === 'show') ? posters.findPoster(md) : null;
+}
+const officialArt = new Map(); // ratingKey -> Promise<url | null>
+
+async function image(thumbPath, w, h) {
+  if (/^https:\/\/image\.tmdb\.org\/t\/p\//.test(thumbPath)) return fetchAlt(thumbPath, w, h); // a TMDB collection poster
+  if (!session) return new Response(null, { status: 503 });
+  const known = altArt.get(thumbPath);
+  if (known) {
+    const url = await known;
+    if (url) return fetchAlt(url, w, h);
+  }
+  const m = /^\/library\/metadata\/(\d+)\/(thumb|art)\//.exec(thumbPath);
+  // Official release posters (Settings → Library): covers asked for in portrait slots, for movies and shows.
+  const official = !known && m?.[2] === 'thumb' && Number(h) > Number(w) && getPrefs().ui.officialCovers !== false;
+  if (official) {
+    if (!officialArt.has(m[1])) officialArt.set(m[1], posters.official(m[1], () => metaOf(m[1])).catch(() => null));
+    const url = await officialArt.get(m[1]);
+    const alt = url && (await fetchAlt(url, w, h).catch(() => null));
+    if (alt?.ok) return alt;
+  }
+  const res = await transcode(thumbPath, w, h);
+  if (!m || known) return res;
+  // A cover asked for in a portrait slot that comes back wide is a video frame, not a poster. Episode stills are
+  // asked for in wide slots, so they never get here.
+  if (res.ok) {
+    if (m[2] !== 'thumb' || !(Number(h) > Number(w))) return res;
+    const buf = Buffer.from(await res.arrayBuffer());
+    const same = () => new Response(buf, { status: res.status, headers: res.headers });
+    const size = imageSize(buf);
+    if (!size || size.w <= size.h) return same();
+    const pick = posterFor(m[1]).catch(() => null);
+    altArt.set(thumbPath, pick);
+    const url = await pick;
+    const alt = url && (await fetchAlt(url, w, h).catch(() => null));
+    return alt?.ok ? alt : same();
+  }
+  if (res.status < 500) return res;
+  const pick = altFor(m[1], m[2]);
+  altArt.set(thumbPath, pick);
+  const url = await pick;
+  if (!url) return res;
+  const alt = await fetchAlt(url, w, h).catch(() => null);
+  return alt?.ok ? alt : res;
 }
 
 // The signed-in user's Plex profile picture as a data: URL (badge tickets embed it; SVG-as-image can't load URLs).
@@ -296,7 +421,34 @@ async function avatar() {
   return data;
 }
 
+// Delete a movie or episode for good: Plex removes it from the library and deletes its video files from the
+// server's storage. Plex allows this only when the server's "Allow media deletion" setting is on (Settings →
+// Library) and the signed-in user owns the server. Asked for from the "Are you sure?" dialog only.
+async function deleteItem(ratingKey) {
+  const rk = String(ratingKey || '');
+  if (!/^\d+$/.test(rk)) throw new Error('Bad item.');
+  const md = (await pms(`/library/metadata/${rk}`))?.MediaContainer?.Metadata?.[0];
+  if (!md || (md.type !== 'movie' && md.type !== 'episode')) throw new Error('Only movies and episodes can be deleted.');
+  try {
+    await pms(`/library/metadata/${rk}`, 'DELETE');
+  } catch (e) {
+    if (e.status === 401 || e.status === 403)
+      throw new Error('The Plex server refused. Turn on "Allow media deletion" in the server\'s Settings → Library (signed in as the server owner), then try again.');
+    throw e;
+  }
+  return { ok: true };
+}
+
+// Whether the server allows deleting media (its "Allow media deletion" setting), or null when it can't be read.
+async function canDelete() {
+  const s = (await pms('/:/prefs').catch(() => null))?.MediaContainer?.Setting || [];
+  const p = s.find((x) => x.id === 'allowMediaDeletion');
+  return p ? p.value === true || p.value === '1' || p.value === 1 : null;
+}
+
 module.exports = {
+  deleteItem,
+  canDelete,
   loadSettings,
   avatar,
   signIn,
